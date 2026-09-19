@@ -522,6 +522,13 @@ Three things about this layout that are load-bearing:
   notifier cannot receive Google Drive credentials and the reels service cannot
   receive the YouTube API key. The old single root `.env` was split on
   2026-09-19; `PORT`, `DATA_DIR` and `PUBLIC_URL` would have collided otherwise.
+- **The GitHub repo is now `kailasas-jyothish/temple-social-media`** (public;
+  Dokploy clones it with no deploy key). The name was already taken by a private
+  placeholder repo holding one README, which was renamed to
+  `temple-social-media-old` rather than deleted. After the rename, Dokploy's git
+  source was updated explicitly with `application.saveGitProvider` — GitHub
+  redirects the old URL, but a redirect is not something to leave a production
+  deploy depending on — and a deploy was run to prove the new URL clones.
 - **`scripts/dokploy.mjs` now takes `--app`** and has a `SERVICES` registry
   holding each app's Dokploy name, Dockerfile path, volume name and default port.
   `configure` also sets `updateConfigSwarm` to stop-first automatically now — §10
