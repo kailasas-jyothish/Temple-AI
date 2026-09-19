@@ -141,9 +141,10 @@ The app is named **`Social-media-notifications`** in your Dokploy instance.
 
 1. Push this repo to GitHub, then in the Dokploy app:
    - **Provider** → GitHub (or Git URL) → this repo, branch `main`
-   - **Build Path** → `/` (the repo root — the build context is shared by every
-     service so that each Dockerfile can address its files by full path)
+   - **Build Path** → `/`
    - **Build Type** → `Dockerfile`, path `services/notifier/Dockerfile`
+     (the build context is that directory, so every `COPY` inside is relative
+     to it)
 2. **Domains** → add a hostname, port `3000`, HTTPS on (Traefik gets the cert).
    Put that exact URL in `PUBLIC_URL` — WebSub and Meta call back to it.
 3. **Advanced → Volumes** → mount a volume at `/data` so the dedupe store
@@ -218,7 +219,7 @@ npm install
 npm run selftest          # resolves every channel, lists uploads, Shorts probe, Slack
 npm run dev               # runs with --env-file=.env and --watch
 
-# from the repo root — the build context is the repo, not this directory
+# from the repo root
 docker compose up --build notifier
 ```
 

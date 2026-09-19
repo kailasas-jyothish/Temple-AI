@@ -2,15 +2,15 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Build context is the repo root, not this directory, so every service's
-# Dockerfile addresses its own files by full path. Dokploy keeps
-# customGitBuildPath at '/' and points at this file.
+# Build context is this directory, not the repo root: Dokploy resolves the
+# context from the Dockerfile's own location, so repo-root-relative COPY paths
+# fail there with "not found" even though the files are in the repo.
 # Dependencies first so Docker layer caching survives source edits.
-COPY services/notifier/package.json services/notifier/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-COPY services/notifier/src ./src
-COPY services/notifier/scripts ./scripts
+COPY src ./src
+COPY scripts ./scripts
 
 ENV NODE_ENV=production \
     PORT=3000 \

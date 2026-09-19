@@ -505,14 +505,18 @@ services/reels/           the Python app (§12)
 
 Three things about this layout that are load-bearing:
 
-- **Build context is the repo root for every service.** Dokploy keeps
-  `customGitBuildPath: '/'` for both applications and tells them apart only by
-  `dockerfile` (`services/notifier/Dockerfile` vs `services/reels/Dockerfile`).
-  Each Dockerfile therefore addresses its own files by full path
-  (`COPY services/notifier/src ./src`). A Dockerfile written with paths relative
-  to its own directory will build locally and fail on Dokploy, or vice versa —
-  `docker-compose.yml` deliberately uses the same root context so a local build
-  proves the hosted one.
+- **Each service's build context is its own directory, not the repo root.**
+  Dokploy keeps `customGitBuildPath: '/'` and tells the applications apart by
+  `dockerfile` (`services/notifier/Dockerfile` vs `services/reels/Dockerfile`),
+  but it resolves the *build context* from the Dockerfile's own location. The
+  first restructured deploy was written the other way — `COPY
+  services/notifier/src ./src` — and failed with `"/services/notifier/src": not
+  found` even though the path is correct in the repo, because inside the context
+  that file is just `src`. Keep every COPY relative to the service directory, and
+  keep `docker-compose.yml` on matching per-service contexts so a local build
+  proves the hosted one. A service cannot share files with another service this
+  way; if that is ever needed, publish them as a package rather than widening the
+  context.
 - **Each service owns its `.env`; the root `.env` holds only `DOKPLOY_*`.**
   `dokploy.mjs` pushes `services/<app>/.env` to that app and nothing else, so the
   notifier cannot receive Google Drive credentials and the reels service cannot

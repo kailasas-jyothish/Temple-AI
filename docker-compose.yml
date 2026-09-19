@@ -2,14 +2,13 @@
 # application built from the same repo, with env vars and volumes set there (or
 # via scripts/dokploy.mjs).
 #
-# The build context is the repo root for both services, matching Dokploy's
-# customGitBuildPath of '/', so the Dockerfiles address their own files by full
-# path and a local build proves the same thing the hosted build will do.
+# Each service's build context is its own directory, matching what Dokploy does
+# with the Dockerfile path — it resolves the context from the Dockerfile's
+# location, so a local build here proves the same thing the hosted build will do.
 services:
   notifier:
     build:
-      context: .
-      dockerfile: services/notifier/Dockerfile
+      context: services/notifier
     restart: unless-stopped
     env_file: services/notifier/.env
     environment:
@@ -21,8 +20,7 @@ services:
 
   reels:
     build:
-      context: .
-      dockerfile: services/reels/Dockerfile
+      context: services/reels
     restart: unless-stopped
     env_file: services/reels/.env
     environment:

@@ -33,10 +33,11 @@ services/
 exactly one application — the notifier never receives Google Drive credentials
 and the reels service never receives the YouTube API key.
 
-**Every Dockerfile builds from the repo root**, not from its own directory, and
-addresses its files by full path (`COPY services/notifier/src ./src`). Dokploy
-keeps `customGitBuildPath` at `/` for both applications and distinguishes them
-only by the Dockerfile path.
+**Each service's Docker build context is its own directory.** Dokploy keeps
+`customGitBuildPath` at `/` and distinguishes the applications by Dockerfile
+path, but it resolves the build context from the Dockerfile's own location — so
+every `COPY` is relative to `services/<name>/`, and a service cannot reach files
+outside its own directory at build time.
 
 ---
 
