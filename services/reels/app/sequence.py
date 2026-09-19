@@ -40,6 +40,8 @@ def duration_for(n: int, *, seconds_per_image: float, transition_seconds: float)
 
 def build(candidates: list[dict], wanted: int, *, min_per_temple: int | None = None) -> list[dict]:
     """Select `wanted` shots and put them in screening order."""
+    if not candidates:
+        raise ValueError("no candidates survived the prefilter, so there is nothing to sequence")
     floor = config.curation.min_per_temple if min_per_temple is None else min_per_temple
     usable = [c for c in candidates if c.get("usable", True)]
     if not usable:

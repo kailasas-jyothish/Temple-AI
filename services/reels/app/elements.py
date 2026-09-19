@@ -17,11 +17,17 @@ from .config import config
 
 log = logging.getLogger(__name__)
 
-# name stem -> accepted extensions, in preference order
+# kind -> (name aliases in preference order, accepted extensions).
+# Nobody names the file "logo.png". The real overlay in this archive is
+# "ReelsFrame_2025_Copyright.png" and the end cards are
+# "Ganesha-Chaturthi-endcard-1.png", so matching has to cope with real names
+# rather than the tidy ones a README would suggest.
 KINDS = {
-    "logo": ("logo", [".png", ".webp"]),
-    "endcard": ("endcard", [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
-    "intro": ("intro", [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
+    "logo": (["logo", "frame", "watermark", "overlay", "copyright"], [".png", ".webp"]),
+    "endcard": (["endcard", "end-card", "end_card", "outro", "closing"],
+                [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
+    "intro": (["intro", "opening", "titlecard"],
+              [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
 }
 
 SETTING_KEYS = {kind: f"{kind}_file_id" for kind in KINDS}
@@ -41,21 +47,32 @@ def configured_id(kind: str) -> str:
 
 
 def _find_by_name(elements_folder_id: str, kind: str) -> dict | None:
-    stem, exts = KINDS[kind]
-    files = drive.list_children(elements_folder_id)
-    by_ext = {}
-    for f in files:
-        name = f["name"].lower()
-        base, ext = os.path.splitext(name)
-        if base == stem and ext in exts:
-            by_ext[ext] = f
-    for ext in exts:
-        if ext in by_ext:
-            return by_ext[ext]
-    # Fall back to anything whose name starts with the stem, e.g. "endcard v3.png".
-    for f in files:
-        if re.match(rf"^{stem}\b", f["name"].lower()) and os.path.splitext(f["name"].lower())[1] in exts:
-            return f
+    """Exact stem first, then any filename containing one of the aliases.
+
+    Within a tier the newest file wins, so dropping a "…endcard-2.png" beside
+    last month's replaces it without anyone renaming anything.
+    """
+    aliases, exts = KINDS[kind]
+    candidates = [
+        f for f in drive.list_children(elements_folder_id)
+        if os.path.splitext(f["name"].lower())[1] in exts
+    ]
+    if not candidates:
+        return None
+    # Another kind's alias in the name wins it — "endcard" must not be taken by
+    # the logo rules just because someone called it "closing-frame.png".
+    others = {a for other, (al, _) in KINDS.items() if other != kind for a in al}
+
+    for alias in aliases:
+        matches = [
+            f for f in candidates
+            if alias in f["name"].lower()
+            and not any(other in f["name"].lower() for other in others if other not in alias)
+        ]
+        if not matches:
+            continue
+        exact = [f for f in matches if os.path.splitext(f["name"].lower())[0] == alias]
+        return max(exact or matches, key=lambda f: f.get("modifiedTime", ""))
     return None
 
 

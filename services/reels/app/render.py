@@ -89,6 +89,27 @@ def _logo_xy(position: str, margin: int) -> str:
     }.get(position, f"W-w-{margin}:{margin}")
 
 
+def _is_full_frame(path: str, width: int, height: int, tolerance: float = 0.02) -> bool:
+    """Is this overlay a whole-screen frame rather than a corner mark?
+
+    The real branding asset here is a 1080x1920 transparent PNG carrying marks
+    in two corners. Scaling that to a 110px logo and tucking it in a corner
+    would be wrong in a way that is obvious on screen and easy to ship by
+    accident, so the shape of the file decides rather than a setting nobody
+    remembers to change.
+    """
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            w, h = im.size
+    except Exception:
+        return False
+    if not h or not w:
+        return False
+    target = width / height
+    return abs((w / h) - target) / target <= tolerance
+
+
 # ------------------------------------------------------------------ build
 
 def build_command(
@@ -171,12 +192,19 @@ def build_command(
                 f"setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
             )
         else:
-            # Branding cards are letterboxed, never cropped — a logo with its
-            # edge sliced off is worse than a black bar.
+            # Branding cards are letterboxed rather than cropped — a logo with
+            # its edge sliced off is worse than a black bar. The exception is a
+            # card already cut to roughly the output shape (the real end cards
+            # are 941x1672 against a 9:16 frame), where padding would leave a
+            # 3px hairline that reads as a rendering fault.
+            if seg["video"] or not _is_full_frame(seg["path"], width, height, tolerance=0.05):
+                fit = (f"scale={width}:{height}:force_original_aspect_ratio=decrease:flags=lanczos,"
+                       f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black")
+            else:
+                fit = (f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
+                       f"crop={width}:{height}")
             filters.append(
-                f"[{i}:v]scale={width}:{height}:force_original_aspect_ratio=decrease:flags=lanczos,"
-                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,fps={fps},"
-                f"setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
+                f"[{i}:v]{fit},fps={fps},setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
             )
 
     # Chain the segments with xfade. Each transition overlaps the tail of what
@@ -198,13 +226,19 @@ def build_command(
         total += segments[i]["duration"] - xt
 
     if logo_index is not None:
-        filters.append(
-            f"[{logo_index}:v]scale=-1:{r.logo_height}:flags=lanczos,format=rgba,"
-            f"colorchannelmixer=aa={r.logo_opacity}[logo]"
-        )
-        filters.append(
-            f"[{chain}][logo]overlay={_logo_xy(r.logo_position, r.logo_margin)}:format=auto[vout]"
-        )
+        mode = r.logo_mode
+        if mode == "auto":
+            mode = "frame" if _is_full_frame(logo_path, width, height) else "corner"
+        # The frame carries its own alpha; fading it again would wash out the
+        # marks it exists to show.
+        fade = "" if r.logo_opacity >= 1.0 else f",colorchannelmixer=aa={r.logo_opacity}"
+        if mode == "frame":
+            filters.append(f"[{logo_index}:v]scale={width}:{height}:flags=lanczos,format=rgba{fade}[logo]")
+            position = "0:0"
+        else:
+            filters.append(f"[{logo_index}:v]scale=-1:{r.logo_height}:flags=lanczos,format=rgba{fade}[logo]")
+            position = _logo_xy(r.logo_position, r.logo_margin)
+        filters.append(f"[{chain}][logo]overlay={position}:format=auto[vout]")
     else:
         filters.append(f"[{chain}]null[vout]")
 

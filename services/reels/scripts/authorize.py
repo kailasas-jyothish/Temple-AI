@@ -26,18 +26,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from google_auth_oauthlib.flow import InstalledAppFlow  # noqa: E402
 
+# Importing config first has the side effect of loading services/reels/.env,
+# so the client id and secret already in that file are picked up.
+from app.config import config  # noqa: E402
 from app.drive import SCOPES  # noqa: E402
 
 PORT = int(os.environ.get("AUTHORIZE_PORT", "8765"))
 
 
 def main() -> int:
-    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    client_id = config.google.client_id
+    client_secret = config.google.client_secret
     if not (client_id and client_secret):
-        print("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET first, e.g.\n"
-              "  $env:GOOGLE_CLIENT_ID='…'; $env:GOOGLE_CLIENT_SECRET='…'\n"
-              "or run this with the values already in services/reels/.env loaded.")
+        print("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in services/reels/.env first.")
         return 1
 
     flow = InstalledAppFlow.from_client_config(

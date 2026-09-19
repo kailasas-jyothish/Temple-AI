@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -17,6 +18,20 @@ from PIL import Image, ImageOps
 from .config import config
 
 log = logging.getLogger(__name__)
+
+# Phones shoot HEIC and the teams upload it straight through — on one September
+# event it was 10 of 21 files. Pillow needs this to open them at all, and ffmpeg
+# cannot read HEIC whatever we do, so ensure_readable() transcodes as well.
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+    HEIF_AVAILABLE = True
+except Exception as _err:  # pragma: no cover - depends on the wheel being installed
+    HEIF_AVAILABLE = False
+    log.warning("pillow-heif unavailable (%s); HEIC uploads will be skipped", _err)
+
+HEIF_EXTS = {".heic", ".heif"}
 
 # The blur and exposure measures only need a small image, and downscaling first
 # also normalises the sharpness scale across a 48MP phone and a 6MP camera.
@@ -74,6 +89,25 @@ def exposure_penalty(gray: np.ndarray) -> float:
     return min(1.0, abs(mean - 0.5) * 1.2 + clipped * 1.5)
 
 
+def ensure_readable(path: str) -> str:
+    """Transcode formats ffmpeg cannot open, returning the path to use.
+
+    HEIC is the only one that matters in practice. Doing it here rather than at
+    render time means the prefilter, the model and ffmpeg all see one file, and
+    a format problem surfaces as a rejection reason rather than as a filtergraph
+    error forty minutes later.
+    """
+    stem, ext = os.path.splitext(path)
+    if ext.lower() not in HEIF_EXTS:
+        return path
+    if not HEIF_AVAILABLE:
+        raise RuntimeError("HEIC needs pillow-heif")
+    target = f"{stem}.jpg"
+    with Image.open(path) as im:
+        ImageOps.exif_transpose(im).convert("RGB").save(target, format="JPEG", quality=92)
+    return target
+
+
 def measure(path: str) -> dict:
     gray, (width, height) = _load_gray(path)
     sharpness = laplacian_variance(gray)
@@ -103,6 +137,7 @@ def triage(candidates: list[dict]) -> tuple[list[dict], list[dict]]:
 
     for item in candidates:
         try:
+            item["path"] = ensure_readable(item["path"])
             item.update(measure(item["path"]))
             item["hash"] = dhash(item["path"])
         except Exception as err:  # a corrupt upload must not kill the run

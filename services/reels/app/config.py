@@ -137,7 +137,10 @@ class Render:
     logo_height: int = field(default_factory=lambda: _int("LOGO_HEIGHT", 110))
     logo_margin: int = field(default_factory=lambda: _int("LOGO_MARGIN", 48))
     logo_position: str = field(default_factory=lambda: _str("LOGO_POSITION", "top-right"))
-    logo_opacity: float = field(default_factory=lambda: _float("LOGO_OPACITY", 0.9))
+    logo_opacity: float = field(default_factory=lambda: _float("LOGO_OPACITY", 1.0))
+    # auto decides from the file's shape: an overlay cut to the output aspect is
+    # a whole-screen frame, anything else is a corner mark.
+    logo_mode: str = field(default_factory=lambda: _str("LOGO_MODE", "auto").lower())
     crf: int = field(default_factory=lambda: _int("RENDER_CRF", 20))
     preset: str = field(default_factory=lambda: _str("RENDER_PRESET", "medium"))
     audio_bitrate: str = field(default_factory=lambda: _str("RENDER_AUDIO_BITRATE", "192k"))
