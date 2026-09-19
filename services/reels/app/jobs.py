@@ -282,6 +282,19 @@ def _pipeline(job_id: str, work_dir: str) -> None:
     _stage(job_id, "rendering", 0.62)
     folder = library.elements_folder()
     assets = elements.resolve_all(folder["id"] if folder else None)
+    # A run may pin its own card — a Ganesha end card does not belong on a
+    # Salakatla Brahmotsavam reel, and which one is right changes by festival.
+    for kind in elements.KINDS:
+        chosen = options.get(f"{kind}_file_id")
+        if not chosen:
+            continue
+        if chosen == "none":
+            assets[kind] = None
+            continue
+        try:
+            assets[kind] = elements.resolve_file(chosen)
+        except Exception as err:
+            _log(job_id, f"chosen {kind} could not be fetched ({err}); falling back to the usual one")
     _log(job_id, "branding: " + ", ".join(
         f"{k}={os.path.basename(v) if v else 'none'}" for k, v in assets.items()))
 

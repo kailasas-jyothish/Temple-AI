@@ -166,7 +166,11 @@ def read_elements(_: bool = Depends(authed)) -> dict:
             if match:
                 name, source = match["name"], "by name"
         out[kind] = {"file_id": file_id, "name": name, "source": source}
-    return {"folder": {"id": folder["id"], "name": folder["name"]} if folder else None, "elements": out}
+    return {
+        "folder": {"id": folder["id"], "name": folder["name"]} if folder else None,
+        "elements": out,
+        "available": elements.available(folder["id"] if folder else None),
+    }
 
 
 @app.post("/api/elements")

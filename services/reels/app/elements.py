@@ -114,3 +114,38 @@ def fetch(meta: dict) -> str:
 
 def resolve_all(elements_folder_id: str | None) -> dict[str, str | None]:
     return {kind: resolve(kind, elements_folder_id) for kind in KINDS}
+
+
+def resolve_file(file_id: str) -> str | None:
+    """A specific asset chosen for one run, bypassing every lookup rule."""
+    file_id = drive.parse_id(file_id or "")
+    if not file_id:
+        return None
+    return fetch(drive.get_file(file_id))
+
+
+def available(elements_folder_id: str | None) -> dict[str, list[dict]]:
+    """Everything in the Elements folder that could serve as each kind.
+
+    One listing drives every picker, so choosing an end card is picking from a
+    list rather than hunting for a Drive link and pasting it.
+    """
+    if not elements_folder_id:
+        return {kind: [] for kind in KINDS}
+    files = drive.list_children(elements_folder_id)
+    out: dict[str, list[dict]] = {}
+    for kind, (aliases, exts) in KINDS.items():
+        rows = [
+            {"id": f["id"], "name": f["name"], "mimeType": f.get("mimeType", "")}
+            for f in files
+            if os.path.splitext(f["name"].lower())[1] in exts
+        ]
+        # Any file could serve as any asset, so all of them are offered — but
+        # the ones whose names look like this kind go first, so the obvious
+        # choice is at the top of the list rather than buried alphabetically.
+        rows.sort(key=lambda f: (
+            not any(a in f["name"].lower() for a in aliases),
+            f["name"].lower(),
+        ))
+        out[kind] = rows
+    return out
