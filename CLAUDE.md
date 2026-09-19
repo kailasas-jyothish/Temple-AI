@@ -528,3 +528,77 @@ Three things about this layout that are load-bearing:
   explains why leaving it null makes every deploy a silent no-op — and a new
   `verify` command prints container age from `docker.getContainersByAppNameMatch`,
   because `deployment.all` says `done` regardless and is not evidence.
+
+---
+
+## 12. The reels service (`services/reels`, 2026-09-19)
+
+### The request
+
+> "I have the various temple teams uploading their pics of the daily and the
+> special rituals that happen into a google drive… I need some automation that
+> will create a video from those pictures using them as a slideshow with
+> transitions, effects, animations etc. Now the important thing i want to
+> mention here is I want an LLM to verify and pickup the best of images from the
+> folders of the temples. But things such as adding transitions or animations
+> the LLM must not do. We need to do that using ffmpeg."
+
+Plus: daily the user drops a song in, selects the event folder, presses a start
+button; the reel goes back into a `Reels` folder inside that same event folder;
+branding elements (logo, end card) live in a `Vision Pics/Elements` folder and
+the end card must be swappable by pasting a Drive link; a Slack notification
+when the video is done, on a new channel with a new bot; Python; same Dokploy
+instance.
+
+**The LLM/ffmpeg split is a requirement, not an implementation detail.** The
+model returns scores for images and nothing else — no transition names, no
+durations, no effects. Keep it that way.
+
+### Decisions taken with the user
+
+| Question | Answer |
+|---|---|
+| Output | one combined reel per event; per-temple reels are a later flag, not built |
+| Curation model | Groq, multi-key rotation. `qwen/qwen3.6-27b` — 5 images and 20MB per request, so batches of 4 at 512px |
+| Trigger | a password-protected web UI; the only option that allows Drive folder browsing and a progress view |
+| Drive auth | OAuth refresh token, not a service account — uploads are then owned by a real account with real storage quota |
+
+### Facts established by building it
+
+- **Renderer verified against synthetic footage** before any Drive access:
+  6 stills + intro + end card + music planned to 21.2s and produced exactly
+  21.2s, 1080x1920 h264 + 48kHz aac, and frame extraction confirmed the
+  slideleft xfade, the Ken Burns zoom and the logo overlay. The same test lives
+  in the approach `scripts/selftest.py` takes — build a thing, then look at it.
+- **Timing algebra.** `total = n*(d - t) + t`, because each xfade overlaps the
+  tail of one shot with the head of the next. Shot count is the inverse. `d`
+  must exceed `t` and `config.problems()` refuses to start otherwise.
+- **`zoompan` needs a 2x supersample.** Scaling up from the source drifts about
+  a pixel per frame and reads as a stutter; pre-scale to 2160x3840 so zoompan
+  only samples down. Motion expressions are written against `on` (the output
+  frame index) rather than accumulating `zoom`, because the accumulation rounds
+  and the rounding is visible mid-push.
+- **Prefiltering before curation is what makes this affordable.** 8x8 dHash at
+  Hamming distance <= 5 collapses upload bursts to the sharpest frame; Laplacian
+  variance drops the soft ones. On synthetic folders it caught every planted
+  tiny/blurry/duplicate and nothing else.
+- **A Groq failure must not mean no reel.** Every image already carries a
+  heuristic score, so a failed batch keeps it and the run continues; the Slack
+  card names the mode used. A failed *job* posts a red card with the last 20
+  lines of ffmpeg stderr — silence on failure is the worst outcome for a daily
+  job.
+- **`--workers 1` on uvicorn is load-bearing.** The job queue is in-process; a
+  second worker would have its own queue and the UI would poll a process that
+  knows nothing about the running job. One render worker is also correct on
+  merit: zoompan uses every core it is given.
+- **Google expires a refresh token after 7 days** while the OAuth consent screen
+  is in *Testing*, with `invalid_grant` as the only symptom. The consent screen
+  must be Internal or published to Production. Scope must be full
+  `.../auth/drive`; `drive.file` only sees files the app itself created.
+
+### Still unverified
+
+Everything that needs credentials: Drive reads and writes, the Groq scores
+themselves, Slack delivery, and a render from real photographs rather than
+generated test cards. The renderer and the selection logic are proven; the
+integrations are not.

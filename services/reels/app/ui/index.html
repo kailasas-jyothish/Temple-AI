@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temple Reels</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #fff; --ink: #1c1b19; --muted: #6b6862;
+    --line: #e2dfd8; --accent: #b4551f; --accent-ink: #fff;
+    --ok: #2f7d4f; --bad: #b3342a; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171614; --panel: #211f1c; --ink: #ece9e3; --muted: #9a958c;
+      --line: #322f2a; --accent: #e07a3c; --accent-ink: #1a1512;
+      --ok: #5fb07f; --bad: #e0705f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+       color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .panel { background: var(--panel); border: 1px solid var(--line);
+           border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input, select, button {
+    font: inherit; color: inherit; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); padding: 9px 11px;
+  }
+  input, select { width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { background: var(--panel); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+                   font-weight: 600; padding: 11px 22px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row > * { flex: 0 0 auto; }
+  .row .grow { flex: 1 1 200px; min-width: 0; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 10px; word-break: break-word; }
+  .crumbs a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .list { border: 1px solid var(--line); border-radius: 8px; max-height: 240px; overflow: auto; }
+  .list-item { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+               padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  .list-item:last-child { border-bottom: 0; }
+  .list-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-item button { padding: 5px 10px; font-size: 13px; }
+  .chosen { border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px;
+            background: color-mix(in srgb, var(--accent) 8%, transparent); margin-top: 12px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 12px 0; }
+  .bar span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.4s; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+        padding: 12px; overflow: auto; max-height: 280px; font-size: 12.5px;
+        white-space: pre-wrap; word-break: break-word; margin: 0; }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px;
+         border: 1px solid var(--line); color: var(--muted); }
+  .tag.done { color: var(--ok); border-color: var(--ok); }
+  .tag.failed { color: var(--bad); border-color: var(--bad); }
+  .tag.running { color: var(--accent); border-color: var(--accent); }
+  .note { border-left: 3px solid var(--bad); padding-left: 12px; color: var(--bad); font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+  a { color: var(--accent); }
+  @media (max-width: 520px) { .wrap { padding: 20px 16px 60px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Temple Reels</h1>
+  <p class="sub">Pick a day's folder, pick a song, get a branded reel back in Drive.</p>
+
+  <!-- ------------------------------------------------------------ login -->
+  <div id="login" class="panel hidden">
+    <h2>Sign in</h2>
+    <div class="row">
+      <input class="grow" id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="primary" id="login-btn">Sign in</button>
+    </div>
+    <p id="login-error" class="note hidden" style="margin-top:12px"></p>
+  </div>
+
+  <!-- -------------------------------------------------------------- app -->
+  <div id="app" class="hidden">
+    <div id="problems" class="panel hidden">
+      <h2>Not ready</h2>
+      <div id="problems-list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>1 · Event folder</h2>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="list" id="folders"></div>
+      <div class="row" style="margin-top:12px">
+        <input class="grow" id="folder-link" placeholder="…or paste a Drive folder link">
+        <button id="folder-link-btn">Use link</button>
+      </div>
+      <div id="chosen-folder" class="chosen hidden"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2 · Song</h2>
+      <select id="song"></select>
+      <p class="muted" id="song-note" style="margin:8px 0 0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>3 · Build</h2>
+      <details style="margin-bottom:16px">
+        <summary>Options</summary>
+        <div class="grid" style="margin-top:14px">
+          <div><label for="target">Target length (s)</label><input id="target" type="number" min="10" max="300" step="1"></div>
+          <div><label for="per">Seconds per photo</label><input id="per" type="number" min="1" max="10" step="0.1"></div>
+          <div><label for="xt">Transition (s)</label><input id="xt" type="number" min="0.1" max="2" step="0.1"></div>
+          <div><label for="shots">Shots (0 = auto)</label><input id="shots" type="number" min="0" max="120" step="1"></div>
+          <div><label for="minper">Min per temple</label><input id="minper" type="number" min="0" max="10" step="1"></div>
+        </div>
+      </details>
+      <div class="row">
+        <button class="primary" id="start" disabled>Start</button>
+        <span class="muted" id="start-note"></span>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="active">
+      <h2>Progress</h2>
+      <div class="row" style="justify-content:space-between">
+        <strong id="active-name"></strong>
+        <span class="tag running" id="active-stage"></span>
+      </div>
+      <div class="bar"><span id="active-bar"></span></div>
+      <pre id="active-log"></pre>
+      <div id="active-result" style="margin-top:14px"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Recent</h2>
+      <div id="history" class="muted">Nothing yet.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Branding</h2>
+      <p class="muted" style="margin-top:0">Paste a Drive link to override what's in the Elements folder. Leave blank to use the file named <code>logo</code>, <code>endcard</code> or <code>intro</code> there.</p>
+      <div id="elements"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { folder: null, defaults: {}, activeId: null, timer: null };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  if (res.status === 401) { show('login'); throw new Error('not signed in'); }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+  return body;
+}
+
+function show(which) {
+  $('login').classList.toggle('hidden', which !== 'login');
+  $('app').classList.toggle('hidden', which !== 'app');
+}
+
+// ---------------------------------------------------------------- login
+$('login-btn').onclick = async () => {
+  try {
+    await api('/api/login', { method: 'POST', body: { password: $('password').value } });
+    $('login-error').classList.add('hidden');
+    await boot();
+  } catch (err) {
+    $('login-error').textContent = err.message;
+    $('login-error').classList.remove('hidden');
+  }
+};
+$('password').onkeydown = (e) => { if (e.key === 'Enter') $('login-btn').click(); };
+
+// ---------------------------------------------------------------- browse
+async function browse(folderId) {
+  const data = await api('/api/browse' + (folderId ? `?folder=${encodeURIComponent(folderId)}` : ''));
+  state.here = data.folder;
+  const crumbs = $('crumbs');
+  crumbs.innerHTML = '';
+  if (!data.is_root) {
+    const back = document.createElement('a');
+    back.textContent = '↑ Vision Pics';
+    back.onclick = () => browse(null);
+    crumbs.append(back, document.createTextNode('  /  '));
+  }
+  crumbs.append(document.createTextNode(data.folder.name));
+
+  const list = $('folders');
+  list.innerHTML = '';
+  if (!data.folders.length) {
+    list.innerHTML = '<div class="list-item muted">No sub-folders here.</div>';
+  }
+  for (const folder of data.folders) {
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = folder.name;
+    const open = document.createElement('button');
+    open.textContent = 'Open';
+    open.onclick = () => browse(folder.id);
+    const pick = document.createElement('button');
+    pick.textContent = 'Use this';
+    pick.onclick = () => choose(folder);
+    const actions = document.createElement('div');
+    actions.className = 'row';
+    actions.append(open, pick);
+    row.append(name, actions);
+    list.append(row);
+  }
+}
+
+function choose(folder) {
+  state.folder = folder;
+  const box = $('chosen-folder');
+  box.classList.remove('hidden');
+  box.textContent = `Selected: ${folder.name}`;
+  $('start').disabled = false;
+}
+
+$('folder-link-btn').onclick = async () => {
+  const link = $('folder-link').value.trim();
+  if (!link) return;
+  try {
+    const data = await api(`/api/browse?folder=${encodeURIComponent(link)}`);
+    choose(data.folder);
+    await browse(data.folder.id);
+  } catch (err) { alert(err.message); }
+};
+
+// ----------------------------------------------------------------- songs
+async function loadSongs() {
+  const data = await api('/api/songs');
+  const select = $('song');
+  select.innerHTML = '<option value="">No music</option>';
+  for (const song of data.songs) {
+    const option = document.createElement('option');
+    option.value = song.id;
+    option.textContent = song.name;
+    select.append(option);
+  }
+  // Newest first from the API — "today's song" is the one just uploaded.
+  if (data.songs.length) select.value = data.songs[0].id;
+  $('song-note').textContent = data.note
+    || (data.songs.length ? `${data.songs.length} in ${data.folder.name}, newest selected`
+                          : `${data.folder ? data.folder.name : 'Songs'} is empty`);
+}
+
+// -------------------------------------------------------------- elements
+async function loadElements() {
+  const data = await api('/api/elements');
+  const host = $('elements');
+  host.innerHTML = '';
+  for (const [kind, info] of Object.entries(data.elements)) {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '12px';
+    const label = document.createElement('label');
+    label.textContent = kind + (info.name ? ` — currently ${info.name}` : ' — from the Elements folder');
+    const row = document.createElement('div');
+    row.className = 'row';
+    const input = document.createElement('input');
+    input.className = 'grow';
+    input.placeholder = 'Drive link or file id';
+    input.value = info.file_id || '';
+    const save = document.createElement('button');
+    save.textContent = 'Save';
+    save.onclick = async () => {
+      save.disabled = true;
+      try { await api('/api/elements', { method: 'POST', body: { kind, link: input.value.trim() } }); await loadElements(); }
+      catch (err) { alert(err.message); } finally { save.disabled = false; }
+    };
+    row.append(input, save);
+    wrap.append(label, row);
+    host.append(wrap);
+  }
+}
+
+// ------------------------------------------------------------------ jobs
+$('start').onclick = async () => {
+  if (!state.folder) return;
+  $('start').disabled = true;
+  try {
+    const job = await api('/api/jobs', { method: 'POST', body: {
+      event_folder_id: state.folder.id,
+      song_file_id: $('song').value,
+      options: {
+        target_seconds: Number($('target').value) || 0,
+        seconds_per_image: Number($('per').value) || 0,
+        transition_seconds: Number($('xt').value) || 0,
+        shot_count: Number($('shots').value) || 0,
+        min_per_temple: Number($('minper').value) || 0,
+      },
+    }});
+    state.activeId = job.id;
+    watch();
+  } catch (err) {
+    alert(err.message);
+    $('start').disabled = false;
+  }
+};
+
+function stageTag(job) {
+  if (job.state === 'failed') return ['failed', 'failed'];
+  if (job.state === 'done') return ['done', 'done'];
+  return ['running', job.stage];
+}
+
+async function watch() {
+  clearInterval(state.timer);
+  const tick = async () => {
+    if (!state.activeId) return;
+    let job;
+    try { job = await api(`/api/jobs/${state.activeId}`); } catch { return; }
+    $('active').classList.remove('hidden');
+    $('active-name').textContent = job.event_name || 'Starting…';
+    const [cls, text] = stageTag(job);
+    $('active-stage').className = 'tag ' + cls;
+    $('active-stage').textContent = text;
+    $('active-bar').style.width = `${Math.round((job.progress || 0) * 100)}%`;
+    $('active-log').textContent = (job.log || []).slice(-40).join('\n');
+    $('active-log').scrollTop = $('active-log').scrollHeight;
+
+    const result = $('active-result');
+    if (job.state === 'done') {
+      const s = job.stats || {};
+      result.innerHTML = `<a href="${job.reel_url}" target="_blank" rel="noopener">Open the reel in Drive</a>
+        <div class="muted">${s.used} of ${s.considered} photos · ${s.temples} temples · ${s.duration_seconds}s · selection by ${s.curation_mode}</div>`;
+    } else if (job.state === 'failed') {
+      result.innerHTML = `<p class="note">${(job.error || 'failed').replace(/</g, '&lt;')}</p>`;
+    } else {
+      result.innerHTML = '';
+    }
+
+    if (job.state === 'done' || job.state === 'failed') {
+      clearInterval(state.timer);
+      state.activeId = null;
+      $('start').disabled = !state.folder;
+      loadHistory();
+    }
+  };
+  await tick();
+  state.timer = setInterval(tick, 2000);
+}
+
+async function loadHistory() {
+  const data = await api('/api/jobs');
+  const host = $('history');
+  if (!data.jobs.length) { host.textContent = 'Nothing yet.'; return; }
+  host.innerHTML = '';
+  for (const job of data.jobs.slice(0, 12)) {
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    const left = document.createElement('div');
+    left.className = 'name';
+    left.textContent = job.event_name || job.event_folder_id;
+    const right = document.createElement('div');
+    right.className = 'row';
+    const [cls, text] = stageTag(job);
+    const tag = document.createElement('span');
+    tag.className = 'tag ' + cls;
+    tag.textContent = text;
+    right.append(tag);
+    if (job.reel_url) {
+      const link = document.createElement('a');
+      link.href = job.reel_url; link.target = '_blank'; link.rel = 'noopener';
+      link.textContent = 'Open';
+      right.append(link);
+    }
+    row.append(left, right);
+    host.append(row);
+  }
+}
+
+// ------------------------------------------------------------------ boot
+async function boot() {
+  const config = await api('/api/config');
+  state.defaults = config.defaults;
+  $('target').value = config.defaults.target_seconds;
+  $('per').value = config.defaults.seconds_per_image;
+  $('xt').value = config.defaults.transition_seconds;
+  $('shots').value = config.defaults.shot_count;
+  $('minper').value = config.defaults.min_per_temple;
+
+  const issues = [...config.problems, ...config.warnings];
+  $('problems').classList.toggle('hidden', !issues.length);
+  $('problems-list').innerHTML = issues.map((i) => `<p class="note">${i.replace(/</g, '&lt;')}</p>`).join('');
+  $('start-note').textContent = config.curation.enabled
+    ? `selection by ${config.curation.model}` : 'no Groq key — selection by sharpness only';
+
+  show('app');
+  await Promise.all([browse(null), loadSongs(), loadElements(), loadHistory()]);
+
+  // A render survives a page reload; pick the running job back up.
+  const data = await api('/api/jobs');
+  const live = data.jobs.find((j) => j.state === 'running' || j.state === 'queued');
+  if (live) { state.activeId = live.id; watch(); }
+}
+
+(async () => {
+  const me = await fetch('/api/me').then((r) => r.json()).catch(() => ({ signed_in: false }));
+  if (me.signed_in) { try { await boot(); return; } catch {} }
+  show('login');
+})();
+</script>
+</body>
+</html>
