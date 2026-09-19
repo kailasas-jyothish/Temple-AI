@@ -603,6 +603,38 @@ durations, no effects. Keep it that way.
   must be Internal or published to Production. Scope must be full
   `.../auth/drive`; `drive.file` only sees files the app itself created.
 
+### Creating the Slack app without a browser
+
+The user cannot complete a browser OAuth (a site blocker cuts in the moment they
+sign in), so the whole Slack app was created from the CLI. The route, which is
+worth keeping:
+
+1. Install the CLI. On Windows, `irm https://downloads.slack-edge.com/slack-cli/install-windows.ps1 | iex`
+   — install it under an **alias** (`-Alias slackcli`), because `slack` already
+   resolves to the Slack desktop app shim in `WindowsApps`.
+2. `slackcli login --no-prompt` prints a `/slackauthticket <ticket>` slash
+   command. Run that **inside Slack itself**, approve the modal, and Slack shows
+   a challenge code. `slackcli login --ticket <t> --challenge <c>` finishes it.
+   No browser at any point. Tickets expire within a few minutes — regenerate
+   rather than debugging a failure.
+3. The CLI stores an app configuration token (`xoxe.xoxp-…`) in
+   `~/.slack/credentials.json`. `POST apps.manifest.create` with it and
+   `services/reels/slack-app-manifest.json` creates the app.
+4. `slackcli app install --app <app_id> -f` installs it. It needs a project
+   directory, which for a non-Deno app is just `.slack/hooks.json` (`{"hooks":{}}`),
+   `.slack/config.json` (`{"manifest":{"source":"remote"},"project_id":"<uuid>"}`)
+   and `.slack/apps.json`. Do not pass `--environment` together with `--app`.
+5. **The CLI never writes the bot token anywhere.** It comes from the endpoint
+   the CLI itself calls: `POST apps.developerInstall` with the configuration
+   token and **`app_id` alone** — adding `team_id` returns `invalid_argument`.
+   The token is at `api_access_tokens.bot`. Re-running it is idempotent, so this
+   is also how to recover the token later.
+
+App `A0C2YM5Q6AZ` ("Temple Reels") in `kenya-kailasa`, posting to the private
+channel `#temple-reel-notifier` (`C0C2U4GA16X`). A private channel returns
+`channel_not_found` rather than `not_in_channel` until the bot is invited, which
+looks like a wrong id and is not.
+
 ### Deployment
 
 Dokploy application **`Temple-reels`** (`vtt6Wp3AV6yl95RaTUNBi`, swarm name
