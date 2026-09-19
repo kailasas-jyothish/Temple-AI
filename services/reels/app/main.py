@@ -151,13 +151,21 @@ def read_elements(_: bool = Depends(authed)) -> dict:
     out = {}
     for kind in elements.KINDS:
         file_id = elements.configured_id(kind)
-        name = ""
+        name, source = "", "none"
         if file_id:
+            source = "override"
             try:
                 name = drive.get_file(file_id)["name"]
             except Exception as err:
                 name = f"(unreadable: {err.__class__.__name__})"
-        out[kind] = {"file_id": file_id, "name": name}
+        elif folder:
+            # Without an override the asset is found by name, so show which file
+            # that actually lands on — otherwise the panel reads as "nothing
+            # configured" while a perfectly good end card is being used.
+            match = elements._find_by_name(folder["id"], kind)
+            if match:
+                name, source = match["name"], "by name"
+        out[kind] = {"file_id": file_id, "name": name, "source": source}
     return {"folder": {"id": folder["id"], "name": folder["name"]} if folder else None, "elements": out}
 
 
