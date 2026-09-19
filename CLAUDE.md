@@ -603,9 +603,37 @@ durations, no effects. Keep it that way.
   must be Internal or published to Production. Scope must be full
   `.../auth/drive`; `drive.file` only sees files the app itself created.
 
+### Deployment
+
+Dokploy application **`Temple-reels`** (`vtt6Wp3AV6yl95RaTUNBi`, swarm name
+`temple-reels-6x6wbz`), created through `application.create` with
+`{name, appName, description, environmentId}` against environment
+`HHmD4d7IyTEhoeylNVwKt` — the same project as the notifier. Configured by
+`node scripts/dokploy.mjs configure --app reels`: git source, Dockerfile path
+`services/reels/Dockerfile`, stop-first swarm, `temple-reels-data` at `/data`,
+and host port **8479 → 8000**.
+
+Live and healthy as of 2026-09-19 — the ffmpeg image builds, the healthcheck
+passes, and `/healthz` correctly reports the two credentials it is still
+missing. The edge here is Caddy, which only serves hosts written into its own
+config, so the UI is reached through a published port; the user is adding a
+Caddy vhost in front of 8479 rather than exposing a login page over plain HTTP
+on the IP. `PUBLIC_URL` stays empty until that hostname exists.
+
 ### Still unverified
 
 Everything that needs credentials: Drive reads and writes, the Groq scores
 themselves, Slack delivery, and a render from real photographs rather than
 generated test cards. The renderer and the selection logic are proven; the
 integrations are not.
+
+Outstanding, all of it needing the user:
+
+1. `GOOGLE_REFRESH_TOKEN` — and **first** the OAuth consent screen moved off
+   *Testing*, or the token dies after 7 days.
+2. `DRIVE_ROOT_FOLDER_ID` — the Vision Pics folder.
+3. `GROQ_API_KEYS`.
+4. A new Slack app + channel, then `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID`.
+5. The Caddy hostname, which becomes `PUBLIC_URL`.
+6. Branding assets in `Vision Pics/Elements` (`logo.png`, `endcard.*`, optional
+   `intro.*`) — the pipeline runs without them, just unbranded.
