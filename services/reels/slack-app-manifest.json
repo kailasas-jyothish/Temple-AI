@@ -1,0 +1,30 @@
+{
+  "_metadata": {
+    "major_version": 2
+  },
+  "display_information": {
+    "name": "Temple Reels",
+    "description": "Posts a card when a temple reel finishes rendering",
+    "background_color": "#b4551f",
+    "long_description": "Announces finished reels built from the temple photo archive in Google Drive. Each card carries the event name, how many photographs were used out of how many were considered, the reel length, which model made the selection, and a link to the file in Drive. A failed render posts the last lines of ffmpeg's output instead of going quiet."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Temple Reels",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "files:write"
+      ]
+    }
+  },
+  "settings": {
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
