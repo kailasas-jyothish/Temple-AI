@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 /**
- * Dokploy control script.
+ * Dokploy control script for every service in this repo.
  *
- *   node scripts/dokploy.mjs probe          # discover the API surface + auth
- *   node scripts/dokploy.mjs find           # locate the app by name
- *   node scripts/dokploy.mjs show           # dump the app's current config
- *   node scripts/dokploy.mjs configure      # git source + Dockerfile build + domain + /data volume
- *   node scripts/dokploy.mjs push-env       # upload .env to the app
- *   node scripts/dokploy.mjs deploy         # trigger a deploy
- *   node scripts/dokploy.mjs setup          # configure, push-env, then deploy
+ *   node scripts/dokploy.mjs probe                    # discover the API surface + auth
+ *   node scripts/dokploy.mjs show    [--app notifier] # dump the app's current config
+ *   node scripts/dokploy.mjs configure [--app reels]  # git source + Dockerfile + domain + volume + swarm
+ *   node scripts/dokploy.mjs push-env  [--app reels]  # upload services/<app>/.env to the app
+ *   node scripts/dokploy.mjs deploy    [--app reels]  # trigger a deploy
+ *   node scripts/dokploy.mjs verify    [--app reels]  # prove the container actually rolled
+ *   node scripts/dokploy.mjs setup     [--app reels]  # configure, push-env, deploy, verify
  *
- * Reads DOKPLOY_URL, DOKPLOY_API_KEY, DOKPLOY_APP_NAME, DOKPLOY_GIT_URL,
- * DOKPLOY_GIT_BRANCH from .env.
+ * Auth and git coordinates come from the repo-root .env (DOKPLOY_*). The env
+ * block pushed to an application comes from that service's own .env, so the
+ * notifier never receives the reels service's Google credentials and vice versa.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const envPath = path.join(root, '.env');
 
 function readEnvFile(file) {
   if (!fs.existsSync(file)) return {};
@@ -33,20 +33,51 @@ function readEnvFile(file) {
   return out;
 }
 
-const fileEnv = readEnvFile(envPath);
-const env = { ...fileEnv, ...process.env };
+const rootEnv = readEnvFile(path.join(root, '.env'));
+const env = { ...rootEnv, ...process.env };
 
 const BASE = (env.DOKPLOY_URL || '').replace(/\/+$/, '');
 const KEY = env.DOKPLOY_API_KEY || '';
-const APP_NAME = env.DOKPLOY_APP_NAME || 'Social-media-notifications';
 const GIT_URL = env.DOKPLOY_GIT_URL || '';
 const GIT_BRANCH = env.DOKPLOY_GIT_BRANCH || 'main';
 
-// Runtime env vars the app actually needs (everything except the Dokploy ones).
-const RUNTIME_KEYS = Object.keys(fileEnv).filter((k) => !k.startsWith('DOKPLOY_'));
+// ------------------------------------------------------------------ services
+
+const SERVICES = {
+  notifier: {
+    dir: 'services/notifier',
+    appName: env.DOKPLOY_APP_NAME || 'Social-media-notifications',
+    dockerfile: 'services/notifier/Dockerfile',
+    volumeName: 'social-notify-data',
+    defaultPort: 3000,
+  },
+  reels: {
+    dir: 'services/reels',
+    appName: env.DOKPLOY_REELS_APP_NAME || 'Temple-reels',
+    dockerfile: 'services/reels/Dockerfile',
+    volumeName: 'temple-reels-data',
+    defaultPort: 8000,
+  },
+};
+
+const argv = process.argv.slice(2);
+const cmd = argv.find((a) => !a.startsWith('--')) || 'probe';
+const appFlagIndex = argv.indexOf('--app');
+const appKey = appFlagIndex >= 0 ? argv[appFlagIndex + 1] : 'notifier';
+
+const service = SERVICES[appKey];
+if (!service) {
+  console.error(`unknown --app "${appKey}". Available: ${Object.keys(SERVICES).join(', ')}`);
+  process.exit(1);
+}
+
+// Each service's runtime env is its own file; DOKPLOY_* never ships to a container.
+const serviceEnv = readEnvFile(path.join(root, service.dir, '.env'));
+const RUNTIME_KEYS = Object.keys(serviceEnv).filter((k) => !k.startsWith('DOKPLOY_'));
+const APP_NAME = service.appName;
 
 if (!BASE || !KEY) {
-  console.error('Set DOKPLOY_URL and DOKPLOY_API_KEY in .env first.');
+  console.error('Set DOKPLOY_URL and DOKPLOY_API_KEY in the repo-root .env first.');
   process.exit(1);
 }
 
@@ -166,10 +197,12 @@ async function show() {
     app.sourceType === 'git'
       ? `${app.customGitUrl || '(no url)'} @ ${app.customGitBranch || '(no branch)'}`
       : `${app.repository || '(no repo)'} @ ${app.branch || '(no branch)'}`;
+  console.log(`service: ${appKey} (${service.dir})`);
   console.log(`project: ${project.name} / ${environment.name} (${app.environmentId})`);
-  console.log(`app:     ${app.name} (${app.applicationId})`);
+  console.log(`app:     ${app.name} (${app.applicationId})  swarm name: ${app.appName}`);
   console.log(`source:  ${app.sourceType} ${source}`);
   console.log(`build:   ${app.buildType} ${app.dockerfile || ''}`);
+  console.log(`swarm:   ${app.updateConfigSwarm ? JSON.stringify(app.updateConfigSwarm) : '(null — deploys will silently no-op, run configure)'}`);
   console.log(`domains: ${(app.domains || []).map((d) => `${d.https ? 'https' : 'http'}://${d.host} -> :${d.port}`).join(', ') || '(none)'}`);
   console.log(`mounts:  ${(app.mounts || []).map((m) => `${m.volumeName || m.type}:${m.mountPath}`).join(', ') || '(none)'}`);
   console.log(`env:     ${app.env ? `${app.env.split('\n').filter(Boolean).length} vars` : '(none)'}`);
@@ -179,7 +212,7 @@ async function show() {
 }
 
 async function configure() {
-  if (!GIT_URL) throw new Error('set DOKPLOY_GIT_URL in .env (e.g. https://github.com/you/social-media-notifications.git)');
+  if (!GIT_URL) throw new Error('set DOKPLOY_GIT_URL in the repo-root .env');
   const { app } = await findApp();
   const applicationId = app.applicationId;
 
@@ -191,30 +224,44 @@ async function configure() {
   if (!src.ok) throw new Error(`could not set git source: ${JSON.stringify(src.attempts)}`);
   console.log(`source set  ${GIT_URL} @ ${GIT_BRANCH}  (via ${src.route})`);
 
-  // The repo ships a Dockerfile; nixpacks (the default) would ignore it.
+  // Build context stays at the repo root; each service points at its own
+  // Dockerfile, which addresses its files by full path.
   const build = await tryRoutes([
-    ['POST', 'application.update', { applicationId, buildType: 'dockerfile', dockerfile: 'Dockerfile' }],
-    ['POST', 'application.saveBuildType', { applicationId, buildType: 'dockerfile', dockerfile: 'Dockerfile', dockerContextPath: '', dockerBuildStage: '', isStaticSpa: false }],
+    ['POST', 'application.update', { applicationId, buildType: 'dockerfile', dockerfile: service.dockerfile }],
+    ['POST', 'application.saveBuildType', { applicationId, buildType: 'dockerfile', dockerfile: service.dockerfile, dockerContextPath: '', dockerBuildStage: '', isStaticSpa: false }],
   ]);
   if (!build.ok) throw new Error(`could not set build type: ${JSON.stringify(build.attempts)}`);
-  console.log(`build set   dockerfile ./Dockerfile  (via ${build.route})`);
+  console.log(`build set   dockerfile ${service.dockerfile}  (via ${build.route})`);
 
-  // Dedupe state lives in DATA_DIR and must survive redeploys.
-  const mountPath = fileEnv.DATA_DIR || '/data';
+  // With one replica holding host-published ports, Swarm's default start-first
+  // order can never schedule the new task: it cannot bind a port the old task
+  // still holds. `docker service update` returns immediately, so Dokploy
+  // records success and the deploy silently does nothing. stop-first costs a
+  // few seconds of downtime and is the only correct setting here. The zod
+  // schema wants Docker's PascalCase keys; lowercase is rejected with a bare
+  // "Input validation failed".
+  const swarm = await tryRoutes([
+    ['POST', 'application.update', { applicationId, updateConfigSwarm: { Parallelism: 1, Order: 'stop-first' } }],
+  ]);
+  if (!swarm.ok) throw new Error(`could not set updateConfigSwarm: ${JSON.stringify(swarm.attempts)}`);
+  console.log('swarm set   {"Parallelism":1,"Order":"stop-first"}');
+
+  // State under DATA_DIR must survive redeploys.
+  const mountPath = serviceEnv.DATA_DIR || '/data';
   if ((app.mounts || []).some((m) => m.mountPath === mountPath)) {
     console.log(`mount ok    ${mountPath} already mounted`);
   } else {
     const mount = await tryRoutes([
-      ['POST', 'mounts.create', { type: 'volume', volumeName: 'social-notify-data', mountPath, serviceId: applicationId, serviceType: 'application' }],
-      ['POST', 'mount.create', { type: 'volume', volumeName: 'social-notify-data', mountPath, serviceId: applicationId, serviceType: 'application' }],
+      ['POST', 'mounts.create', { type: 'volume', volumeName: service.volumeName, mountPath, serviceId: applicationId, serviceType: 'application' }],
+      ['POST', 'mount.create', { type: 'volume', volumeName: service.volumeName, mountPath, serviceId: applicationId, serviceType: 'application' }],
     ]);
     if (!mount.ok) throw new Error(`could not create volume mount: ${JSON.stringify(mount.attempts)}`);
-    console.log(`mount set   volume social-notify-data -> ${mountPath}  (via ${mount.route})`);
+    console.log(`mount set   volume ${service.volumeName} -> ${mountPath}  (via ${mount.route})`);
   }
 
-  // WebSub will not deliver without a public HTTPS callback, so the domain is
-  // part of configuration rather than a nicety.
-  const publicUrl = fileEnv.PUBLIC_URL || '';
+  // WebSub will not deliver without a public HTTPS callback, and the reels UI
+  // is useless without one, so the domain is configuration rather than a nicety.
+  const publicUrl = serviceEnv.PUBLIC_URL || '';
   const host = publicUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
   // Scheme is authoritative: Let's Encrypt refuses shared domains like
   // sslip.io, so an http:// PUBLIC_URL must not get a cert-bearing router or
@@ -229,7 +276,7 @@ async function configure() {
   } else if (!host) {
     console.log('domain      skipped (PUBLIC_URL is empty)');
   } else {
-    const port = Number(fileEnv.PORT || 3000);
+    const port = Number(serviceEnv.PORT || service.defaultPort);
     const existing = (app.domains || []).find((d) => d.host === host);
     if (existing && existing.https === https && existing.port === port) {
       console.log(`domain ok   ${publicUrl} already attached`);
@@ -245,10 +292,11 @@ async function configure() {
 }
 
 function envBlock() {
-  return RUNTIME_KEYS.map((k) => `${k}=${fileEnv[k] ?? ''}`).join('\n');
+  return RUNTIME_KEYS.map((k) => `${k}=${serviceEnv[k] ?? ''}`).join('\n');
 }
 
 async function pushEnv() {
+  if (!RUNTIME_KEYS.length) throw new Error(`no runtime vars found in ${service.dir}/.env`);
   const { app } = await findApp();
   const applicationId = app.applicationId;
   const r = await tryRoutes([
@@ -256,18 +304,39 @@ async function pushEnv() {
     ['POST', 'application.update', { applicationId, env: envBlock() }],
   ]);
   if (!r.ok) throw new Error(`could not save env: ${JSON.stringify(r.attempts)}`);
-  console.log(`env pushed (${RUNTIME_KEYS.length} vars) via ${r.route}`);
+  console.log(`env pushed (${RUNTIME_KEYS.length} vars from ${service.dir}/.env) via ${r.route}`);
 }
 
 async function deploy() {
   const { app } = await findApp();
-  const applicationId = app.applicationId;
   const r = await tryRoutes([
-    ['POST', 'application.deploy', { applicationId }],
-    ['POST', 'application.redeploy', { applicationId }],
+    ['POST', 'application.deploy', { applicationId: app.applicationId }],
+    ['POST', 'application.redeploy', { applicationId: app.applicationId }],
   ]);
   if (!r.ok) throw new Error(`could not deploy: ${JSON.stringify(r.attempts)}`);
   console.log(`deploy triggered via ${r.route}`);
+}
+
+/**
+ * deployment.all reports `done` whether or not anything happened, so the only
+ * evidence a deploy took effect is the age of the running container.
+ */
+async function verify() {
+  const { app } = await findApp();
+  const r = await GET('docker.getContainersByAppNameMatch', { appName: app.appName });
+  if (!r.ok) {
+    console.log(`could not read containers (${r.status}) — check /healthz on the app instead`);
+    return;
+  }
+  const containers = Array.isArray(r.body) ? r.body : r.body?.data || [];
+  if (!containers.length) {
+    console.log(`no container matches appName "${app.appName}" — the deploy did not schedule`);
+    return;
+  }
+  for (const c of containers) {
+    console.log(`${c.name || c.containerId}  ${c.state || ''}  ${c.status || ''}`);
+  }
+  console.log('"status" counts up from container start — seconds/minutes means the deploy rolled, hours means it did not.');
 }
 
 const commands = {
@@ -277,10 +346,10 @@ const commands = {
   configure,
   'push-env': pushEnv,
   deploy,
-  setup: async () => { await configure(); await pushEnv(); await deploy(); },
+  verify,
+  setup: async () => { await configure(); await pushEnv(); await deploy(); await verify(); },
 };
 
-const cmd = process.argv[2] || 'probe';
 const fn = commands[cmd];
 if (!fn) {
   console.error(`unknown command "${cmd}". Available: ${Object.keys(commands).join(', ')}`);

@@ -1,10 +1,18 @@
-# CLAUDE.md — project context for `social-media-notifications`
+# CLAUDE.md — project context for the Temple Social Media App
 
-This file carries the full context of the conversation that created this repo, so
+This file carries the full context of the conversations that built this repo, so
 any future Claude Code session in this folder can pick up mid-stream without
 re-deriving decisions or re-researching dead ends.
 
-Created: 2026-09-05 → 2026-09-06. Working dir: `C:\Users\GD\Desktop\GD\social-media-notifications`.
+Created: 2026-09-05 → 2026-09-06 as `social-media-notifications`, a single Node
+service. Renamed and restructured into a multi-service app on 2026-09-19 when the
+reels pipeline was added. Working dir:
+`C:\Users\GD\Desktop\GD\social-media-notifications`.
+
+**Sections 1–10 are the notifier service** (`services/notifier`) and describe it
+as it was when it lived at the repo root; the only thing that changed for it in
+the restructure is where its files sit. §11 covers the restructure itself and
+§12 onward the reels service.
 
 ---
 
@@ -470,3 +478,49 @@ upcoming stream on the watchlist, `meta.youtubeChannelIds` correct); and a boot
 against a hand-written pre-multi-channel `state.json` logged the seed-flag
 migration and skipped re-seeding San Jose. Not verified: behaviour in the
 Dokploy container, and an actual go-live on one of the five new channels.
+
+---
+
+## 11. The 2026-09-19 restructure — one repo, many services
+
+The user repositioned the repo as the **Temple Social Media App**: the single home
+for all temple social-media automation, with more services planned. The notifier
+is no longer the repo; it is one service in it.
+
+**Every path in §§1–10 is now relative to `services/notifier/`.** `src/config.js`
+means `services/notifier/src/config.js`, and so on. Nothing inside those files
+changed in the move — the selftest resolved all six channels and posted to Slack
+immediately afterwards, unmodified.
+
+```
+.env                      DOKPLOY_* only
+.env.example
+README.md                 service index
+CLAUDE.md
+docker-compose.yml        both services, build context = repo root
+scripts/dokploy.mjs       repo-level, --app notifier|reels
+services/notifier/        the Node app, its own .env / Dockerfile / README
+services/reels/           the Python app (§12)
+```
+
+Three things about this layout that are load-bearing:
+
+- **Build context is the repo root for every service.** Dokploy keeps
+  `customGitBuildPath: '/'` for both applications and tells them apart only by
+  `dockerfile` (`services/notifier/Dockerfile` vs `services/reels/Dockerfile`).
+  Each Dockerfile therefore addresses its own files by full path
+  (`COPY services/notifier/src ./src`). A Dockerfile written with paths relative
+  to its own directory will build locally and fail on Dokploy, or vice versa —
+  `docker-compose.yml` deliberately uses the same root context so a local build
+  proves the hosted one.
+- **Each service owns its `.env`; the root `.env` holds only `DOKPLOY_*`.**
+  `dokploy.mjs` pushes `services/<app>/.env` to that app and nothing else, so the
+  notifier cannot receive Google Drive credentials and the reels service cannot
+  receive the YouTube API key. The old single root `.env` was split on
+  2026-09-19; `PORT`, `DATA_DIR` and `PUBLIC_URL` would have collided otherwise.
+- **`scripts/dokploy.mjs` now takes `--app`** and has a `SERVICES` registry
+  holding each app's Dokploy name, Dockerfile path, volume name and default port.
+  `configure` also sets `updateConfigSwarm` to stop-first automatically now — §10
+  explains why leaving it null makes every deploy a silent no-op — and a new
+  `verify` command prints container age from `docker.getContainersByAppNameMatch`,
+  because `deployment.all` says `done` regardless and is not evidence.

@@ -1,10 +1,17 @@
-# Local / plain-Docker runs. On Dokploy you deploy the Dockerfile directly and
-# set env vars + the volume in the app UI (or via scripts/dokploy.mjs).
+# Local / plain-Docker runs of the whole app. On Dokploy each service is its own
+# application built from the same repo, with env vars and volumes set there (or
+# via scripts/dokploy.mjs).
+#
+# The build context is the repo root for both services, matching Dokploy's
+# customGitBuildPath of '/', so the Dockerfiles address their own files by full
+# path and a local build proves the same thing the hosted build will do.
 services:
   notifier:
-    build: .
+    build:
+      context: .
+      dockerfile: services/notifier/Dockerfile
     restart: unless-stopped
-    env_file: .env
+    env_file: services/notifier/.env
     environment:
       DATA_DIR: /data
     ports:
@@ -12,5 +19,19 @@ services:
     volumes:
       - notifier-data:/data
 
+  reels:
+    build:
+      context: .
+      dockerfile: services/reels/Dockerfile
+    restart: unless-stopped
+    env_file: services/reels/.env
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "8000:8000"
+    volumes:
+      - reels-data:/data
+
 volumes:
   notifier-data:
+  reels-data:

@@ -4,3 +4,10 @@ data/
 .env.local
 *.log
 .DS_Store
+
+# Python (services/reels)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
