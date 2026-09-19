@@ -50,6 +50,7 @@ const SERVICES = {
     dockerfile: 'services/notifier/Dockerfile',
     volumeName: 'social-notify-data',
     defaultPort: 3000,
+    publishedPort: 8478,
   },
   reels: {
     dir: 'services/reels',
@@ -57,6 +58,7 @@ const SERVICES = {
     dockerfile: 'services/reels/Dockerfile',
     volumeName: 'temple-reels-data',
     defaultPort: 8000,
+    publishedPort: 8479,
   },
 };
 
@@ -257,6 +259,23 @@ async function configure() {
     ]);
     if (!mount.ok) throw new Error(`could not create volume mount: ${JSON.stringify(mount.attempts)}`);
     console.log(`mount set   volume ${service.volumeName} -> ${mountPath}  (via ${mount.route})`);
+  }
+
+  // This server's edge is Caddy, which only serves hosts written into its own
+  // config, so a Dokploy domain record never reaches it. Traffic arrives on a
+  // host-published port instead, and Caddy (or the IP directly) points at it.
+  const targetPort = Number(serviceEnv.PORT || service.defaultPort);
+  const alreadyPublished = (app.ports || []).some(
+    (p) => p.publishedPort === service.publishedPort && p.targetPort === targetPort
+  );
+  if (alreadyPublished) {
+    console.log(`port ok     ${service.publishedPort} -> ${targetPort} already published`);
+  } else {
+    const port = await tryRoutes([
+      ['POST', 'port.create', { applicationId, publishedPort: service.publishedPort, targetPort, protocol: 'tcp', publishMode: 'host' }],
+    ]);
+    if (!port.ok) throw new Error(`could not publish port: ${JSON.stringify(port.attempts)}`);
+    console.log(`port set    ${service.publishedPort} -> ${targetPort} (host mode)`);
   }
 
   // WebSub will not deliver without a public HTTPS callback, and the reels UI
