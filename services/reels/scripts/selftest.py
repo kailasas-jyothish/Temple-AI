@@ -104,17 +104,20 @@ def check_drive() -> None:
         bad("Event folders", str(err)[:120])
 
 
+def _probe_image() -> bytes:
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), (180, 90, 40)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
 def check_groq() -> None:
     if not config.groq.api_keys:
-        skip("Groq vision", "skipped (GROQ_API_KEYS unset — heuristics only)")
+        skip("Groq vision", "skipped (GROQ_API_KEYS unset)")
         return
     try:
         import httpx
-        from PIL import Image
-
-        buf = io.BytesIO()
-        Image.new("RGB", (64, 64), (180, 90, 40)).save(buf, format="JPEG")
-        uri = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        uri = "data:image/jpeg;base64," + base64.b64encode(_probe_image()).decode()
         payload = {
             "model": config.groq.model,
             "max_tokens": 20,
@@ -140,6 +143,34 @@ def check_groq() -> None:
         bad("Groq vision", f"{err.__class__.__name__}: {str(err)[:120]}")
 
 
+def check_gemini() -> None:
+    if not config.gemini.api_keys:
+        skip("Gemini vision", "skipped (GEMINI_API_KEYS unset — no fallback provider)")
+        return
+    try:
+        import httpx
+        payload = {
+            "contents": [{"role": "user", "parts": [
+                {"text": "Reply with the single word: ok"},
+                {"inline_data": {"mime_type": "image/jpeg",
+                                 "data": base64.b64encode(_probe_image()).decode()}},
+            ]}],
+            "generationConfig": {"temperature": 0},
+        }
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{config.gemini.model}:generateContent"
+        working = 0
+        for index, key in enumerate(config.gemini.api_keys, start=1):
+            res = httpx.post(url, json=payload, timeout=60, headers={"x-goog-api-key": key})
+            if res.status_code == 200:
+                working += 1
+            else:
+                bad(f"Gemini key {index}", f"HTTP {res.status_code}: {res.text[:120]}")
+        if working:
+            ok("Gemini vision", f"{working}/{len(config.gemini.api_keys)} key(s) answered, model {config.gemini.model}")
+    except Exception as err:
+        bad("Gemini vision", f"{err.__class__.__name__}: {str(err)[:120]}")
+
+
 def check_slack() -> None:
     from app import slack
     if not slack.configured():
@@ -158,6 +189,7 @@ def main() -> int:
     check_ffmpeg()
     check_drive()
     check_groq()
+    check_gemini()
     check_slack()
     print()
     if FAILURES:

@@ -96,6 +96,17 @@ class Groq:
 
 
 @dataclass(frozen=True)
+class Gemini:
+    """Second opinion, and the fallback when Groq is rate-limited everywhere."""
+    api_keys: list[str] = field(default_factory=lambda: _list("GEMINI_API_KEYS") or _list("GEMINI_API_KEY"))
+    # A lite flash model: this is a scoring task, not a reasoning one, and it
+    # runs over a hundred images a day.
+    model: str = field(default_factory=lambda: _str("GEMINI_MODEL", "gemini-3.5-flash-lite"))
+    batch_size: int = field(default_factory=lambda: _int("GEMINI_BATCH_SIZE", 4))
+    timeout_seconds: float = field(default_factory=lambda: _float("GEMINI_TIMEOUT_SECONDS", 90.0))
+
+
+@dataclass(frozen=True)
 class Slack:
     bot_token: str = field(default_factory=lambda: _str("SLACK_BOT_TOKEN"))
     channel: str = field(default_factory=lambda: _str("SLACK_CHANNEL_ID"))
@@ -142,9 +153,13 @@ class Config:
     log_level: str = field(default_factory=lambda: _str("LOG_LEVEL", "info"))
     app_password: str = field(default_factory=lambda: _str("APP_PASSWORD"))
     admin_token: str = field(default_factory=lambda: _str("ADMIN_TOKEN"))
+    # Which model scores the images first, and which covers for it.
+    curation_provider: str = field(default_factory=lambda: _str("CURATION_PROVIDER", "groq").lower())
+    curation_fallback: str = field(default_factory=lambda: _str("CURATION_FALLBACK_PROVIDER", "gemini").lower())
     google: Google = field(default_factory=Google)
     drive: Drive = field(default_factory=Drive)
     groq: Groq = field(default_factory=Groq)
+    gemini: Gemini = field(default_factory=Gemini)
     slack: Slack = field(default_factory=Slack)
     curation: Curation = field(default_factory=Curation)
     render: Render = field(default_factory=Render)
@@ -185,8 +200,12 @@ def problems() -> list[str]:
 def warnings() -> list[str]:
     """Things that degrade the result but should not stop the service."""
     out: list[str] = []
-    if not config.groq.api_keys:
-        out.append("GROQ_API_KEYS is empty — image selection falls back to sharpness heuristics only.")
+    if not (config.groq.api_keys or config.gemini.api_keys):
+        out.append("No GROQ_API_KEYS or GEMINI_API_KEYS — image selection falls back to sharpness heuristics only.")
+    elif not config.groq.api_keys:
+        out.append("GROQ_API_KEYS is empty — selection will run on Gemini alone, with no fallback.")
+    elif not config.gemini.api_keys:
+        out.append("GEMINI_API_KEYS is empty — a Groq outage drops selection to sharpness heuristics.")
     if not (config.slack.bot_token and config.slack.channel):
         out.append("SLACK_BOT_TOKEN / SLACK_CHANNEL_ID unset — finished reels will not be announced.")
     if not config.public_url:
