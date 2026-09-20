@@ -743,6 +743,27 @@ Also, so that a long stage can never again be mistaken for a dead one:
 - A failure message falls back to the exception class name. `str(MemoryError())`
   is `""`, and `FAILED:` with nothing after it is the worst line this can print.
 
+### `Redirected but the response is missing a Location: header` (2026-09-20)
+
+Every Drive upload over 8MB failed with this, at `drive.py`'s
+`request.next_chunk()`. It is a regression from the Drive rewrite that added
+parallel downloads, and the mechanism is worth knowing because nothing about the
+message points at it:
+
+- A resumable upload answers each intermediate chunk with **308 Resume
+  Incomplete and no `Location` header**.
+- httplib2 (0.32.0 here) lists **308 in `REDIRECT_CODES`**, so it raises
+  `RedirectMissingLocation` before googleapiclient ever sees the progress.
+- googleapiclient knows this and strips 308 in its own `build_http()`. Passing
+  `build()` a hand-made `httplib2.Http` — which the rewrite did, to get a socket
+  timeout — **opts out of that workaround**.
+
+`service()` now does `inner.redirect_codes -= {308}` itself. Proven both ways: a
+30MB probe uploads and deletes cleanly, and putting 308 back reproduces the
+exact error. Note that **reads never notice**, which is why it survived a full
+day of testing — the first upload since the rewrite was the one that failed.
+`scripts/selftest.py` now asserts the exclusion, so it cannot come back quietly.
+
 ### Reel length is chosen per run
 
 The web UI always had a target-length field; the CLI did not ask, so the `.env`

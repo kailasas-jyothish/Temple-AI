@@ -68,6 +68,18 @@ def check_drive() -> None:
         bad("Drive root folder", f"{err.__class__.__name__}: {str(err)[:120]}")
         return
 
+    # Reads cannot see this, so only an upload would have found it — which is
+    # once a day, after a reel has already been rendered. Checking it here costs
+    # nothing. See drive.service() for what 308 means to a resumable upload.
+    try:
+        codes = drive.service()._http.http.redirect_codes
+        if 308 in codes:
+            bad("resumable uploads", "httplib2 still treats 308 as a redirect; every upload over 8MB will fail")
+        else:
+            ok("resumable uploads", "308 excluded from redirect_codes")
+    except AttributeError:
+        skip("resumable uploads", "this httplib2 has no redirect_codes")
+
     try:
         songs = library.songs()
         folder = library.songs_folder()

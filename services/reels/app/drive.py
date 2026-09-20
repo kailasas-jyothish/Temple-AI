@@ -68,7 +68,17 @@ def service():
         # An explicit socket timeout is the difference between a transient
         # network fault and a run that hangs forever with nothing to show for
         # it. httplib2 defaults to no timeout at all.
-        http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=SOCKET_TIMEOUT))
+        inner = httplib2.Http(timeout=SOCKET_TIMEOUT)
+        # Drive answers every intermediate chunk of a resumable upload with
+        # "308 Resume Incomplete" and no Location header, and httplib2 counts
+        # 308 as a redirect, so it raises RedirectMissingLocation instead of
+        # letting googleapiclient read the progress. googleapiclient's own
+        # build_http() strips 308 for exactly this reason — passing our own Http
+        # (for the socket timeout) opts out of that, so it has to be done here.
+        # Without it every upload over one chunk fails; downloads never notice.
+        if hasattr(inner, "redirect_codes"):
+            inner.redirect_codes = inner.redirect_codes - {308}
+        http = google_auth_httplib2.AuthorizedHttp(creds, http=inner)
         existing = build("drive", "v3", http=http, cache_discovery=False)
         _local.service = existing
     return existing
