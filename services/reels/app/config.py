@@ -158,6 +158,10 @@ class Render:
     # auto decides from the file's shape: an overlay cut to the output aspect is
     # a whole-screen frame, anything else is a corner mark.
     logo_mode: str = field(default_factory=lambda: _str("LOGO_MODE", "auto").lower())
+    # auto finds the loudest sustained passage — the chorus, in practice —
+    # rather than opening on whatever the first seconds of the file happen to
+    # be. "start" restores the old behaviour; a per-run start time overrides both.
+    music_pick: str = field(default_factory=lambda: _str("MUSIC_PICK", "auto").lower())
     # ffmpeg has no timeout of its own; a graph that stalls would hold the only
     # render worker for ever, and that is indistinguishable from a hung app.
     timeout_seconds: float = field(default_factory=lambda: _float("RENDER_TIMEOUT_SECONDS", 1800.0))

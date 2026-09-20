@@ -479,6 +479,8 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         song_path=song_path, logo_path=assets.get("logo"),
         endcard_path=assets.get("endcard"), intro_path=assets.get("intro"),
         seconds_per_image=per, transition_seconds=xt,
+        song_start=float(options["song_start_seconds"]) if options.get("song_start_seconds") not in (None, "") else None,
+        on_note=lambda message: _log(job_id, message),
         on_progress=lambda p: _update(job_id, progress=0.62 + 0.28 * p),
         # A sixty-clip filtergraph runs to several thousand characters. It is
         # the first thing wanted when a reel looks wrong, and the last thing

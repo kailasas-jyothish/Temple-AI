@@ -122,6 +122,8 @@ def build_command(
     intro_path: str | None = None,
     seconds_per_image: float | None = None,
     transition_seconds: float | None = None,
+    song_start: float | None = None,
+    on_note=None,
 ) -> tuple[list[str], float]:
     """Assemble the whole render as one filter graph.
 
@@ -244,9 +246,16 @@ def build_command(
 
     maps = ["-map", "[vout]"]
     if audio_index is not None:
+        # Which part of the song to use is only answerable once the reel's exact
+        # length is known, which is here.
+        offset = song_start
+        if offset is None and r.music_pick == "auto":
+            from . import music
+            offset = music.best_window(song_path, total, on_note=on_note)
+        offset = max(0.0, float(offset or 0.0))
         fade_out_at = max(0.0, total - 2.0)
         filters.append(
-            f"[{audio_index}:a]atrim=0:{total:.4f},asetpts=PTS-STARTPTS,"
+            f"[{audio_index}:a]atrim={offset:.4f}:{offset + total:.4f},asetpts=PTS-STARTPTS,"
             f"afade=t=in:st=0:d=1,afade=t=out:st={fade_out_at:.4f}:d=2,"
             f"loudnorm=I=-16:TP=-1.5:LRA=11[aout]"
         )

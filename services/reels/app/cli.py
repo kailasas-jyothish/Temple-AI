@@ -249,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", type=float, default=None, help="target length in seconds")
     parser.add_argument("--per", type=float, default=None, help="seconds per photo")
     parser.add_argument("--transition", type=float, default=None)
+    parser.add_argument("--song-start", type=float, default=None,
+                        help="seconds into the song to start; omit to let the loudest passage decide")
     parser.add_argument("--shots", type=int, default=None)
     parser.add_argument("--no-upload", action="store_true",
                         help="render to ./reel.mp4 and stop, without writing to Drive or Slack")
@@ -320,7 +322,9 @@ def main(argv: list[str] | None = None) -> int:
               f"about {megabytes * cap / len(photos):.0f} MB")
     else:
         print(f"  photos   {len(photos)} across {len(groups)} folder(s), about {megabytes:.0f} MB")
-    print(f"  song     {drive.get_file(song)['name'] if song else '(silent)'}")
+    print(f"  song     {drive.get_file(song)['name'] if song else '(silent)'}"
+          + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
+             else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
     print(f"  length   about {sequence.duration_for(wanted, seconds_per_image=per, transition_seconds=xt):.0f}s "
           f"from {wanted} photos, chosen by the model from {pool}")
@@ -339,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
             "seconds_per_image": per,
             "transition_seconds": xt,
             "shot_count": args.shots or 0,
+            "song_start_seconds": args.song_start,
             "skip_upload": args.no_upload,
         },
     )

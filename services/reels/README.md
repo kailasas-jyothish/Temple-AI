@@ -18,7 +18,16 @@ reels --no-upload         render to a local file, leave Drive and Slack alone
 reels --event <link>      skip the folder menu
 reels --target 45         a 45-second reel, without being asked
 reels --status            what the last run is doing (run it in a second window)
+reels --song-start 90      start the music 90s in, instead of letting it choose
 ```
+
+**The music starts at the best part of the song, not the beginning.** ffmpeg
+measures perceived loudness across the track and the reel takes the loudest
+sustained passage — the chorus, in practice — snapped to a dip between phrases
+so it never opens mid-word. No model is involved: this is measurement, and it
+gives the same answer for the same song every time. The chosen window is written
+into the job log. `--song-start` overrides it, `MUSIC_PICK=start` restores the
+old first-N-seconds behaviour.
 
 **The length is asked for on every run** — 15, 20, 30, 45, 60 or 90 seconds, or
 any value you type between 10 and 300. Each option shows how many photographs it

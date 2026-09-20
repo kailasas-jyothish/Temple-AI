@@ -764,6 +764,45 @@ exact error. Note that **reads never notice**, which is why it survived a full
 day of testing — the first upload since the rewrite was the one that failed.
 `scripts/selftest.py` now asserts the exclusion, so it cannot come back quietly.
 
+### The reel opens on the chorus, not on the first 15 seconds (2026-09-20)
+
+`render.py` trimmed the song with `atrim=0:total`, so every reel used the
+opening of the track. For `Ganesha Pancharatnam` that meant **the first ten
+seconds are digital silence** (-70 LUFS, measured) followed by a quiet intro —
+the reel opened on nothing.
+
+The user asked whether ffmpeg can choose the section or whether an LLM is
+needed. **It is a measurement problem, not a judgement one**, so it stays on the
+ffmpeg side of the split, and `app/music.py` does it:
+
+- `ebur128` reports momentary loudness every 100ms; the envelope is parsed off
+  stderr. **Do not match `t:` and `M:` in one pattern** — builds put
+  `TARGET:-23 LUFS` between them and the space after each colon is not
+  guaranteed. That cost a debugging round.
+- LUFS are converted to linear power before averaging; averaging decibels
+  under-weights exactly the loud passages being looked for.
+- Score is `0.7 x mean(whole window) + 0.3 x mean(first 3s)`, so a window that
+  only blooms later does not win. Windows that run into the outro are penalised
+  for free, because the quiet samples pull the mean down.
+- The chosen start then snaps to the quietest sample within ±0.8s — a phrase
+  boundary — so the reel does not begin mid-word.
+- It fails to 0.0 (the old behaviour) for a track shorter than the reel, an
+  unreadable file or a silent one, and the caller still loops the song.
+
+Measured on the real track: picks 283.2s of 346s, -12.2 LUFS integrated against
+-18.4 for the old first-15-seconds cut, and the first 3s of the finished reel
+went from silence to -15.5 LUFS. The choice is written into the job log
+(`song: using 283.2s–299.7s of 346s`) so a reel that sounds wrong can be
+explained.
+
+`MUSIC_PICK=start` restores the old behaviour; `--song-start 90` (or the
+`song_start_seconds` job option) overrides both.
+
+**Why not an LLM:** Gemini does accept audio, so it is technically possible, but
+it would mean uploading the track on every run, it is unreliable about exact
+timestamps, and it is not reproducible. Only worth revisiting if the ask becomes
+semantic — "start on the line about Ganesha" — rather than energetic.
+
 ### Reel length is chosen per run
 
 The web UI always had a target-length field; the CLI did not ask, so the `.env`
