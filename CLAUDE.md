@@ -684,7 +684,17 @@ different machine that does not answer HTTP), `kailasa.ai` is Cloudflare with no
 wildcard, and the user has access to neither zone.
 
 The reels UI therefore sits on `http://157.180.15.165:8479` until someone adds a
-Caddy vhost.
+Caddy vhost. The user's own machine blocks bare IPs (Cold Turkey), so **the CLI
+is the way they actually use this**: `services/reels/reels.cmd`, or
+`python -m app.cli`, which walks the same menus and runs the same pipeline
+locally — Drive upload and Slack notification included. The hosted service stays
+deployed and healthy; it is simply not the primary front end.
+
+One ordering bug this shook out, worth not reintroducing: **a job's terminal
+state is set last, after the Slack notification has been attempted.** Anything
+watching a job stops the moment it reads `done`, and the CLI then exits, killing
+the daemon worker thread mid-`chat.postMessage`. The first full CLI run uploaded
+to Drive correctly and posted nothing at all.
 
 ### Still unverified
 

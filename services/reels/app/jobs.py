@@ -37,6 +37,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _safe(name: str) -> str:
+    """A filename Windows will accept — event names carry slashes and colons."""
+    cleaned = "".join("-" if c in '<>:"/\\|?*' else c for c in name).strip(" .")
+    return cleaned[:120] or "reel"
+
+
 # ------------------------------------------------------------- job records
 
 
@@ -129,6 +135,7 @@ def submit(*, event_folder_id: str, song_file_id: str = "", options: dict | None
         "reel_url": "",
         "reel_file_id": "",
         "poster_path": "",
+        "local_path": "",
         "error": "",
     }
     if not job["event_folder_id"]:
@@ -176,27 +183,34 @@ def _execute(job_id: str) -> None:
     _update(job_id, state="running", started_at=_now())
     work_dir = os.path.join(config.work_dir, job_id)
 
+    # The terminal state is set last, after the notification has been attempted.
+    # Anything watching a job stops watching the moment it reads done or failed
+    # — and the CLI then exits, killing this daemon thread mid-Slack-call.
     try:
         _pipeline(job_id, work_dir)
-        _update(job_id, state="done", stage="done", progress=1.0, finished_at=_now())
+        current = get(job_id) or {}
+        # A local dry run has nothing to announce — there is no link to send.
+        if current.get("reel_url"):
+            try:
+                slack.post_success(current)
+            except Exception as err:
+                _log(job_id, f"slack notification failed: {err}")
         _log(job_id, f"finished in {time.time() - started:.0f}s")
+        _update(job_id, state="done", stage="done", progress=1.0, finished_at=_now())
         _persist()
-        try:
-            slack.post_success(get(job_id) or {})
-        except Exception as err:
-            _log(job_id, f"slack notification failed: {err}")
     except Exception as err:
         detail = traceback.format_exc(limit=3)
         stderr = getattr(err, "stderr", "")
         message = f"{err}\n{stderr}".strip() if stderr else str(err)
-        _update(job_id, state="failed", error=message, finished_at=_now())
+        _update(job_id, error=message, finished_at=_now())
         _log(job_id, f"FAILED: {message}")
         log.error("job %s failed\n%s", job_id, detail)
-        _persist()
         try:
             slack.post_failure(get(job_id) or {})
         except Exception as slack_err:
             _log(job_id, f"slack failure notice also failed: {slack_err}")
+        _update(job_id, state="failed")
+        _persist()
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
         _persist()
@@ -316,7 +330,10 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         endcard_path=assets.get("endcard"), intro_path=assets.get("intro"),
         seconds_per_image=per, transition_seconds=xt,
         on_progress=lambda p: _update(job_id, progress=0.62 + 0.28 * p),
-        on_log=lambda line: _log(job_id, f"ffmpeg: {line}"),
+        # A sixty-clip filtergraph runs to several thousand characters. It is
+        # the first thing wanted when a reel looks wrong, and the last thing
+        # wanted in a progress view, so it goes to the process log only.
+        on_log=lambda line: log.info("[%s] ffmpeg %s", job_id[:8], line),
     )
     render_seconds = time.time() - render_started
     _log(job_id, f"rendered {total:.1f}s in {render_seconds:.0f}s "
@@ -324,6 +341,26 @@ def _pipeline(job_id: str, work_dir: str) -> None:
 
     # -------------------------------------------------- upload
     _stage(job_id, "uploading", 0.90)
+    base_stats = {
+        "considered": len(candidates),
+        "kept": len(kept),
+        "used": len(shots),
+        "temples": len(temples) or len(groups),
+        "duration_seconds": round(duration, 1),
+        "render_seconds": round(render_seconds, 1),
+        "curation_mode": mode,
+        "per_temple": picked,
+    }
+
+    if options.get("skip_upload"):
+        # The CLI's dry run: keep the file where the person can watch it, and
+        # leave Drive and Slack untouched.
+        kept_path = os.path.abspath(os.path.join(os.getcwd(), f"{_safe(event['name'])}.mp4"))
+        shutil.copyfile(output, kept_path)
+        _update(job_id, local_path=kept_path, stats=base_stats)
+        _log(job_id, f"saved locally to {kept_path} (nothing written to Drive)")
+        return
+
     reels_folder = drive.ensure_folder(event["id"], config.drive.reels_folder)
     name = f"{event['name']} — Reel.mp4"
     uploaded = drive.upload(output, reels_folder["id"], name)
@@ -342,15 +379,6 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         reel_file_id=uploaded["id"],
         reel_url=uploaded.get("webViewLink", f"https://drive.google.com/file/d/{uploaded['id']}/view"),
         poster_path=poster or "",
-        stats={
-            "considered": len(candidates),
-            "kept": len(kept),
-            "used": len(shots),
-            "temples": len(temples) or len(groups),
-            "duration_seconds": round(duration, 1),
-            "render_seconds": round(render_seconds, 1),
-            "curation_mode": mode,
-            "per_temple": picked,
-        },
+        stats=base_stats,
     )
     _log(job_id, f"uploaded to {config.drive.reels_folder}/{name}")

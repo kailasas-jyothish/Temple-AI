@@ -7,6 +7,23 @@ files it back into Drive, with a Slack ping when it lands.
 
 Pick the event folder, pick the song, press Start.
 
+**Run it from your own machine:** double-click `reels.cmd`, or run `reels` in a
+terminal from this directory. It walks you through the same choices the web UI
+offers and does the same work — downloads, curates, renders, uploads the reel
+into the event folder and posts to Slack. Nothing about it needs the server.
+
+```
+reels                     menus for folder, song and end card
+reels --no-upload         render to a local file, leave Drive and Slack alone
+reels --event <link>      skip the folder menu
+reels --target 45         a 45-second reel instead of the default 60
+```
+
+The hosted service is the same pipeline behind a web page. On the current server
+the UI is only reachable at `http://157.180.15.165:8479`, because the edge proxy
+serves two fixed hostnames and cannot be changed through the Dokploy API — see
+`CLAUDE.md`. The CLI sidesteps that entirely.
+
 ---
 
 ## The division of labour
