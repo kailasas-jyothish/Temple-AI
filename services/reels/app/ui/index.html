@@ -164,8 +164,13 @@
 const $ = (id) => document.getElementById(id);
 let state = { folder: null, defaults: {}, activeId: null, timer: null };
 
+// The app may be served at the root of its own hostname or under a path on a
+// shared one, so every request is resolved against wherever this page is. An
+// absolute /api/... would escape the prefix and 404 on the host app.
+const BASE = location.pathname.endsWith('/') ? location.pathname : `${location.pathname}/`;
+
 async function api(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(BASE + String(path).replace(/^\//, ''), {
     headers: { 'Content-Type': 'application/json' },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -459,7 +464,7 @@ async function boot() {
 }
 
 (async () => {
-  const me = await fetch('/api/me').then((r) => r.json()).catch(() => ({ signed_in: false }));
+  const me = await fetch(`${BASE}api/me`).then((r) => r.json()).catch(() => ({ signed_in: false }));
   if (me.signed_in) { try { await boot(); return; } catch {} }
   show('login');
 })();
