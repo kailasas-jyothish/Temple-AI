@@ -696,20 +696,87 @@ watching a job stops the moment it reads `done`, and the CLI then exits, killing
 the daemon worker thread mid-`chat.postMessage`. The first full CLI run uploaded
 to Drive correctly and posted nothing at all.
 
-### Still unverified
+### The big-folder stall (2026-09-20)
 
-Everything that needs credentials: Drive reads and writes, the Groq scores
-themselves, Slack delivery, and a render from real photographs rather than
-generated test cards. The renderer and the selection logic are proven; the
-integrations are not.
+A run against `14-Sep-2026 Ganesha Chaturthi` — **1052 photographs across 40
+temple folders** — was killed by hand after four minutes because it looked
+hung. It was not hung; it was working at a rate that would have taken most of
+an hour. The evidence is in `data/reels.log` for job `31edd111`: prefilter took
+**104s serial** for 400 images, then curation started and Groq answered **429
+Too Many Requests** on roughly every seventh call. The limit is real and is not
+per key — it is `ITPM: Limit 7000` **per organisation**, and the six keys sit in
+three organisations, so rotating keys buys only three parallel budgets.
 
-Outstanding, all of it needing the user:
+The old `_retry` then slept Groq's `retry-after` (~45s) **inside Groq**, once
+per batch, with Gemini configured and idle the whole time. Forty batches at
+that rate is the whole afternoon.
 
-1. `GOOGLE_REFRESH_TOKEN` — and **first** the OAuth consent screen moved off
-   *Testing*, or the token dies after 7 days.
-2. `DRIVE_ROOT_FOLDER_ID` — the Vision Pics folder.
-3. `GROQ_API_KEYS`.
-4. A new Slack app + channel, then `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID`.
-5. The Caddy hostname, which becomes `PUBLIC_URL`.
-6. Branding assets in `Vision Pics/Elements` (`logo.png`, `endcard.*`, optional
-   `intro.*`) — the pipeline runs without them, just unbranded.
+Four changes, all about the same thing — the work must be bounded:
+
+- **A rate limit is now a reason to switch models, not to wait.** `_retry`
+  takes `patient`, false for every provider except the last in the chain: each
+  key is still tried, but nothing sleeps while another model could take the
+  batch. Groq 429s now cost milliseconds and Gemini answers.
+- **Batches run concurrently** (`CURATION_WORKERS`, 4) and the stage has a wall
+  clock (`CURATION_BUDGET_SECONDS`, 300). Whatever the budget does not cover
+  keeps its heuristic score and says so in the log. A weaker selection is a bad
+  day; a job that never returns is a broken tool.
+- **The pool is sized from the reel, not from the event.** `_pool_size()` scores
+  `CANDIDATES_PER_SHOT` (3) images per shot, capped by `MAX_CANDIDATES`, and the
+  download cap follows at 5x that. An 11-shot reel now scores 33 images, not
+  120, and downloads 165, not 400.
+- **Prefilter runs on a pool** (`PREFILTER_WORKERS`, 8) and reports progress.
+  Pillow and numpy both drop the GIL, so it is a straight win: 165 images in 12s.
+
+Measured after, on the same folder, asking for 30s: **2m42s end to end** —
+22s listing, 49s downloading 165 images, 12s prefilter, **14s curation**
+(`groq+gemini`, 33/33 scored), 63s render, 32.7s of 1080x1920 h264 out.
+
+Also, so that a long stage can never again be mistaken for a dead one:
+
+- A job's progress is flushed to disk every 10s, not only at stage boundaries,
+  so `reels --status` in a second window tells the truth mid-stage.
+- A watchdog writes `still <stage> after Nm — <detail> (this is slow, not
+  stuck)` into the job log every 3 minutes.
+- ffmpeg gets `RENDER_TIMEOUT_SECONDS` (1800) and is killed past it; it had no
+  timeout of its own, and the render worker is the only one.
+- A failure message falls back to the exception class name. `str(MemoryError())`
+  is `""`, and `FAILED:` with nothing after it is the worst line this can print.
+
+### Reel length is chosen per run
+
+The web UI always had a target-length field; the CLI did not ask, so the `.env`
+default was the only length anyone got. `pick_length()` now offers 15 / 20 / 30 /
+45 / 60 / 90s — each shown with the number of photographs it will use — or any
+value from 10 to 300 typed in. `--target` still skips the question, and an
+explicit `SHOT_COUNT` says so rather than asking for something it will ignore.
+
+Length is not only cosmetic any more: it sets the pool size, and therefore how
+long the run takes.
+
+### What is now proven, and what is not
+
+Verified end to end against the real Drive (2026-09-19/20): Drive reads, two
+uploads back into `Reels`, Groq and Gemini scoring on real photographs, the
+branding assets resolving out of `Vision Pics/Elements`, renders from real
+temple photographs at 1080x1920, and **the red failure card** reaching Slack
+(`chat.postMessage` 200 at 21:47 on the 19th, after the ffmpeg failure).
+
+Not yet proven:
+
+- **The success card.** Both uploads pre-date the file log, so there is no
+  record of `post_success` actually posting — only of `post_failure` doing so.
+  Watch `#temple-reel-notifier` on the next real run.
+
+- **The hosted service has never run a real job.** Everything above was the CLI
+  on the user's machine; the container is healthy but only the UI has been
+  exercised there. The Groq/Gemini failover in particular has only ever been
+  watched locally.
+- A run with a song attached against a large event, end to end.
+- Whether the refresh token survives — the OAuth consent screen must be Internal
+  or Production, or it dies after 7 days with `invalid_grant` as the only sign.
+
+Outstanding, still needing the user:
+
+1. The Caddy hostname, which becomes `PUBLIC_URL` (see "The edge, settled").
+2. Confirmation that the OAuth consent screen is off *Testing*.

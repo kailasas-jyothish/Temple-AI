@@ -115,7 +115,24 @@ class Slack:
 
 @dataclass(frozen=True)
 class Curation:
+    # A whole festival day can be well over a thousand photographs. Only
+    # max_candidates of them ever reach the model, so fetching every one is
+    # gigabytes of waiting for nothing; above this the pool is sampled evenly
+    # across the temple folders first.
+    download_cap: int = field(default_factory=lambda: _int("DOWNLOAD_CAP", 400))
     max_candidates: int = field(default_factory=lambda: _int("MAX_CANDIDATES", 120))
+    # Scoring is the slowest stage and its cost is per candidate, so the pool is
+    # cut to what the chosen length can actually use: a 20-shot reel does not
+    # need 120 scored images to pick from. max_candidates remains the ceiling.
+    candidates_per_shot: int = field(default_factory=lambda: _int("CANDIDATES_PER_SHOT", 3))
+    # Batches run concurrently. The binding constraint is the provider's rate
+    # limit rather than the network, so this is deliberately modest.
+    workers: int = field(default_factory=lambda: _int("CURATION_WORKERS", 4))
+    # A wall clock on the whole curation stage. When it runs out the remaining
+    # batches keep their heuristic scores and the reel still ships — a weaker
+    # selection is a bad day, a job that never returns is a broken tool.
+    budget_seconds: float = field(default_factory=lambda: _float("CURATION_BUDGET_SECONDS", 300.0))
+    prefilter_workers: int = field(default_factory=lambda: _int("PREFILTER_WORKERS", 8))
     min_image_px: int = field(default_factory=lambda: _int("MIN_IMAGE_PX", 1000))
     blur_threshold: float = field(default_factory=lambda: _float("BLUR_THRESHOLD", 40.0))
     dhash_distance: int = field(default_factory=lambda: _int("DHASH_DISTANCE", 5))
@@ -141,6 +158,9 @@ class Render:
     # auto decides from the file's shape: an overlay cut to the output aspect is
     # a whole-screen frame, anything else is a corner mark.
     logo_mode: str = field(default_factory=lambda: _str("LOGO_MODE", "auto").lower())
+    # ffmpeg has no timeout of its own; a graph that stalls would hold the only
+    # render worker for ever, and that is indistinguishable from a hung app.
+    timeout_seconds: float = field(default_factory=lambda: _float("RENDER_TIMEOUT_SECONDS", 1800.0))
     crf: int = field(default_factory=lambda: _int("RENDER_CRF", 20))
     preset: str = field(default_factory=lambda: _str("RENDER_PRESET", "medium"))
     audio_bitrate: str = field(default_factory=lambda: _str("RENDER_AUDIO_BITRATE", "192k"))

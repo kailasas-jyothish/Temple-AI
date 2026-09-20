@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import subprocess
 import sys
 import time
 
@@ -93,6 +94,42 @@ def pick_song() -> str:
     return chosen["id"] if chosen else ""
 
 
+LENGTHS = [15.0, 20.0, 30.0, 45.0, 60.0, 90.0]
+
+
+def pick_length(*, seconds_per_image: float, transition_seconds: float) -> float:
+    """Reels are cut to a platform's expectations, not to how many photographs
+    arrived, so the length is asked for every run rather than set once in .env.
+
+    It is also the one setting that changes how long the run takes: the pool of
+    images that gets scored is sized from it.
+    """
+    default = config.render.target_seconds
+    if config.render.shot_count:
+        # An explicit SHOT_COUNT wins over any length, and silently asking for
+        # one that will be ignored is worse than not asking.
+        print(f"\n  (SHOT_COUNT={config.render.shot_count} is set, so the length is fixed by it)")
+        return default
+
+    print("\nReel length")
+    for index, seconds in enumerate(LENGTHS, start=1):
+        shots = sequence.shot_count(target_seconds=seconds, seconds_per_image=seconds_per_image,
+                                    transition_seconds=transition_seconds)
+        mark = "   <- current default" if abs(seconds - default) < 0.01 else ""
+        print(f"  {index:2d}. {seconds:>3.0f}s  — about {shots} photos{mark}")
+    print("      or type any length in seconds (10-300)")
+
+    while True:
+        answer = _ask("\n  number > ")
+        if answer.isdigit():
+            value = int(answer)
+            if 1 <= value <= len(LENGTHS):
+                return LENGTHS[value - 1]
+            if 10 <= value <= 300:
+                return float(value)
+        print("  a menu number, or a length between 10 and 300 seconds.")
+
+
 def pick_endcard() -> str:
     folder = library.elements_folder()
     if not folder:
@@ -108,18 +145,100 @@ def pick_endcard() -> str:
 
 # ------------------------------------------------------------------- run
 
+SPINNER = "|/-\\"
+
+
 def follow(job_id: str) -> dict:
-    """Stream the job's own log rather than inventing a second one."""
+    """Stream the job's own log, under a status line that always moves.
+
+    Downloading a large event is several hundred files and can run for many
+    minutes with nothing to say. Without a visible heartbeat that is
+    indistinguishable from a hang, which is exactly how it was first read.
+    """
     seen = 0
+    tick = 0
+    started = time.time()
+    last_progress = -1.0
+    last_change = time.time()
+    width = 0
+
+    def clear() -> None:
+        nonlocal width
+        if width:
+            print("\r" + " " * width + "\r", end="", flush=True)
+            width = 0
+
     while True:
         job = jobs.get(job_id) or {}
+
         lines = job.get("log", [])
-        for line in lines[seen:]:
-            print(f"  {line.split('  ', 1)[-1]}")
-        seen = len(lines)
-        if job.get("state") in ("done", "failed"):
+        if len(lines) > seen:
+            clear()
+            for line in lines[seen:]:
+                print(f"  {line.split('  ', 1)[-1]}")
+            seen = len(lines)
+
+        state = job.get("state")
+        if state in ("done", "failed"):
+            clear()
             return job
+
+        progress = float(job.get("progress") or 0.0)
+        if abs(progress - last_progress) > 0.0001:
+            last_progress, last_change = progress, time.time()
+
+        elapsed = int(time.time() - started)
+        stalled = int(time.time() - last_change)
+        detail = job.get("detail") or ""
+        status = (f"  {SPINNER[tick % len(SPINNER)]} {job.get('stage', '')} "
+                  f"{progress * 100:5.1f}%  {detail}  [{elapsed // 60}m{elapsed % 60:02d}s]")
+        # Five minutes without the number moving is worth flagging, but it is a
+        # slow stage rather than proof of a hang, so it says so plainly.
+        if stalled > 300:
+            status += f"  (no change for {stalled // 60}m — still running, Ctrl+C to stop)"
+
+        clear()
+        print(status, end="", flush=True)
+        width = len(status)
+        tick += 1
         time.sleep(1)
+
+
+def show_status() -> int:
+    """What the last run is doing, read from disk.
+
+    A running job writes its state at every stage change, so this answers
+    "is it stuck?" from a second window without disturbing the run.
+    """
+    rows = jobs.snapshot()
+    if not rows:
+        print("No runs recorded yet.")
+        return 0
+    job = rows[0]
+    print(f"  event    {job.get('event_name') or job.get('event_folder_id')}")
+    print(f"  state    {job.get('state')}  ({job.get('stage')}, {float(job.get('progress') or 0) * 100:.0f}%)")
+    print(f"  started  {job.get('started_at') or job.get('created_at')}")
+    if job.get("error"):
+        print(f"  error    {job['error'][:500]}")
+    if job.get("reel_url"):
+        print(f"  reel     {job['reel_url']}")
+    print("\n  last lines:")
+    for line in (job.get("log") or [])[-10:]:
+        print(f"    {line}")
+
+    work = os.path.join(config.work_dir, job["id"])
+    if os.path.isdir(work):
+        files = [os.path.join(work, f) for f in os.listdir(work)]
+        newest = max((os.path.getmtime(f) for f in files), default=0)
+        size = sum(os.path.getsize(f) for f in files) / 1_048_576
+        age = int(time.time() - newest) if newest else -1
+        moving = 0 <= age < 120
+        print(f"\n  work dir: {len(files)} files, {size:.0f} MB, last written {age}s ago")
+        # The recorded state only updates at stage boundaries, and a download
+        # stage can run for many minutes. Files still appearing is the better
+        # evidence that work is happening.
+        print(f"  verdict:  {'running — files are still arriving' if moving else 'nothing written recently'}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -134,11 +253,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-upload", action="store_true",
                         help="render to ./reel.mp4 and stop, without writing to Drive or Slack")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    parser.add_argument("--status", action="store_true",
+                        help="print the last job's state and exit (run this in a second window)")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.WARNING, format="%(levelname)-5s %(name)s  %(message)s")
+    if args.status:
+        return show_status()
+
+    # Everything internal goes to a file: the console belongs to the job log and
+    # the status line, and a stray log record in the middle of them is how a
+    # readable run turns into noise. The file is what to read after a failure.
+    os.makedirs(config.data_dir, exist_ok=True)
+    log_path = os.path.join(config.data_dir, "reels.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-5s %(name)s  %(message)s",
+        handlers=[logging.FileHandler(log_path, encoding="utf-8")],
+    )
 
     problems = config_module.problems()
+    # Check the tools before the network: discovering ffmpeg is missing after
+    # downloading four hundred photographs is a long way to go for that news.
+    for binary in (config.render.ffmpeg, config.render.ffprobe):
+        try:
+            subprocess.run([binary, "-version"], capture_output=True, check=True)
+        except Exception:
+            problems.append(f"'{binary}' could not be run — install ffmpeg, or set FFMPEG_BIN/FFPROBE_BIN.")
     if problems:
         print("Cannot start:")
         for line in problems:
@@ -153,15 +293,37 @@ def main(argv: list[str] | None = None) -> int:
 
     per = args.per or config.render.seconds_per_image
     xt = args.transition if args.transition is not None else config.render.transition_seconds
-    target = args.target or config.render.target_seconds
+    if args.target:
+        target = args.target
+    elif args.shots:
+        target = config.render.target_seconds
+    else:
+        target = pick_length(seconds_per_image=per, transition_seconds=xt)
     wanted = sequence.shot_count(target_seconds=target, seconds_per_image=per,
                                  transition_seconds=xt, override=args.shots)
 
+    # Listing is cheap; downloading is not. A day's event can be several hundred
+    # photographs and close to a gigabyte, and knowing that up front is the
+    # difference between a long wait and an apparent hang.
+    groups = drive.walk_event(event["id"])
+    photos = [f for g in groups for f in g["images"]]
+    megabytes = sum(int(f.get("size") or 0) for f in photos) / 1_048_576
+    if not photos:
+        print(f"\n  {event['name']} has no photographs in it — pick a different folder.")
+        return 1
+
+    pool = jobs._pool_size(wanted)
+    cap = min(config.curation.download_cap, max(120, pool * 5)) if config.curation.download_cap else 0
     print(f"\n  event    {event['name']}")
+    if cap and len(photos) > cap:
+        print(f"  photos   {len(photos)} across {len(groups)} folder(s) — sampling {cap} evenly, "
+              f"about {megabytes * cap / len(photos):.0f} MB")
+    else:
+        print(f"  photos   {len(photos)} across {len(groups)} folder(s), about {megabytes:.0f} MB")
     print(f"  song     {drive.get_file(song)['name'] if song else '(silent)'}")
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
     print(f"  length   about {sequence.duration_for(wanted, seconds_per_image=per, transition_seconds=xt):.0f}s "
-          f"from {wanted} photos")
+          f"from {wanted} photos, chosen by the model from {pool}")
     print(f"  upload   {'no — local file only' if args.no_upload else 'yes, into ' + config.drive.reels_folder}")
 
     if not args.yes and _ask("\n  go? [Y/n] > ").lower() in ("n", "no"):
@@ -184,7 +346,11 @@ def main(argv: list[str] | None = None) -> int:
     finished = follow(job["id"])
 
     if finished.get("state") == "failed":
-        print(f"\nFAILED: {finished.get('error', '')[:800]}")
+        print("\n" + "=" * 60)
+        print("FAILED at stage: " + str(finished.get("stage")))
+        print("=" * 60)
+        print(finished.get("error", "") [:2000] or "(no detail recorded)")
+        print(f"\nFull log: {log_path}")
         return 1
 
     stats = finished.get("stats", {})

@@ -13,11 +13,17 @@ offers and does the same work — downloads, curates, renders, uploads the reel
 into the event folder and posts to Slack. Nothing about it needs the server.
 
 ```
-reels                     menus for folder, song and end card
+reels                     menus for folder, song, end card and length
 reels --no-upload         render to a local file, leave Drive and Slack alone
 reels --event <link>      skip the folder menu
-reels --target 45         a 45-second reel instead of the default 60
+reels --target 45         a 45-second reel, without being asked
+reels --status            what the last run is doing (run it in a second window)
 ```
+
+**The length is asked for on every run** — 15, 20, 30, 45, 60 or 90 seconds, or
+any value you type between 10 and 300. Each option shows how many photographs it
+will use. It is not only a cosmetic choice: the number of images sent to the
+model is sized from it, so a shorter reel is also a faster run.
 
 The hosted service is the same pipeline behind a web page. On the current server
 the UI is only reachable at `http://157.180.15.165:8479`, because the edge proxy
@@ -65,9 +71,9 @@ team that uploaded without making a folder still took the photos.
 
 | Stage | What happens |
 |---|---|
-| `discovering` | walk the event folder, download every image |
-| `prefiltering` | reject too-small, blurry and burst-duplicate frames, locally |
-| `curating` | Groq vision scores the survivors in batches of four |
+| `discovering` | walk the event folder, sample it evenly, download the sample |
+| `prefiltering` | reject too-small, blurry and burst-duplicate frames, locally, on a pool |
+| `curating` | Groq scores the survivors in concurrent batches; Gemini covers a rate limit |
 | `sequencing` | pick the shots, guarantee each temple a floor, order as a tour |
 | `rendering` | one ffmpeg filter graph: Ken Burns, xfades, logo, cards, music |
 | `uploading` | create `Reels/`, upload, optionally share, post to Slack |
@@ -77,6 +83,23 @@ bursts, so an 8×8 dHash at Hamming distance ≤ 5 collapses six near-identical
 frames of the same arati to the sharpest one, and a Laplacian-variance focus
 measure drops the soft ones. That typically halves the pool before a single
 token is spent.
+
+**A big event stays a short run.** A festival day can be a thousand photographs
+across forty temple folders, and the run is bounded at every point rather than
+growing with it: the event is sampled evenly across folders before anything is
+downloaded, only `CANDIDATES_PER_SHOT` images per shot are ever scored, batches
+are scored concurrently, and the whole curating stage gives up after
+`CURATION_BUDGET_SECONDS` and keeps heuristic scores for the rest. A
+rate-limited Groq hands the batch straight to Gemini instead of waiting out its
+`retry-after` — waiting was what once turned a 1052-photo event into forty
+minutes of apparent silence. That folder now renders a 30s reel in under three
+minutes.
+
+**Nothing is allowed to look stuck.** Progress reaches disk every ten seconds,
+so `reels --status` from a second window is current mid-stage; a watchdog writes
+`still <stage> after Nm` into the job log; ffmpeg is killed past
+`RENDER_TIMEOUT_SECONDS`; and a failure always carries a message, even when the
+exception itself has none.
 
 **A Groq outage degrades the reel; it never cancels it.** Every image already
 carries a heuristic score from the prefilter, so a failed batch keeps those

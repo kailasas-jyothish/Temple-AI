@@ -282,8 +282,29 @@ def run(argv: list[str], total_seconds: float, *, on_progress=None, on_log=None)
     if on_log:
         on_log(" ".join(argv))
 
-    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    try:
+        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    except FileNotFoundError as err:
+        # The bare OSError names no file at all, which is useless when the
+        # missing thing is the one program this service depends on.
+        raise RenderError(
+            f"ffmpeg could not be run as '{argv[0]}'. Install it and make sure it is on PATH, "
+            f"or set FFMPEG_BIN to its full path."
+        ) from err
     errors: list[str] = []
+    # ffmpeg has no timeout of its own. Killing it turns "the job never came
+    # back" into a failure with a reason, which is the whole point.
+    limit = config.render.timeout_seconds
+    timed_out = threading.Event()
+
+    def give_up():
+        timed_out.set()
+        proc.kill()
+
+    killer = threading.Timer(limit, give_up) if limit > 0 else None
+    if killer:
+        killer.daemon = True
+        killer.start()
 
     def drain():
         for line in proc.stderr:
@@ -303,7 +324,15 @@ def run(argv: list[str], total_seconds: float, *, on_progress=None, on_log=None)
             on_progress(max(0.0, min(1.0, done / total_seconds)))
 
     code = proc.wait()
+    if killer:
+        killer.cancel()
     pump.join(timeout=5)
+    if timed_out.is_set():
+        raise RenderError(
+            f"ffmpeg was still running after {limit:.0f}s and was stopped. "
+            f"Raise RENDER_TIMEOUT_SECONDS, or ask for a shorter reel.",
+            "\n".join(errors[-20:]),
+        )
     if code != 0:
         tail = "\n".join(errors[-20:])
         raise RenderError(f"ffmpeg exited {code}", tail)

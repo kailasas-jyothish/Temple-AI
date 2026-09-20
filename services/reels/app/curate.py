@@ -18,6 +18,7 @@ import logging
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from PIL import Image, ImageOps
@@ -125,12 +126,20 @@ class Provider:
     def __bool__(self) -> bool:
         raise NotImplementedError
 
-    def score(self, client: httpx.Client, batch: list[dict]) -> list[dict]:
+    def score(self, client: httpx.Client, batch: list[dict], *, patient: bool = True) -> list[dict]:
         raise NotImplementedError
 
-    def _retry(self, send, keys: KeyRotation):
-        """One batch, retried across keys. Rate limits rotate; other 4xx do not."""
-        attempts = max(3, len(keys) * 2)
+    def _retry(self, send, keys: KeyRotation, *, patient: bool = True):
+        """One batch, retried across keys. Rate limits rotate; other 4xx do not.
+
+        `patient` is false while another provider is still available to take the
+        batch. Waiting out a rate limit then costs more than simply asking the
+        other model: Groq's retry-after on the free tier is around 45 seconds,
+        and paying that on every batch is what turned a 1000-photo event into a
+        forty-minute silence. Every key is still tried first — the wait, not the
+        rotation, is what gets skipped.
+        """
+        attempts = len(keys) if not patient else max(3, len(keys) * 2)
         last = ""
         for attempt in range(attempts):
             key = keys.next()
@@ -138,12 +147,16 @@ class Provider:
                 res = send(key)
             except httpx.HTTPError as err:
                 last = f"{err.__class__.__name__}: {err}"
+                if not patient:
+                    continue
                 time.sleep(min(2 ** attempt, 20))
                 continue
             if res.status_code == 200:
                 return res.json()
             last = f"HTTP {res.status_code}: {res.text[:200]}"
             if res.status_code == 429 or res.status_code >= 500:
+                if not patient:
+                    continue
                 wait = float(res.headers.get("retry-after") or 0)
                 # A rotation is usually enough; only sleep once every key has been tried.
                 time.sleep(wait if wait else (min(2 ** attempt, 20) if attempt >= len(keys) else 0))
@@ -165,7 +178,7 @@ class GroqProvider(Provider):
     def __bool__(self) -> bool:
         return bool(self.keys)
 
-    def score(self, client: httpx.Client, batch: list[dict]) -> list[dict]:
+    def score(self, client: httpx.Client, batch: list[dict], *, patient: bool = True) -> list[dict]:
         content: list[dict] = [{"type": "text", "text": RUBRIC}]
         for index, item in enumerate(batch):
             content.append({"type": "text", "text": f"Image index {index}:"})
@@ -186,6 +199,7 @@ class GroqProvider(Provider):
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             ),
             self.keys,
+            patient=patient,
         )
         return _parse(body["choices"][0]["message"]["content"], len(batch))
 
@@ -203,7 +217,7 @@ class GeminiProvider(Provider):
     def __bool__(self) -> bool:
         return bool(self.keys)
 
-    def score(self, client: httpx.Client, batch: list[dict]) -> list[dict]:
+    def score(self, client: httpx.Client, batch: list[dict], *, patient: bool = True) -> list[dict]:
         parts: list[dict] = [{"text": f"{SYSTEM}\n\n{RUBRIC}"}]
         for index, item in enumerate(batch):
             parts.append({"text": f"Image index {index}:"})
@@ -222,6 +236,7 @@ class GeminiProvider(Provider):
                 headers={"x-goog-api-key": key, "Content-Type": "application/json"},
             ),
             self.keys,
+            patient=patient,
         )
         candidates = body.get("candidates") or []
         if not candidates:
@@ -250,11 +265,15 @@ def _chain() -> list[Provider]:
 # ------------------------------------------------------------------ curate
 
 
-def curate(candidates: list[dict], *, on_progress=None) -> str:
+def curate(candidates: list[dict], *, on_progress=None, on_warn=None, budget_seconds: float | None = None) -> str:
     """Annotate candidates with score/subject/usable/why.
 
     Returns the mode actually used, e.g. "groq", "groq+gemini" when the fallback
     covered some batches, or "heuristic".
+
+    Batches run concurrently and the whole stage is bounded by a wall clock.
+    Neither is an optimisation: serially, with a rate-limited provider, this
+    stage grew with the size of the event until it read as a hang.
     """
     for item in candidates:
         item.setdefault("usable", True)
@@ -271,27 +290,49 @@ def curate(candidates: list[dict], *, on_progress=None) -> str:
     primary = chain[0]
     batches = [candidates[i: i + primary.batch_size]
                for i in range(0, len(candidates), primary.batch_size)]
+    budget = config.curation.budget_seconds if budget_seconds is None else budget_seconds
+    deadline = time.monotonic() + budget if budget > 0 else float("inf")
+
     used: set[str] = set()
-    failed = 0
+    state = {"failed": 0, "skipped": 0, "done": 0}
+    lock = threading.Lock()
 
-    with httpx.Client() as client:
-        for number, batch in enumerate(batches, start=1):
-            rows = None
-            for provider in chain:
-                try:
-                    rows = provider.score(client, batch)
-                    if not rows:
-                        raise ValueError("no usable rows in the response")
+    def run_batch(number: int, batch: list[dict]) -> None:
+        rows = None
+        if time.monotonic() >= deadline:
+            with lock:
+                state["skipped"] += 1
+                state["done"] += 1
+                done = state["done"]
+            if on_progress:
+                on_progress(done, len(batches))
+            return
+        for index, provider in enumerate(chain):
+            # Only the last provider is worth waiting for; before that, a rate
+            # limit is a reason to ask the other model, not to sleep.
+            patient = index == len(chain) - 1
+            try:
+                rows = provider.score(client, batch, patient=patient)
+                if not rows:
+                    raise ValueError("no usable rows in the response")
+                with lock:
                     used.add(provider.name)
-                    break
-                except Exception as err:
-                    log.warning("curation batch %d/%d: %s failed — %s",
-                                number, len(batches), provider.name, err)
-                    rows = None
+                break
+            except Exception as err:
+                # Providers answer a rate limit with a paragraph of JSON; the
+                # first line of it is the part anyone reads.
+                message = f"batch {number}/{len(batches)}: {str(err)[:150]}"
+                log.warning("curation %s", message)
+                # Surface it where the person watching can see it; a model
+                # quietly falling back changes which photographs get used.
+                if on_warn:
+                    on_warn(message)
+                rows = None
 
+        with lock:
             if rows is None:
                 # This batch keeps its heuristic scores; the run continues.
-                failed += 1
+                state["failed"] += 1
             else:
                 for row in rows:
                     item = batch[row["i"]]
@@ -303,11 +344,23 @@ def curate(candidates: list[dict], *, on_progress=None) -> str:
                     item["subject"] = str(row.get("subject", ""))[:24]
                     item["why"] = str(row.get("why", ""))[:120]
                     item["scored_by"] = row.get("_by", "llm")
+            state["done"] += 1
+            done = state["done"]
+        if on_progress:
+            on_progress(done, len(batches))
 
-            if on_progress:
-                on_progress(number, len(batches))
+    workers = max(1, min(config.curation.workers, len(batches)))
+    with httpx.Client() as client:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(lambda pair: run_batch(*pair), enumerate(batches, start=1)))
+
+    if state["skipped"] and on_warn:
+        on_warn(f"curation budget of {budget:.0f}s ran out — {state['skipped']} batch(es) kept "
+                f"their heuristic scores so the reel could still be made "
+                f"(raise CURATION_BUDGET_SECONDS, or pick a shorter reel)")
 
     if not used:
         return "heuristic"
     mode = "+".join(p.name for p in chain if p.name in used)
-    return f"{mode} (+heuristics on {failed} batch{'es' if failed != 1 else ''})" if failed else mode
+    fell_back = state["failed"] + state["skipped"]
+    return f"{mode} (+heuristics on {fell_back} batch{'es' if fell_back != 1 else ''})" if fell_back else mode

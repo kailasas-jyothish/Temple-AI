@@ -11,7 +11,11 @@ import logging
 import os
 import re
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 
+import google_auth_httplib2
+import httplib2
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -27,11 +31,14 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 
+# Per-request socket timeout, and how many times a single file is retried.
+SOCKET_TIMEOUT = 90
+DOWNLOAD_ATTEMPTS = 3
+
 # Fields worth having on every file we touch; Drive returns almost nothing by default.
 FILE_FIELDS = "id, name, mimeType, size, createdTime, modifiedTime, imageMediaMetadata(width,height,time), webViewLink"
 
-_lock = threading.Lock()
-_service = None
+_local = threading.local()
 
 
 def credentials() -> Credentials:
@@ -47,21 +54,28 @@ def credentials() -> Credentials:
 
 
 def service():
-    """One cached client. googleapiclient's Resource is not thread-safe for
-    building, but issuing requests from several threads is fine."""
-    global _service
-    with _lock:
-        if _service is None:
-            creds = credentials()
-            creds.refresh(Request())
-            _service = build("drive", "v3", credentials=creds, cache_discovery=False)
-        return _service
+    """One client per thread.
+
+    googleapiclient's Resource wraps a single httplib2 connection and is not
+    thread-safe; sharing one across a download pool produces truncated files and
+    SSL errors that look like network flakiness. Each thread builds its own once
+    and reuses it, so the cost is one discovery fetch per worker.
+    """
+    existing = getattr(_local, "service", None)
+    if existing is None:
+        creds = credentials()
+        creds.refresh(Request())
+        # An explicit socket timeout is the difference between a transient
+        # network fault and a run that hangs forever with nothing to show for
+        # it. httplib2 defaults to no timeout at all.
+        http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=SOCKET_TIMEOUT))
+        existing = build("drive", "v3", http=http, cache_discovery=False)
+        _local.service = existing
+    return existing
 
 
 def reset() -> None:
-    global _service
-    with _lock:
-        _service = None
+    _local.service = None
 
 
 # ----------------------------------------------------------------- ids
@@ -172,15 +186,63 @@ def walk_event(folder_id: str) -> list[dict]:
     return groups
 
 
+def download_many(items: list[dict], *, workers: int = 6, on_progress=None) -> list[dict]:
+    """Fetch many files at once.
+
+    A day's event can be several hundred full-resolution photographs — nearly a
+    gigabyte — and fetching them one at a time is the longest part of a run by
+    far, spent waiting on the network rather than doing anything. Failures are
+    recorded on the item instead of raised, so one bad file does not lose the
+    other four hundred.
+    """
+    done = 0
+    lock = threading.Lock()
+
+    def fetch(item: dict) -> dict:
+        nonlocal done
+        try:
+            download(item["id"], item["path"])
+        except Exception as err:
+            item["download_error"] = f"{err.__class__.__name__}: {err}"
+        with lock:
+            done += 1
+            if on_progress:
+                on_progress(done, len(items))
+        return item
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(fetch, items))
+    return [i for i in items if not i.get("download_error")]
+
+
 def download(file_id: str, dest_path: str) -> str:
+    """Fetch one file, retrying a timeout or a dropped connection.
+
+    A partial file is deleted rather than left behind, because a truncated JPEG
+    reads later as a corrupt upload and gets blamed on the temple team.
+    """
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
-    request = service().files().get_media(fileId=file_id, supportsAllDrives=True)
-    with io.FileIO(dest_path, "wb") as handle:
-        downloader = MediaIoBaseDownload(handle, request, chunksize=8 * 1024 * 1024)
-        done = False
-        while not done:
-            _, done = downloader.next_chunk()
-    return dest_path
+    last: Exception | None = None
+    for attempt in range(DOWNLOAD_ATTEMPTS):
+        try:
+            request = service().files().get_media(fileId=file_id, supportsAllDrives=True)
+            with io.FileIO(dest_path, "wb") as handle:
+                downloader = MediaIoBaseDownload(handle, request, chunksize=8 * 1024 * 1024)
+                done = False
+                while not done:
+                    _, done = downloader.next_chunk()
+            return dest_path
+        except Exception as err:
+            last = err
+            try:
+                os.unlink(dest_path)
+            except OSError:
+                pass
+            # A stale connection in this thread's client will keep failing.
+            reset()
+            if attempt + 1 < DOWNLOAD_ATTEMPTS:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"download failed after {DOWNLOAD_ATTEMPTS} attempts: {last}") from last
 
 
 # ----------------------------------------------------------------- writes

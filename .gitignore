@@ -11,3 +11,6 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+
+# Reels rendered by `reels --no-upload`, which land next to the code.
+*.mp4

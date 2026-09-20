@@ -11,6 +11,8 @@ from __future__ import annotations
 import logging
 import math
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -125,23 +127,42 @@ def measure(path: str) -> dict:
     }
 
 
-def triage(candidates: list[dict]) -> tuple[list[dict], list[dict]]:
+def triage(candidates: list[dict], *, cap: int | None = None, on_progress=None) -> tuple[list[dict], list[dict]]:
     """Annotate every candidate, then split into keepers and rejects.
 
     `candidates` are dicts with at least `path`; they are mutated in place with
     the measurements so later stages and the job log can see why something went.
+
+    Measurement runs on a pool: it is decode-bound, Pillow and numpy both drop
+    the GIL while they work, and four hundred photographs one at a time is a
+    minute and a half of a run looking like it has stopped.
     """
     cfg = config.curation
     kept: list[dict] = []
     rejected: list[dict] = []
 
-    for item in candidates:
+    done = 0
+    lock = threading.Lock()
+
+    def inspect(item: dict) -> None:
+        nonlocal done
         try:
             item["path"] = ensure_readable(item["path"])
             item.update(measure(item["path"]))
             item["hash"] = dhash(item["path"])
         except Exception as err:  # a corrupt upload must not kill the run
             item["reject"] = f"unreadable ({err.__class__.__name__})"
+        with lock:
+            done += 1
+            if on_progress:
+                on_progress(done, len(candidates))
+
+    workers = max(1, min(cfg.prefilter_workers, len(candidates) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(inspect, candidates))
+
+    for item in candidates:
+        if item.get("reject"):
             rejected.append(item)
             continue
 
@@ -158,12 +179,13 @@ def triage(candidates: list[dict]) -> tuple[list[dict], list[dict]]:
     rejected.extend(duplicates)
 
     # Hard cap so a 600-photo event does not become a 150-request LLM run.
+    limit = cfg.max_candidates if cap is None else max(2, min(cap, cfg.max_candidates))
     kept.sort(key=lambda c: c["heuristic_score"], reverse=True)
-    if len(kept) > cfg.max_candidates:
-        for extra in kept[cfg.max_candidates:]:
+    if len(kept) > limit:
+        for extra in kept[limit:]:
             extra["reject"] = "over the candidate cap"
-        rejected.extend(kept[cfg.max_candidates:])
-        kept = kept[: cfg.max_candidates]
+        rejected.extend(kept[limit:])
+        kept = kept[:limit]
 
     return kept, rejected
 

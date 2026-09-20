@@ -37,6 +37,46 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _sample_evenly(candidates: list[dict], cap: int) -> list[dict]:
+    """Trim a huge pool while keeping every folder represented.
+
+    Round-robin across folders rather than taking the first N: the first N would
+    be one or two temples in alphabetical order, and the rest of the world would
+    never appear in the reel.
+    """
+    by_temple: dict[str, list[dict]] = {}
+    for item in candidates:
+        by_temple.setdefault(item.get("temple", ""), []).append(item)
+    for rows in by_temple.values():
+        rows.sort(key=lambda c: c.get("createdTime") or c["name"])
+
+    picked: list[dict] = []
+    index = 0
+    while len(picked) < cap:
+        took = False
+        for rows in by_temple.values():
+            if index < len(rows):
+                picked.append(rows[index])
+                took = True
+                if len(picked) >= cap:
+                    break
+        if not took:
+            break
+        index += 1
+    return picked
+
+
+def _pool_size(wanted: int) -> int:
+    """How many images are worth scoring for a reel of `wanted` shots.
+
+    Scoring costs a model request per few images and is the slowest stage by a
+    distance, so it is sized to the reel rather than to the event: a 20-shot
+    reel choosing from 60 images is already a luxury, and choosing from 120 only
+    doubles the wait. MAX_CANDIDATES remains the ceiling.
+    """
+    return max(24, min(config.curation.max_candidates, wanted * config.curation.candidates_per_shot))
+
+
 def _safe(name: str) -> str:
     """A filename Windows will accept — event names carry slashes and colons."""
     cleaned = "".join("-" if c in '<>:"/\\|?*' else c for c in name).strip(" .")
@@ -64,7 +104,8 @@ def _persist() -> None:
         _jobs.clear()
         for row in rows:
             _jobs[row["id"]] = row
-        store.write(JOBS_FILE, rows)
+        # Bookkeeping that only means something in this process.
+        store.write(JOBS_FILE, [{k: v for k, v in row.items() if not k.startswith("_")} for row in rows])
     # A poster outlives its job otherwise, and nothing would ever delete it.
     for row in dropped:
         poster = row.get("poster_path")
@@ -75,23 +116,56 @@ def _persist() -> None:
                 pass
 
 
+def snapshot() -> list[dict]:
+    """Jobs exactly as recorded on disk.
+
+    Unlike load(), this does not rewrite queued or running jobs as failed — a
+    reader in another window must not conclude that a job still in flight has
+    died, which is the opposite of what a status check is for.
+    """
+    rows = store.read(JOBS_FILE, [])
+    return sorted(rows, key=lambda j: j.get("created_at", ""), reverse=True)
+
+
+def _public(job: dict) -> dict:
+    return {k: v for k, v in job.items() if not k.startswith("_")}
+
+
 def all_jobs() -> list[dict]:
     with _lock:
-        return sorted((dict(j) for j in _jobs.values()), key=lambda j: j["created_at"], reverse=True)
+        return sorted((_public(j) for j in _jobs.values()), key=lambda j: j["created_at"], reverse=True)
 
 
 def get(job_id: str) -> dict | None:
     with _lock:
         job = _jobs.get(job_id)
-        return dict(job) if job else None
+        return _public(job) if job else None
+
+
+# How often a running job's progress reaches disk. Every update would mean a
+# file write per downloaded photo; only at stage changes means a reader in
+# another window sees a five-minute-old picture of a stage that moves every
+# second. Ten seconds is neither.
+HEARTBEAT_SECONDS = 10.0
+
+# Long enough that no healthy stage trips it, short enough to be seen: the point
+# is to say "still working, this is what on" rather than to diagnose.
+STALL_NOTICE_SECONDS = 180.0
 
 
 def _update(job_id: str, **fields) -> None:
+    flush = False
     with _lock:
         job = _jobs.get(job_id)
         if not job:
             return
         job.update(fields)
+        job["updated_at"] = _now()
+        if time.time() - job.get("_flushed", 0.0) >= HEARTBEAT_SECONDS:
+            job["_flushed"] = time.time()
+            flush = True
+    if flush:
+        _persist()
 
 
 def _log(job_id: str, message: str) -> None:
@@ -108,8 +182,38 @@ def _log(job_id: str, message: str) -> None:
 
 
 def _stage(job_id: str, stage: str, progress: float = 0.0) -> None:
-    _update(job_id, stage=stage, progress=round(progress, 4))
+    with _lock:
+        job = _jobs.get(job_id)
+        if job:
+            job["stage_started_at"] = _now()
+            job["_stage_started"] = time.time()
+    _update(job_id, stage=stage, progress=round(progress, 4), detail="")
     _log(job_id, f"— {stage}")
+    # Persist on every stage change, so a second window can read the job's
+    # state from disk while it runs rather than only after it ends.
+    _persist()
+
+
+def _watchdog(job_id: str, stop: threading.Event) -> None:
+    """Say so, in the job's own log, when a stage is taking a long time.
+
+    It does not intervene — every stage that can genuinely hang now has its own
+    timeout. What it removes is the silence: a long stage and a dead one looked
+    identical from the outside, and that is how a working run got killed.
+    """
+    told = 0.0
+    while not stop.wait(15.0):
+        with _lock:
+            job = _jobs.get(job_id)
+            if not job or job.get("state") != "running":
+                return
+            elapsed = time.time() - job.get("_stage_started", time.time())
+            stage, detail = job.get("stage", ""), job.get("detail", "")
+        if elapsed >= STALL_NOTICE_SECONDS and elapsed - told >= STALL_NOTICE_SECONDS:
+            told = elapsed
+            _log(job_id, f"still {stage} after {elapsed / 60:.0f}m"
+                         + (f" — {detail}" if detail else "") + " (this is slow, not stuck)")
+            _persist()
 
 
 # ----------------------------------------------------------------- submit
@@ -125,6 +229,8 @@ def submit(*, event_folder_id: str, song_file_id: str = "", options: dict | None
         "state": "queued",
         "stage": "queued",
         "progress": 0.0,
+        # A short "what exactly is happening now", for the long silent stages.
+        "detail": "",
         "event_folder_id": drive.parse_id(event_folder_id),
         "event_name": "",
         "song_file_id": drive.parse_id(song_file_id) if song_file_id else "",
@@ -183,6 +289,9 @@ def _execute(job_id: str) -> None:
     _update(job_id, state="running", started_at=_now())
     work_dir = os.path.join(config.work_dir, job_id)
 
+    stop = threading.Event()
+    threading.Thread(target=_watchdog, args=(job_id, stop), name="reel-watchdog", daemon=True).start()
+
     # The terminal state is set last, after the notification has been attempted.
     # Anything watching a job stops watching the moment it reads done or failed
     # — and the CLI then exits, killing this daemon thread mid-Slack-call.
@@ -201,7 +310,11 @@ def _execute(job_id: str) -> None:
     except Exception as err:
         detail = traceback.format_exc(limit=3)
         stderr = getattr(err, "stderr", "")
-        message = f"{err}\n{stderr}".strip() if stderr else str(err)
+        # Some exceptions — MemoryError is the one that bites — stringify to
+        # nothing, and "FAILED:" with nothing after it is the worst thing this
+        # can print. The class name is always something.
+        text = str(err) or err.__class__.__name__
+        message = f"{text}\n{stderr}".strip() if stderr else text
         _update(job_id, error=message, finished_at=_now())
         _log(job_id, f"FAILED: {message}")
         log.error("job %s failed\n%s", job_id, detail)
@@ -212,6 +325,7 @@ def _execute(job_id: str) -> None:
         _update(job_id, state="failed")
         _persist()
     finally:
+        stop.set()
         shutil.rmtree(work_dir, ignore_errors=True)
         _persist()
 
@@ -251,17 +365,48 @@ def _pipeline(job_id: str, work_dir: str) -> None:
     temples = sorted({c["temple"] for c in candidates if c["temple"]})
     _log(job_id, f"{len(candidates)} images across {len(groups)} folder(s): {', '.join(temples) or 'unnamed'}")
 
+    pool = _pool_size(wanted)
+    # Fetch several times the pool so the prefilter has real choice — a good
+    # half of a festival upload is duplicates, screenshots and soft frames — but
+    # not the whole thousand, which is gigabytes spent on photographs that
+    # cannot reach the reel.
+    cap = min(config.curation.download_cap, max(120, pool * 5)) if config.curation.download_cap else 0
+    if cap and len(candidates) > cap:
+        candidates = _sample_evenly(candidates, cap)
+        _log(job_id, f"sampled {len(candidates)} of them, evenly across folders "
+                     f"— a {wanted}-shot reel draws from a pool of {pool}")
+
     os.makedirs(work_dir, exist_ok=True)
     for index, item in enumerate(candidates, start=1):
         ext = os.path.splitext(item["name"])[1] or ".jpg"
         item["path"] = os.path.join(work_dir, f"{index:04d}{ext}")
-        drive.download(item["id"], item["path"])
-        _update(job_id, progress=0.05 + 0.25 * index / len(candidates))
-    _log(job_id, f"downloaded {len(candidates)} images")
+
+    def downloaded(done: int, total: int) -> None:
+        _update(job_id, progress=0.05 + 0.25 * done / total, detail=f"{done}/{total} downloaded")
+
+    fetched = drive.download_many(candidates, on_progress=downloaded)
+    failed = [c for c in candidates if c.get("download_error")]
+    candidates = fetched
+    _log(job_id, f"downloaded {len(candidates)} images" + (f", {len(failed)} FAILED" if failed else ""))
+    # Named, not just counted: a silent shortfall is how a reel quietly loses a
+    # whole temple's photographs.
+    for item in failed[:5]:
+        _log(job_id, f"  ! {item['name']}: {item['download_error']}")
+    if len(failed) > 5:
+        _log(job_id, f"  ! and {len(failed) - 5} more")
+    if not candidates:
+        raise RuntimeError(
+            "every image failed to download — check the network and that the "
+            "Google refresh token is still valid"
+        )
 
     # -------------------------------------------------- prefilter
     _stage(job_id, "prefiltering", 0.30)
-    kept, rejected = prefilter.triage(candidates)
+    kept, rejected = prefilter.triage(
+        candidates, cap=pool,
+        on_progress=lambda done, total: _update(
+            job_id, progress=0.30 + 0.04 * done / max(total, 1), detail=f"{done}/{total} inspected"),
+    )
     reasons: dict[str, int] = {}
     for item in rejected:
         key = str(item.get("reject", "rejected")).split(" (")[0].split(" of ")[0]
@@ -276,12 +421,17 @@ def _pipeline(job_id: str, work_dir: str) -> None:
 
     # -------------------------------------------------- curate
     _stage(job_id, "curating", 0.34)
+    curation_started = time.time()
     mode = curate.curate(
         kept,
-        on_progress=lambda done, total: _update(job_id, progress=0.34 + 0.26 * done / max(total, 1)),
+        on_progress=lambda done, total: _update(
+            job_id, progress=0.34 + 0.26 * done / max(total, 1), detail=f"batch {done}/{total}"),
+        on_warn=lambda message: _log(job_id, f"  ! {message}"),
+        budget_seconds=float(options.get("curation_budget_seconds") or 0) or None,
     )
     scored = sum(1 for c in kept if c.get("scored_by") == "llm")
-    _log(job_id, f"curation mode: {mode} ({scored}/{len(kept)} scored by the model)")
+    _log(job_id, f"curation mode: {mode} ({scored}/{len(kept)} scored by the model) "
+                 f"in {time.time() - curation_started:.0f}s")
 
     # -------------------------------------------------- sequence
     _stage(job_id, "sequencing", 0.60)
