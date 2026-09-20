@@ -652,6 +652,40 @@ config, so the UI is reached through a published port; the user is adding a
 Caddy vhost in front of 8479 rather than exposing a login page over plain HTTP
 on the IP. `PUBLIC_URL` stays empty until that hostname exists.
 
+### The edge, settled (2026-09-20)
+
+§10's note was right and worth stating in full, because the reels UI made it
+matter and an afternoon went into re-deriving it:
+
+**157.180.15.165 runs Caddy on 80 and 443, and Dokploy's Traefik is not in the
+request path at all.** Evidence, not inference:
+
+- Only 80, 443, 3000, 8478 and 8479 are open. There is no Traefik listener.
+- Caddy answers port 80 for *every* Host with a blanket 308 to HTTPS —
+  including hosts nothing has ever heard of.
+- On 443 it has certificates for exactly two names, `panchanga.kailasa.ai` and
+  `dock3.koogle.sk` (both real Let's Encrypt). Every other SNI fails the
+  handshake. There is no wildcard for `kailasa.ai` or `koogle.sk`.
+- A Dokploy domain record was created for the reels app on three hostnames that
+  resolve to the server (`*.traefik.me`, `*.sslip.io`, `*.nip.io`). None got a
+  certificate — Let's Encrypt will not issue for those shared suffixes, exactly
+  as §10 recorded for sslip.io.
+- A Dokploy domain with `path: /reels` on `panchanga.kailasa.ai` returned the
+  **panchanga Next.js app's own 404**, proving Caddy proxies that hostname
+  straight to its app rather than through Traefik. The record was deleted and
+  panchanga was never affected (its root answered 200 throughout).
+
+**So a new public hostname requires editing Caddy on the host.** The Dokploy API
+cannot do it, whatever the Domains tab suggests. Neither can a DNS change alone.
+Do not spend time on Dokploy domains, free wildcard DNS or path tricks again.
+
+DNS facts worth not re-checking: `koogle.sk` has a wildcard to 88.99.208.109 (a
+different machine that does not answer HTTP), `kailasa.ai` is Cloudflare with no
+wildcard, and the user has access to neither zone.
+
+The reels UI therefore sits on `http://157.180.15.165:8479` until someone adds a
+Caddy vhost.
+
 ### Still unverified
 
 Everything that needs credentials: Drive reads and writes, the Groq scores
