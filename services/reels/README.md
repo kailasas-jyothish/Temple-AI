@@ -26,7 +26,8 @@ reels --caption "Day 3"   caption without being asked; --caption "" for none
 the text and it is burnt over the bottom of the photographs in white Mart, above
 the `Overlay-gradient.png` scrim from `Elements` and below the copyright frame.
 It wraps to at most three lines, centred, and shrinks from 76px towards 44px
-rather than running off the frame; `\n` forces a break. Press enter instead and
+rather than running off the frame; `/n` or `\n` forces a break, with or without
+spaces around it. Press enter instead and
 neither the scrim nor the type is drawn — the reel is exactly what it was before
 the caption existed. The intro and end cards never carry either: they are
 finished artwork and a scrim over them only muddies them.

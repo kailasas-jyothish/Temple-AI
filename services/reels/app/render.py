@@ -115,6 +115,21 @@ def _escape_filter_path(path: str) -> str:
     return out
 
 
+def normalise_caption(text: str) -> str:
+    """Turn whatever someone typed for a line break into an actual one.
+
+    The prompt asks for `\\n`, but `/n` is the same keystroke without the shift
+    and gets typed just as often — and when it was not recognised it stayed in
+    the reel as visible text. Neither sequence has any business appearing
+    literally in a caption, so both mean the same thing here. Real newlines from
+    the UI's textarea arrive already correct and pass through untouched.
+    """
+    out = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    for token in ("\\n", "/n"):
+        out = out.replace(token, "\n")
+    return out.strip()
+
+
 def _text_width(text: str, font, size: int) -> float:
     if font is not None:
         try:
@@ -303,7 +318,9 @@ def build_command(
 
     # The caption is only drawn over the photographs, so the window it occupies
     # has to be known before any of it is built.
-    caption = (caption or "").strip()
+    # Normalised here rather than at each caller, so the CLI, the web UI and the
+    # job API cannot disagree about what a line break looks like.
+    caption = normalise_caption(caption)
     wants_caption = bool(caption) and bool(shots)
 
     # Input indices are positional, so the extras are appended in a fixed order

@@ -858,6 +858,14 @@ which the type stays readable.
   dropped into `Elements`, or `CAPTION_FONT_FILE_ID`, replaces it.
 - Falls back to DejaVu (installed in the image) if `Elements` has no font, and
   logs that it did. A missing font degrades the reel; it must not fail it.
+- **`/n` and `\n` both mean a line break**, and `normalise_caption()` in
+  `render.py` is the only place that decides so — the CLI, the web UI and the
+  job API all go through `build_command`. The first version recognised `\n`
+  alone; the user typed `/n` (same key, no shift), it stayed in the reel as
+  visible text, and ordinary word-wrap happened to break at the same point, so
+  it looked like the token had half worked. The CLI's pre-flight summary now
+  prints the caption already broken, so a mistyped token shows up before the
+  render rather than in the finished file.
 
 ### Why not agent-native for the UI (asked 2026-09-22)
 

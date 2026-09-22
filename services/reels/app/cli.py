@@ -19,7 +19,7 @@ import sys
 import time
 
 from . import config as config_module
-from . import drive, elements, jobs, library, sequence
+from . import drive, elements, jobs, library, render, sequence
 from .config import config
 
 
@@ -137,9 +137,8 @@ def pick_caption() -> str:
     the reel renders exactly as it did before this existed.
     """
     print("\nCaption  (white text over the bottom of the photos; enter to skip)")
-    print("      up to 3 lines — type \\n where you want a line to break")
-    answer = _ask("\n  text > ")
-    return answer.replace("\\n", "\n")
+    print("      up to 3 lines — type /n or \\n where you want a line to break")
+    return _ask("\n  text > ")
 
 
 def pick_endcard() -> str:
@@ -306,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     event = drive.get_file(drive.parse_id(args.event)) if args.event else pick_event()
     song = drive.parse_id(args.song) if args.song is not None else pick_song()
     endcard = drive.parse_id(args.endcard) if args.endcard is not None else pick_endcard()
-    caption = args.caption.replace("\\n", "\n") if args.caption is not None else pick_caption()
+    caption = args.caption if args.caption is not None else pick_caption()
 
     per = args.per or config.render.seconds_per_image
     xt = args.transition if args.transition is not None else config.render.transition_seconds
@@ -341,7 +340,10 @@ def main(argv: list[str] | None = None) -> int:
           + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
              else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
-    print(f"  caption  {caption.replace(chr(10), ' / ') if caption else '(none)'}")
+    # Shown exactly as it will be broken, so a mistyped break token is visible
+    # before the render rather than in the finished reel.
+    shown = render.normalise_caption(caption)
+    print(f"  caption  {shown.replace(chr(10), '  /  ') if shown else '(none)'}")
     print(f"  length   about {sequence.duration_for(wanted, seconds_per_image=per, transition_seconds=xt):.0f}s "
           f"from {wanted} photos, chosen by the model from {pool}")
     print(f"  upload   {'no — local file only' if args.no_upload else 'yes, into ' + config.drive.reels_folder}")
