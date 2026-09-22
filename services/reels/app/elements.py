@@ -26,7 +26,13 @@ KINDS = {
     # "overlay" was a logo alias until the caption scrim arrived; the real file
     # is "Overlay-gradient.png", so the word now belongs to neither kind on its
     # own. The logo still resolves through "frame" and "copyright".
-    "logo": (["logo", "frame", "watermark", "copyright"], [".png", ".webp"]),
+    # "copyright" before "frame" on purpose. Both the 2025 and the 2026 overlay
+    # carry the word, but only the older one is called "…Frame…", so trying
+    # "frame" first pinned the default to last year's file for ever. With
+    # "copyright" first both land in the same tier and the newest wins, which is
+    # the rule the end cards already follow — drop a new one in Drive and it
+    # takes over without anyone renaming anything.
+    "logo": (["logo", "copyright", "frame", "watermark"], [".png", ".webp"]),
     "endcard": (["endcard", "end-card", "end_card", "outro", "closing"],
                 [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
     "intro": (["intro", "opening", "titlecard"],

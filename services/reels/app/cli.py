@@ -141,17 +141,48 @@ def pick_caption() -> str:
     return _ask("\n  text > ")
 
 
-def pick_endcard() -> str:
-    folder = library.elements_folder()
-    if not folder:
+_elements_cache: dict | None = None
+
+
+def _elements() -> dict:
+    """The Elements listing, fetched once per run.
+
+    Every picker wants the same two Drive calls, and asking again per element is
+    a visible pause before each menu for a folder that cannot change mid-run.
+    """
+    global _elements_cache
+    if _elements_cache is None:
+        folder = library.elements_folder()
+        _elements_cache = {
+            "folder": folder,
+            "available": elements.available(folder["id"]) if folder else {},
+        }
+    return _elements_cache
+
+
+def pick_element(kind: str, title: str, *, none_label: str) -> str:
+    """A menu of everything in Elements that could serve as this asset.
+
+    Returns "" for "leave it to the usual rules", which is not the same as
+    "none" — `jobs.py` reads the empty string as no override at all.
+    """
+    data = _elements()
+    folder, options = data["folder"], data["available"].get(kind, [])
+    if not folder or not options:
         return ""
-    options = elements.available(folder["id"]).get("endcard", [])
-    if not options:
-        return ""
-    default = elements._find_by_name(folder["id"], "endcard")
-    label = f"default ({default['name']})" if default else "no end card"
-    chosen = choose("End card", options, none_label=label)
+    default = elements._find_by_name(folder["id"], kind)
+    label = f"{none_label} ({default['name']})" if default else none_label
+    chosen = choose(title, options, none_label=label)
     return chosen["id"] if chosen else ""
+
+
+def pick_endcard() -> str:
+    return pick_element("endcard", "End card", none_label="default")
+
+
+def pick_logo() -> str:
+    return pick_element("logo", "Copyright overlay  (sits over the whole reel)",
+                        none_label="default")
 
 
 # ------------------------------------------------------------------- run
@@ -257,6 +288,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event", default="", help="event folder id or Drive link (skips the menu)")
     parser.add_argument("--song", default=None, help="song file id or link; omit to be asked")
     parser.add_argument("--endcard", default=None, help="end card file id or link; omit to be asked")
+    parser.add_argument("--logo", default=None,
+                        help="copyright overlay file id or link; 'none' for no overlay, omit to be asked")
     parser.add_argument("--caption", default=None,
                         help="caption text burnt over the photos; pass '' for none, omit to be asked")
     parser.add_argument("--target", type=float, default=None, help="target length in seconds")
@@ -307,6 +340,12 @@ def main(argv: list[str] | None = None) -> int:
     event = drive.get_file(drive.parse_id(args.event)) if args.event else pick_event()
     song = drive.parse_id(args.song) if args.song is not None else pick_song()
     endcard = drive.parse_id(args.endcard) if args.endcard is not None else pick_endcard()
+    # "none" is a real answer here and must survive parse_id, which would read it
+    # as a malformed link and hand back "" — meaning "use the default" instead.
+    if args.logo is None:
+        logo = pick_logo()
+    else:
+        logo = "none" if args.logo.strip().lower() == "none" else drive.parse_id(args.logo)
     caption = args.caption if args.caption is not None else pick_caption()
 
     per = args.per or config.render.seconds_per_image
@@ -351,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
           + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
              else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
+    print(f"  overlay  {'(none)' if logo == 'none' else drive.get_file(logo)['name'] if logo else '(default)'}")
     # Shown exactly as it will be broken, so a mistyped break token is visible
     # before the render rather than in the finished reel.
     shown = render.normalise_caption(caption)
@@ -368,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         song_file_id=song,
         options={
             "endcard_file_id": endcard,
+            "logo_file_id": logo,
             "caption": caption,
             "target_seconds": target,
             "seconds_per_image": per,

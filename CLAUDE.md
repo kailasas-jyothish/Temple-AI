@@ -929,6 +929,32 @@ that knows, and only to play the clip instead of panning the still. This is why
   `VIDEO_MAX_ANALYSIS_SECONDS` caps how much of a long clip is examined, and
   analysis runs on a pool of 3. Measured: 11s to analyse a 120s clip.
 
+### The copyright overlay is chosen per run (2026-09-22)
+
+The end card was already selectable per run; the overlay was not, and a new
+`2026-Copyright.png` arrived in `Elements`. `jobs.py` already applied an
+override for *every* kind in `elements.KINDS`, so this was a picker, not a
+mechanism: `pick_element(kind, …)` in `cli.py` (with `--logo`, which accepts
+`none`) and a second `<select>` in the UI's Branding panel, both filled by one
+`fillElementPicker()`.
+
+Two things worth keeping:
+
+- **Alias order decides the default, and it was pinning the wrong file.** The
+  logo aliases ran `logo → frame → watermark → copyright`, and only the 2025
+  overlay is called "…Frame…", so `frame` matched first and the newest file
+  could never win however many were dropped in. `copyright` now comes before
+  `frame`: both files land in the same tier and `modifiedTime` decides, which
+  is the rule the end cards already followed. Verified — the default flipped
+  from `ReelsFrame_2025_Copyright.png` to `2026-Copyright.png`.
+- **`--logo none` must not go through `drive.parse_id()`.** That reads "none" as
+  a malformed link and returns `""`, which `jobs.py` interprets as *no override*
+  — i.e. asking for no overlay would have silently given the default one.
+- The caption margin did not need moving: the 2026 overlay's own text occupies
+  rows 1720–1817 against the 2025 file's 1722–1822, measured off the alpha, so
+  `CAPTION_BOTTOM_MARGIN` 260 still clears it by ~60px. Worth re-measuring
+  whenever a new overlay lands, because nothing enforces it.
+
 ### Why not agent-native for the UI (asked 2026-09-22)
 
 `BuilderIO/agent-native` is TypeScript + React + Postgres (PGlite locally).

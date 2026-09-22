@@ -13,7 +13,8 @@ offers and does the same work — downloads, curates, renders, uploads the reel
 into the event folder and posts to Slack. Nothing about it needs the server.
 
 ```
-reels                     menus for folder, song, end card, caption and length
+reels                     menus for folder, song, branding, caption and length
+reels --logo none         no copyright overlay on this reel
 reels --no-upload         render to a local file, leave Drive and Slack alone
 reels --event <link>      skip the folder menu
 reels --target 45         a 45-second reel, without being asked
@@ -89,7 +90,7 @@ reproducible, and therefore fixable.
 ```
 Vision Pics/                       <- DRIVE_ROOT_FOLDER_ID
   Songs/                           <- one track dropped in per day
-  Elements/                        <- logo, endcard, intro, gradient, caption font
+  Elements/                        <- copyright overlay, endcard, intro, gradient, caption font
   2026-09-18 Ganesha Chaturthi/    <- an event folder, chosen in the UI
     KAILASA LA/                    <- one folder per temple
     KAILASA Houston/

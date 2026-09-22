@@ -113,9 +113,13 @@
     </div>
 
     <div class="panel">
-      <h2>3 · End card</h2>
+      <h2>3 · Branding</h2>
+      <label for="endcard">End card</label>
       <select id="endcard"></select>
-      <p class="muted" id="endcard-note" style="margin:8px 0 0"></p>
+      <p class="muted" id="endcard-note" style="margin:8px 0 14px"></p>
+      <label for="logo">Copyright overlay</label>
+      <select id="logo"></select>
+      <p class="muted" id="logo-note" style="margin:8px 0 0"></p>
     </div>
 
     <div class="panel">
@@ -282,32 +286,39 @@ async function loadSongs() {
 }
 
 // -------------------------------------------------------------- elements
-async function loadElements() {
-  const data = await api('/api/elements');
-  state.elements = data;
-
-  // Step 3: the end card for this run only. Defaults to whatever the Branding
-  // rules would pick, so leaving it alone is always safe.
-  const auto = data.elements.endcard;
-  const picker = $('endcard');
+function fillElementPicker(kind, data, noneLabel) {
+  const auto = data.elements[kind] || {};
+  const picker = $(kind);
   picker.innerHTML = '';
   const autoOption = document.createElement('option');
+  // Empty value means "no override" — which is not the same as "none", and the
+  // server tells them apart.
   autoOption.value = '';
   autoOption.textContent = auto.name ? `Default — ${auto.name}` : 'Default — none found';
   picker.append(autoOption);
   const none = document.createElement('option');
   none.value = 'none';
-  none.textContent = 'No end card';
+  none.textContent = noneLabel;
   picker.append(none);
-  for (const file of data.available.endcard || []) {
+  for (const file of data.available[kind] || []) {
     const option = document.createElement('option');
     option.value = file.id;
     option.textContent = file.name;
     picker.append(option);
   }
-  $('endcard-note').textContent = data.folder
-    ? `${(data.available.endcard || []).length} in ${data.folder.name}. Drop a new one in Drive and it appears here.`
+  $(`${kind}-note`).textContent = data.folder
+    ? `${(data.available[kind] || []).length} in ${data.folder.name}. Drop a new one in Drive and it appears here.`
     : 'No Elements folder in Vision Pics yet.';
+}
+
+async function loadElements() {
+  const data = await api('/api/elements');
+  state.elements = data;
+
+  // The end card and the copyright overlay, for this run only. Both default to
+  // whatever the Branding rules would pick, so leaving them alone is safe.
+  fillElementPicker('endcard', data, 'No end card');
+  fillElementPicker('logo', data, 'No overlay');
 
   // Branding: the standing default for each asset.
   const host = $('elements');
@@ -358,6 +369,7 @@ $('start').onclick = async () => {
       options: {
         // '' means use the standing default; 'none' suppresses the card entirely.
         endcard_file_id: $('endcard').value === 'none' ? 'none' : $('endcard').value,
+        logo_file_id: $('logo').value === 'none' ? 'none' : $('logo').value,
         caption: $('caption').value,
         target_seconds: Number($('target').value) || 0,
         seconds_per_image: Number($('per').value) || 0,
