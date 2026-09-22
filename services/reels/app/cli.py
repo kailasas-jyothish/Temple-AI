@@ -19,7 +19,7 @@ import sys
 import time
 
 from . import config as config_module
-from . import drive, elements, jobs, library, sequence
+from . import drive, elements, jobs, library, render, sequence
 from .config import config
 
 
@@ -130,17 +130,59 @@ def pick_length(*, seconds_per_image: float, transition_seconds: float) -> float
         print("  a menu number, or a length between 10 and 300 seconds.")
 
 
-def pick_endcard() -> str:
-    folder = library.elements_folder()
-    if not folder:
+def pick_caption() -> str:
+    """The one thing about a reel that changes every day and cannot be derived.
+
+    Blank is a real answer: with no caption the gradient scrim has no job, and
+    the reel renders exactly as it did before this existed.
+    """
+    print("\nCaption  (white text over the bottom of the photos; enter to skip)")
+    print("      up to 3 lines — type /n or \\n where you want a line to break")
+    return _ask("\n  text > ")
+
+
+_elements_cache: dict | None = None
+
+
+def _elements() -> dict:
+    """The Elements listing, fetched once per run.
+
+    Every picker wants the same two Drive calls, and asking again per element is
+    a visible pause before each menu for a folder that cannot change mid-run.
+    """
+    global _elements_cache
+    if _elements_cache is None:
+        folder = library.elements_folder()
+        _elements_cache = {
+            "folder": folder,
+            "available": elements.available(folder["id"]) if folder else {},
+        }
+    return _elements_cache
+
+
+def pick_element(kind: str, title: str, *, none_label: str) -> str:
+    """A menu of everything in Elements that could serve as this asset.
+
+    Returns "" for "leave it to the usual rules", which is not the same as
+    "none" — `jobs.py` reads the empty string as no override at all.
+    """
+    data = _elements()
+    folder, options = data["folder"], data["available"].get(kind, [])
+    if not folder or not options:
         return ""
-    options = elements.available(folder["id"]).get("endcard", [])
-    if not options:
-        return ""
-    default = elements._find_by_name(folder["id"], "endcard")
-    label = f"default ({default['name']})" if default else "no end card"
-    chosen = choose("End card", options, none_label=label)
+    default = elements._find_by_name(folder["id"], kind)
+    label = f"{none_label} ({default['name']})" if default else none_label
+    chosen = choose(title, options, none_label=label)
     return chosen["id"] if chosen else ""
+
+
+def pick_endcard() -> str:
+    return pick_element("endcard", "End card", none_label="default")
+
+
+def pick_logo() -> str:
+    return pick_element("logo", "Copyright overlay  (sits over the whole reel)",
+                        none_label="default")
 
 
 # ------------------------------------------------------------------- run
@@ -246,12 +288,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event", default="", help="event folder id or Drive link (skips the menu)")
     parser.add_argument("--song", default=None, help="song file id or link; omit to be asked")
     parser.add_argument("--endcard", default=None, help="end card file id or link; omit to be asked")
+    parser.add_argument("--logo", default=None,
+                        help="copyright overlay file id or link; 'none' for no overlay, omit to be asked")
+    parser.add_argument("--caption", default=None,
+                        help="caption text burnt over the photos; pass '' for none, omit to be asked")
     parser.add_argument("--target", type=float, default=None, help="target length in seconds")
     parser.add_argument("--per", type=float, default=None, help="seconds per photo")
     parser.add_argument("--transition", type=float, default=None)
     parser.add_argument("--song-start", type=float, default=None,
                         help="seconds into the song to start; omit to let the loudest passage decide")
     parser.add_argument("--shots", type=int, default=None)
+    parser.add_argument("--no-videos", action="store_true",
+                        help="photographs only; skip the video clips in the event folder")
     parser.add_argument("--no-upload", action="store_true",
                         help="render to ./reel.mp4 and stop, without writing to Drive or Slack")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation")
@@ -292,6 +340,13 @@ def main(argv: list[str] | None = None) -> int:
     event = drive.get_file(drive.parse_id(args.event)) if args.event else pick_event()
     song = drive.parse_id(args.song) if args.song is not None else pick_song()
     endcard = drive.parse_id(args.endcard) if args.endcard is not None else pick_endcard()
+    # "none" is a real answer here and must survive parse_id, which would read it
+    # as a malformed link and hand back "" — meaning "use the default" instead.
+    if args.logo is None:
+        logo = pick_logo()
+    else:
+        logo = "none" if args.logo.strip().lower() == "none" else drive.parse_id(args.logo)
+    caption = args.caption if args.caption is not None else pick_caption()
 
     per = args.per or config.render.seconds_per_image
     xt = args.transition if args.transition is not None else config.render.transition_seconds
@@ -308,10 +363,12 @@ def main(argv: list[str] | None = None) -> int:
     # photographs and close to a gigabyte, and knowing that up front is the
     # difference between a long wait and an apparent hang.
     groups = drive.walk_event(event["id"])
-    photos = [f for g in groups for f in g["images"]]
+    photos = [f for g in groups for f in g.get("images", [])]
+    clips = [f for g in groups for f in g.get("videos", [])]
+    use_video = config.video.enabled and not args.no_videos
     megabytes = sum(int(f.get("size") or 0) for f in photos) / 1_048_576
-    if not photos:
-        print(f"\n  {event['name']} has no photographs in it — pick a different folder.")
+    if not photos and not (clips and use_video):
+        print(f"\n  {event['name']} has nothing usable in it — pick a different folder.")
         return 1
 
     pool = jobs._pool_size(wanted)
@@ -322,10 +379,22 @@ def main(argv: list[str] | None = None) -> int:
               f"about {megabytes * cap / len(photos):.0f} MB")
     else:
         print(f"  photos   {len(photos)} across {len(groups)} folder(s), about {megabytes:.0f} MB")
+    if clips:
+        if use_video:
+            examined = min(len(clips), config.video.max_clips)
+            print(f"  videos   {len(clips)} — examining {examined} for steady footage, "
+                  f"up to {max(1, int(wanted * config.video.share))} can reach the reel")
+        else:
+            print(f"  videos   {len(clips)} found, skipped (--no-videos)")
     print(f"  song     {drive.get_file(song)['name'] if song else '(silent)'}"
           + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
              else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
+    print(f"  overlay  {'(none)' if logo == 'none' else drive.get_file(logo)['name'] if logo else '(default)'}")
+    # Shown exactly as it will be broken, so a mistyped break token is visible
+    # before the render rather than in the finished reel.
+    shown = render.normalise_caption(caption)
+    print(f"  caption  {shown.replace(chr(10), '  /  ') if shown else '(none)'}")
     print(f"  length   about {sequence.duration_for(wanted, seconds_per_image=per, transition_seconds=xt):.0f}s "
           f"from {wanted} photos, chosen by the model from {pool}")
     print(f"  upload   {'no — local file only' if args.no_upload else 'yes, into ' + config.drive.reels_folder}")
@@ -339,11 +408,14 @@ def main(argv: list[str] | None = None) -> int:
         song_file_id=song,
         options={
             "endcard_file_id": endcard,
+            "logo_file_id": logo,
+            "caption": caption,
             "target_seconds": target,
             "seconds_per_image": per,
             "transition_seconds": xt,
             "shot_count": args.shots or 0,
             "song_start_seconds": args.song_start,
+            "include_videos": use_video,
             "skip_upload": args.no_upload,
         },
     )
@@ -359,7 +431,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     stats = finished.get("stats", {})
-    print(f"\nDone — {stats.get('used')} of {stats.get('considered')} photos, "
+    clips_used = stats.get("clips_used") or 0
+    print(f"\nDone — {stats.get('used')} shots"
+          + (f" ({clips_used} from video)" if clips_used else "")
+          + f" of {stats.get('considered')} considered, "
           f"{stats.get('duration_seconds')}s, selection by {stats.get('curation_mode')}")
     if finished.get("reel_url"):
         print(f"  {finished['reel_url']}")

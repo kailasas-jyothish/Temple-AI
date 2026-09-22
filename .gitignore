@@ -14,3 +14,12 @@ venv/
 
 # Reels rendered by `reels --no-upload`, which land next to the code.
 *.mp4
+
+# Nothing belongs in a .json at the repo root. Google service-account keys land
+# here under the Cloud project's own name — "complete-energy-507909-r5-….json"
+# looks like nothing in particular, and `git add -A` took one on 2026-09-22
+# without anybody noticing. Every real .json in this repo lives in a service.
+/*.json
+# except the Dokploy API spec, which scripts/dokploy.mjs writes here on demand
+# and is worth keeping when it exists.
+!/dokploy-openapi.json

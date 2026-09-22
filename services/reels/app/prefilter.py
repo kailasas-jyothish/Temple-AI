@@ -166,7 +166,12 @@ def triage(candidates: list[dict], *, cap: int | None = None, on_progress=None) 
             rejected.append(item)
             continue
 
-        if item["short_edge"] < cfg.min_image_px:
+        # The size test is for photographs only. A clip window carries a still
+        # pulled from the clip, so it is as wide as the clip is — 1280x720 for
+        # perfectly usable 720p footage, whose short edge reads as "too small"
+        # under a rule written for stills. Video is judged on its own height in
+        # video.analyse() instead. The blur test below still applies to both.
+        if not item.get("is_video") and item["short_edge"] < cfg.min_image_px:
             item["reject"] = f"too small ({item['width']}x{item['height']})"
             rejected.append(item)
         elif item["sharpness"] < cfg.blur_threshold:

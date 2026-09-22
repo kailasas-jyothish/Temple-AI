@@ -23,12 +23,30 @@ log = logging.getLogger(__name__)
 # "Ganesha-Chaturthi-endcard-1.png", so matching has to cope with real names
 # rather than the tidy ones a README would suggest.
 KINDS = {
-    "logo": (["logo", "frame", "watermark", "overlay", "copyright"], [".png", ".webp"]),
+    # "overlay" was a logo alias until the caption scrim arrived; the real file
+    # is "Overlay-gradient.png", so the word now belongs to neither kind on its
+    # own. The logo still resolves through "frame" and "copyright".
+    # "copyright" before "frame" on purpose. Both the 2025 and the 2026 overlay
+    # carry the word, but only the older one is called "…Frame…", so trying
+    # "frame" first pinned the default to last year's file for ever. With
+    # "copyright" first both land in the same tier and the newest wins, which is
+    # the rule the end cards already follow — drop a new one in Drive and it
+    # takes over without anyone renaming anything.
+    "logo": (["logo", "copyright", "frame", "watermark"], [".png", ".webp"]),
     "endcard": (["endcard", "end-card", "end_card", "outro", "closing"],
                 [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
     "intro": (["intro", "opening", "titlecard"],
               [".mp4", ".mov", ".png", ".jpg", ".jpeg", ".webp"]),
+    # The caption scrim: a full-frame PNG, transparent at the top and opaque at
+    # the base, so white type over the bottom of a photograph stays readable.
+    "gradient": (["gradient", "scrim"], [".png", ".webp"]),
+    "font": (["font", "typeface"], [".otf", ".ttf"]),
 }
+
+# Kinds whose extensions belong to them alone, where any candidate is better
+# than none. The caption font is "Mart-DevanagariBold.otf" — a real font file is
+# never named after the word "font", and nothing else in Elements is an .otf.
+FALLBACK_ANY = {"font"}
 
 SETTING_KEYS = {kind: f"{kind}_file_id" for kind in KINDS}
 
@@ -42,6 +60,8 @@ def configured_id(kind: str) -> str:
         "logo": config.drive.logo_file_id,
         "endcard": config.drive.endcard_file_id,
         "intro": config.drive.intro_file_id,
+        "gradient": config.drive.gradient_file_id,
+        "font": config.drive.font_file_id,
     }[kind]
     return drive.parse_id(from_env) if from_env else ""
 
@@ -73,6 +93,8 @@ def _find_by_name(elements_folder_id: str, kind: str) -> dict | None:
             continue
         exact = [f for f in matches if os.path.splitext(f["name"].lower())[0] == alias]
         return max(exact or matches, key=lambda f: f.get("modifiedTime", ""))
+    if kind in FALLBACK_ANY:
+        return max(candidates, key=lambda f: f.get("modifiedTime", ""))
     return None
 
 

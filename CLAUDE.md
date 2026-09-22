@@ -814,6 +814,156 @@ explicit `SHOT_COUNT` says so rather than asking for something it will ignore.
 Length is not only cosmetic any more: it sets the pool size, and therefore how
 long the run takes.
 
+### Captions (2026-09-22)
+
+A caption is asked for per run and burnt over the photographs, under
+`Overlay-gradient.png` from `Elements` — a 1080x1920 RGBA scrim, transparent at
+the top and opaque at the base. Layer order is photos → scrim → text →
+copyright frame, which is what was asked for and is also the only order in
+which the type stays readable.
+
+- **The text is the only new input; everything else is a standard.** White,
+  Mart, centred, ≤3 lines, wrapped and shrunk from 76px towards 44px against
+  the real font metrics via PIL. A characters-per-line rule overflows on a
+  display face. This stays on the ffmpeg side of the §12 split: there is no
+  judgement in it.
+- **Scrim and text appear over the photographs only**, alpha-faded in and out
+  across the transitions either side, so the intro and end cards stay clean.
+  The window comes from each segment's start time on the output timeline, which
+  `build_command` now records as it chains the xfades.
+- **An empty caption is byte-identical to the old command** — asserted, not
+  assumed. No gradient input, no drawtext, same duration.
+- `drawtext` needs `expansion=none`. Without it a caption reading "100%
+  attendance" fails the entire render, and one containing `%d` would silently
+  become a date. Found by rendering one, not by reading the docs.
+- Each line is its own `drawtext` with its own `x=(w-text_w)/2`. `text_align`
+  would centre a block in one filter but only exists from ffmpeg 7.1, and the
+  container runs Debian's 5.1.
+- The caption text goes to a **file** per line and is passed as `textfile=`, so
+  no user punctuation ever has to survive two levels of filter escaping.
+  Verified with `Day 3: Nithya's 100% [special], see; more`. Paths still need
+  escaping — `_escape_filter_path()` normalises separators and escapes `:` so a
+  Windows drive letter is not read as an option separator.
+- `CAPTION_BOTTOM_MARGIN` is 260 because the copyright frame's own text
+  occupies rows **1722–1822** of 1920. That was measured off the asset's alpha
+  channel, not judged by eye; at the old 220 the two nearly touched.
+- **`overlay` is no longer a logo alias.** `Overlay-gradient.png` made it
+  ambiguous, and the logo still resolves through `frame`/`copyright`. The font
+  kind is in `FALLBACK_ANY`: `.otf`/`.ttf` belong to it alone, and no real font
+  file is named after the word "font".
+- **The font is a Devanagari cut, and its Latin glyphs carry the shirorekha** —
+  a headline bar that reads as a strike-through on English words (digits are
+  clean). This is the font, not the renderer: PIL draws it identically. The
+  user chose Mart as the standard, so it is not worked around; a Latin cut
+  dropped into `Elements`, or `CAPTION_FONT_FILE_ID`, replaces it.
+- Falls back to DejaVu (installed in the image) if `Elements` has no font, and
+  logs that it did. A missing font degrades the reel; it must not fail it.
+- **`/n` and `\n` both mean a line break**, and `normalise_caption()` in
+  `render.py` is the only place that decides so — the CLI, the web UI and the
+  job API all go through `build_command`. The first version recognised `\n`
+  alone; the user typed `/n` (same key, no shift), it stayed in the reel as
+  visible text, and ordinary word-wrap happened to break at the same point, so
+  it looked like the token had half worked. The CLI's pre-flight summary now
+  prints the caption already broken, so a mistyped token shows up before the
+  render rather than in the finished file.
+
+### Video clips (2026-09-22)
+
+The ask was that clips be used too, with the same pipeline that picks
+photographs, and that shaky stretches be removed.
+
+**A clip is never a candidate; its steady windows are.** `app/video.py` finds
+them, and each window comes back carrying a full-resolution still at `path`.
+From that line on nothing downstream can tell it from a photograph:
+`prefilter.triage` measures it, the dHash collapses it against a near-identical
+still, `curate.py` sends it to the model under the same rubric, and
+`sequence.py` ranks it on the same 0–10 scale. `render.py` is the only module
+that knows, and only to play the clip instead of panning the still. This is why
+"use the same pipeline" needed almost no new pipeline.
+
+- **A clip fills exactly one shot slot**, so `total = n*(d-t)+t` is untouched
+  and a 30s reel is still 30s. Asserted: planned 19.20s, produced 19.20s.
+- **Shake is a measurement, so it stays out of the model** — like the music
+  window in `music.py`. It is the mean change in frame velocity across a
+  window (not velocity itself: a steady pan is fast and fine, handheld jitter
+  is slow and reverses constantly), by phase correlation between frames,
+  normalised to frame height.
+- **The sampling rate is load-bearing and nearly shipped wrong.** Handheld
+  jitter is 2–6Hz, so at the first-guess 5/s it aliased: a 4.5Hz shake folded
+  to 0.5Hz and measured *smoother* than a gentle walk, ranking the six
+  calibration clips in the wrong order. At 15/s they rank correctly with a wide
+  margin — locked off 0.0, smooth pan 0.26, gentle handheld 0.29, brisk walking
+  3.3, shaky 25, violent 39. `VIDEO_SHAKE_THRESHOLD` is 1.6, inside the
+  eleven-fold gap. Never lower `VIDEO_ANALYSIS_FPS` below ~12.
+- **`MIN_IMAGE_PX` must not apply to video, and nor does a height rule.** The
+  right measure is how far the 9:16 crop must stretch the source,
+  `max(1080/w, 1920/h)`, because the binding side differs by orientation. A
+  scan of the real archive settled it: most temple video is WhatsApp 480x848,
+  whose *height* passes any sane height test while its *width* is what gets
+  upscaled 2.25x. Real values — 1080x1920 1.0, 2160x3840 0.5, 720x1280 1.5,
+  1920x1080 1.78, 480x848 2.26, then a cliff to 848x480 and 640x480 at 4.0.
+  `VIDEO_MAX_UPSCALE` is 2.5, in that cliff. Drive reports the dimensions, so
+  this is applied before download as well as in `analyse()`. The blur test
+  still applies to both photographs and clips.
+- **`walk_event` skips folders whose name contains "reel".** The service writes
+  into a `Reels` folder inside the event folder, and the archive already holds
+  `Final Diwali Reel`, `KB Final Reels` and `REELS` full of finished reels.
+  This was harmless while only photographs were read — those folders hold none
+  — but with clips ingested the service would splice last month's finished
+  reels into this month's, which would read as a rendering fault rather than a
+  sourcing one. Found by scanning the real Drive, not by testing.
+- Windows from one clip need unique ids (`<fileId>#<n>`) — `sequence.py`
+  dedupes on `id`, so every window of a clip would otherwise collapse into one.
+- `-ss` before `-i` seeks by keyframe and can land a few frames short, and one
+  short segment would shift every xfade offset after it. The clip filter ends
+  `tpad=stop_mode=clone:stop_duration=1,trim=duration=<per>` so the length is
+  exact regardless.
+- Clips are cropped to fill, not letterboxed — the repo's rule is that content
+  fills the frame and only branding is letterboxed. They are silent; the song
+  carries the reel, and no clip audio is ever mapped.
+- `VIDEO_SHARE` (0.5) caps the clip count, enforced inside `sequence.build` in
+  *both* passes — the per-temple floor and the merit fill — or a temple that
+  uploaded only video would spend the whole allowance before merit was reached.
+- Cost is bounded the §12 way: clips are filtered on duration and size from the
+  Drive listing before download, `VIDEO_MAX_CLIPS` caps the count,
+  `VIDEO_MAX_ANALYSIS_SECONDS` caps how much of a long clip is examined, and
+  analysis runs on a pool of 3. Measured: 11s to analyse a 120s clip.
+
+### The copyright overlay is chosen per run (2026-09-22)
+
+The end card was already selectable per run; the overlay was not, and a new
+`2026-Copyright.png` arrived in `Elements`. `jobs.py` already applied an
+override for *every* kind in `elements.KINDS`, so this was a picker, not a
+mechanism: `pick_element(kind, …)` in `cli.py` (with `--logo`, which accepts
+`none`) and a second `<select>` in the UI's Branding panel, both filled by one
+`fillElementPicker()`.
+
+Two things worth keeping:
+
+- **Alias order decides the default, and it was pinning the wrong file.** The
+  logo aliases ran `logo → frame → watermark → copyright`, and only the 2025
+  overlay is called "…Frame…", so `frame` matched first and the newest file
+  could never win however many were dropped in. `copyright` now comes before
+  `frame`: both files land in the same tier and `modifiedTime` decides, which
+  is the rule the end cards already followed. Verified — the default flipped
+  from `ReelsFrame_2025_Copyright.png` to `2026-Copyright.png`.
+- **`--logo none` must not go through `drive.parse_id()`.** That reads "none" as
+  a malformed link and returns `""`, which `jobs.py` interprets as *no override*
+  — i.e. asking for no overlay would have silently given the default one.
+- The caption margin did not need moving: the 2026 overlay's own text occupies
+  rows 1720–1817 against the 2025 file's 1722–1822, measured off the alpha, so
+  `CAPTION_BOTTOM_MARGIN` 260 still clears it by ~60px. Worth re-measuring
+  whenever a new overlay lands, because nothing enforces it.
+
+### Why not agent-native for the UI (asked 2026-09-22)
+
+`BuilderIO/agent-native` is TypeScript + React + Postgres (PGlite locally).
+Adopting it would mean a second runtime, a database, a second Dokploy app and
+an LLM key for its agent layer — and it would still be served on
+`http://157.180.15.165:<port>`, because the blocker is Caddy on the host, not
+the framework (see "The edge, settled"). It does not address the actual
+problem. The CLI stays the front end.
+
 ### What is now proven, and what is not
 
 Verified end to end against the real Drive (2026-09-19/20): Drive reads, two
@@ -833,6 +983,15 @@ Not yet proven:
   exercised there. The Groq/Gemini failover in particular has only ever been
   watched locally.
 - A run with a song attached against a large event, end to end.
+- **A caption over real temple photographs.** It was proven against synthetic
+  stills with the real gradient, font, logo and end card — frames extracted and
+  looked at — but not yet on a real event, and never in the container.
+- **Video against real temple footage.** The clip path is proven end to end on
+  synthesised camera moves: shaky rejected, steady and panning kept, share cap
+  held, reel length unchanged to 0.000s, frames looked at. The shake thresholds
+  have never met a real handheld temple video, and that is the one number most
+  likely to need moving — the job log prints the measured shake of every
+  rejected clip, which is what to tune against.
 - Whether the refresh token survives — the OAuth consent screen must be Internal
   or Production, or it dies after 7 days with `invalid_grant` as the only sign.
 
