@@ -814,6 +814,60 @@ explicit `SHOT_COUNT` says so rather than asking for something it will ignore.
 Length is not only cosmetic any more: it sets the pool size, and therefore how
 long the run takes.
 
+### Captions (2026-09-22)
+
+A caption is asked for per run and burnt over the photographs, under
+`Overlay-gradient.png` from `Elements` — a 1080x1920 RGBA scrim, transparent at
+the top and opaque at the base. Layer order is photos → scrim → text →
+copyright frame, which is what was asked for and is also the only order in
+which the type stays readable.
+
+- **The text is the only new input; everything else is a standard.** White,
+  Mart, centred, ≤3 lines, wrapped and shrunk from 76px towards 44px against
+  the real font metrics via PIL. A characters-per-line rule overflows on a
+  display face. This stays on the ffmpeg side of the §12 split: there is no
+  judgement in it.
+- **Scrim and text appear over the photographs only**, alpha-faded in and out
+  across the transitions either side, so the intro and end cards stay clean.
+  The window comes from each segment's start time on the output timeline, which
+  `build_command` now records as it chains the xfades.
+- **An empty caption is byte-identical to the old command** — asserted, not
+  assumed. No gradient input, no drawtext, same duration.
+- `drawtext` needs `expansion=none`. Without it a caption reading "100%
+  attendance" fails the entire render, and one containing `%d` would silently
+  become a date. Found by rendering one, not by reading the docs.
+- Each line is its own `drawtext` with its own `x=(w-text_w)/2`. `text_align`
+  would centre a block in one filter but only exists from ffmpeg 7.1, and the
+  container runs Debian's 5.1.
+- The caption text goes to a **file** per line and is passed as `textfile=`, so
+  no user punctuation ever has to survive two levels of filter escaping.
+  Verified with `Day 3: Nithya's 100% [special], see; more`. Paths still need
+  escaping — `_escape_filter_path()` normalises separators and escapes `:` so a
+  Windows drive letter is not read as an option separator.
+- `CAPTION_BOTTOM_MARGIN` is 260 because the copyright frame's own text
+  occupies rows **1722–1822** of 1920. That was measured off the asset's alpha
+  channel, not judged by eye; at the old 220 the two nearly touched.
+- **`overlay` is no longer a logo alias.** `Overlay-gradient.png` made it
+  ambiguous, and the logo still resolves through `frame`/`copyright`. The font
+  kind is in `FALLBACK_ANY`: `.otf`/`.ttf` belong to it alone, and no real font
+  file is named after the word "font".
+- **The font is a Devanagari cut, and its Latin glyphs carry the shirorekha** —
+  a headline bar that reads as a strike-through on English words (digits are
+  clean). This is the font, not the renderer: PIL draws it identically. The
+  user chose Mart as the standard, so it is not worked around; a Latin cut
+  dropped into `Elements`, or `CAPTION_FONT_FILE_ID`, replaces it.
+- Falls back to DejaVu (installed in the image) if `Elements` has no font, and
+  logs that it did. A missing font degrades the reel; it must not fail it.
+
+### Why not agent-native for the UI (asked 2026-09-22)
+
+`BuilderIO/agent-native` is TypeScript + React + Postgres (PGlite locally).
+Adopting it would mean a second runtime, a database, a second Dokploy app and
+an LLM key for its agent layer — and it would still be served on
+`http://157.180.15.165:<port>`, because the blocker is Caddy on the host, not
+the framework (see "The edge, settled"). It does not address the actual
+problem. The CLI stays the front end.
+
 ### What is now proven, and what is not
 
 Verified end to end against the real Drive (2026-09-19/20): Drive reads, two
@@ -833,6 +887,9 @@ Not yet proven:
   exercised there. The Groq/Gemini failover in particular has only ever been
   watched locally.
 - A run with a song attached against a large event, end to end.
+- **A caption over real temple photographs.** It was proven against synthetic
+  stills with the real gradient, font, logo and end card — frames extracted and
+  looked at — but not yet on a real event, and never in the container.
 - Whether the refresh token survives — the OAuth consent screen must be Internal
   or Production, or it dies after 7 days with `invalid_grant` as the only sign.
 

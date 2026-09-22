@@ -130,6 +130,18 @@ def pick_length(*, seconds_per_image: float, transition_seconds: float) -> float
         print("  a menu number, or a length between 10 and 300 seconds.")
 
 
+def pick_caption() -> str:
+    """The one thing about a reel that changes every day and cannot be derived.
+
+    Blank is a real answer: with no caption the gradient scrim has no job, and
+    the reel renders exactly as it did before this existed.
+    """
+    print("\nCaption  (white text over the bottom of the photos; enter to skip)")
+    print("      up to 3 lines — type \\n where you want a line to break")
+    answer = _ask("\n  text > ")
+    return answer.replace("\\n", "\n")
+
+
 def pick_endcard() -> str:
     folder = library.elements_folder()
     if not folder:
@@ -246,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event", default="", help="event folder id or Drive link (skips the menu)")
     parser.add_argument("--song", default=None, help="song file id or link; omit to be asked")
     parser.add_argument("--endcard", default=None, help="end card file id or link; omit to be asked")
+    parser.add_argument("--caption", default=None,
+                        help="caption text burnt over the photos; pass '' for none, omit to be asked")
     parser.add_argument("--target", type=float, default=None, help="target length in seconds")
     parser.add_argument("--per", type=float, default=None, help="seconds per photo")
     parser.add_argument("--transition", type=float, default=None)
@@ -292,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     event = drive.get_file(drive.parse_id(args.event)) if args.event else pick_event()
     song = drive.parse_id(args.song) if args.song is not None else pick_song()
     endcard = drive.parse_id(args.endcard) if args.endcard is not None else pick_endcard()
+    caption = args.caption.replace("\\n", "\n") if args.caption is not None else pick_caption()
 
     per = args.per or config.render.seconds_per_image
     xt = args.transition if args.transition is not None else config.render.transition_seconds
@@ -326,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
           + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
              else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
     print(f"  end card {drive.get_file(endcard)['name'] if endcard else '(default)'}")
+    print(f"  caption  {caption.replace(chr(10), ' / ') if caption else '(none)'}")
     print(f"  length   about {sequence.duration_for(wanted, seconds_per_image=per, transition_seconds=xt):.0f}s "
           f"from {wanted} photos, chosen by the model from {pool}")
     print(f"  upload   {'no — local file only' if args.no_upload else 'yes, into ' + config.drive.reels_folder}")
@@ -339,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         song_file_id=song,
         options={
             "endcard_file_id": endcard,
+            "caption": caption,
             "target_seconds": target,
             "seconds_per_image": per,
             "transition_seconds": xt,

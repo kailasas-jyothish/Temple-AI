@@ -80,6 +80,8 @@ class Drive:
     logo_file_id: str = field(default_factory=lambda: _str("LOGO_FILE_ID"))
     endcard_file_id: str = field(default_factory=lambda: _str("ENDCARD_FILE_ID"))
     intro_file_id: str = field(default_factory=lambda: _str("INTRO_FILE_ID"))
+    gradient_file_id: str = field(default_factory=lambda: _str("GRADIENT_FILE_ID"))
+    font_file_id: str = field(default_factory=lambda: _str("CAPTION_FONT_FILE_ID"))
 
 
 @dataclass(frozen=True)
@@ -158,6 +160,25 @@ class Render:
     # auto decides from the file's shape: an overlay cut to the output aspect is
     # a whole-screen frame, anything else is a corner mark.
     logo_mode: str = field(default_factory=lambda: _str("LOGO_MODE", "auto").lower())
+    # ---- caption. The text itself is asked for per run; everything here is the
+    # house standard it is set in, and none of it is worth a question at the
+    # prompt. White, because that is the standard the user set.
+    caption_color: str = field(default_factory=lambda: _str("CAPTION_COLOR", "white"))
+    # A ceiling, not a size: long captions shrink to fit rather than overflowing.
+    caption_font_size: int = field(default_factory=lambda: _int("CAPTION_FONT_SIZE", 76))
+    caption_min_font_size: int = field(default_factory=lambda: _int("CAPTION_MIN_FONT_SIZE", 44))
+    caption_max_lines: int = field(default_factory=lambda: _int("CAPTION_MAX_LINES", 3))
+    # Distance from the base of the frame to the bottom of the last line. Set
+    # from the copyright frame rather than by eye: its text occupies rows
+    # 1722-1822 of 1920, so 260 leaves a clear band between the two and still
+    # sits above the controls Instagram and YouTube draw at the base.
+    caption_bottom_margin: int = field(default_factory=lambda: _int("CAPTION_BOTTOM_MARGIN", 260))
+    caption_side_margin: int = field(default_factory=lambda: _int("CAPTION_SIDE_MARGIN", 90))
+    caption_line_spacing: int = field(default_factory=lambda: _int("CAPTION_LINE_SPACING", 18))
+    # The scrim and the type appear over the photographs only, so the intro and
+    # end cards — artwork in their own right — stay clean. Fading rather than
+    # cutting keeps the appearance from reading as a glitch mid-transition.
+    caption_fade_seconds: float = field(default_factory=lambda: _float("CAPTION_FADE_SECONDS", 0.5))
     # auto finds the loudest sustained passage — the chorus, in practice —
     # rather than opening on whatever the first seconds of the file happen to
     # be. "start" restores the old behaviour; a per-run start time overrides both.

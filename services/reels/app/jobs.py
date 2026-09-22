@@ -461,6 +461,8 @@ def _pipeline(job_id: str, work_dir: str) -> None:
             _log(job_id, f"chosen {kind} could not be fetched ({err}); falling back to the usual one")
     _log(job_id, "branding: " + ", ".join(
         f"{k}={os.path.basename(v) if v else 'none'}" for k, v in assets.items()))
+    caption = str(options.get("caption") or "").strip()
+    _log(job_id, f"caption: {caption!r}" if caption else "no caption — no gradient overlay either")
 
     song_path = None
     if job["song_file_id"]:
@@ -478,6 +480,8 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         shots, output,
         song_path=song_path, logo_path=assets.get("logo"),
         endcard_path=assets.get("endcard"), intro_path=assets.get("intro"),
+        gradient_path=assets.get("gradient"), font_path=assets.get("font"),
+        caption=str(options.get("caption") or ""),
         seconds_per_image=per, transition_seconds=xt,
         song_start=float(options["song_start_seconds"]) if options.get("song_start_seconds") not in (None, "") else None,
         on_note=lambda message: _log(job_id, message),

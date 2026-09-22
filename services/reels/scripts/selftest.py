@@ -55,6 +55,19 @@ def check_ffmpeg() -> None:
         except Exception as err:
             bad(os.path.basename(binary), f"not runnable ({err.__class__.__name__})")
 
+    # Captions are drawn by drawtext, which is only compiled in when the build
+    # has libfreetype. A build without it renders every reel perfectly and
+    # silently drops the text, which is the kind of thing to learn here.
+    try:
+        out = subprocess.run([config.render.ffmpeg, "-hide_banner", "-filters"],
+                             capture_output=True, text=True, check=True)
+        if " drawtext " in out.stdout:
+            ok("caption support", "drawtext present")
+        else:
+            bad("caption support", "this ffmpeg has no drawtext — captions will not render")
+    except Exception as err:
+        bad("caption support", f"could not list filters ({err.__class__.__name__})")
+
 
 def check_drive() -> None:
     if not (config.google.refresh_token and config.drive.root_folder_id):
