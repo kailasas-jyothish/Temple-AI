@@ -14,9 +14,10 @@ import threading
 import time
 import traceback
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from . import curate, drive, elements, library, prefilter, render, sequence, slack, store
+from . import curate, drive, elements, library, prefilter, render, sequence, slack, store, video
 from .config import config
 
 log = logging.getLogger(__name__)
@@ -75,6 +76,112 @@ def _pool_size(wanted: int) -> int:
     doubles the wait. MAX_CANDIDATES remains the ceiling.
     """
     return max(24, min(config.curation.max_candidates, wanted * config.curation.candidates_per_shot))
+
+
+def _clip_windows(clips: list[dict], work_dir: str, *, window_seconds: float,
+                  on_note=None, on_progress=None) -> list[dict]:
+    """Download the chosen clips and turn each into its steady windows.
+
+    Runs on a small pool: analysis is ffmpeg decode plus numpy FFTs, both of
+    which release the GIL, and a dozen clips one after another is minutes of a
+    run with nothing to show for it. The pool is deliberately smaller than the
+    prefilter's — each worker is running its own ffmpeg.
+    """
+    if not clips:
+        return []
+
+    clip_dir = os.path.join(work_dir, "clips")
+    os.makedirs(clip_dir, exist_ok=True)
+    for index, clip in enumerate(clips, start=1):
+        ext = os.path.splitext(clip["name"])[1] or ".mp4"
+        clip["path"] = os.path.join(clip_dir, f"clip{index:03d}{ext}")
+
+    fetched = drive.download_many(clips, workers=3, on_progress=on_progress)
+
+    segments: list[dict] = []
+    lock = threading.Lock()
+    done = 0
+
+    def inspect(clip: dict) -> None:
+        nonlocal done
+        try:
+            work = os.path.join(clip_dir, os.path.splitext(os.path.basename(clip["path"]))[0] + "-a")
+            windows, why = video.analyse(clip["path"], work, window_seconds=window_seconds)
+            with lock:
+                if not windows and on_note:
+                    on_note(f"  – {clip['name']}: {why}")
+                for number, window in enumerate(windows, start=1):
+                    segments.append({
+                        **window,
+                        # Unique per window: sequence.py dedupes on id, and every
+                        # window of one clip would otherwise share the file's id
+                        # and collapse to a single shot.
+                        "id": f"{clip['id']}#{number}",
+                        "name": f"{clip['name']} @{window['clip_start']:.0f}s",
+                        "temple": clip.get("temple", ""),
+                        "createdTime": clip.get("createdTime", ""),
+                        "source_name": clip["name"],
+                    })
+                if windows and on_note:
+                    on_note(f"  + {clip['name']}: {len(windows)} window(s), shake "
+                            + ", ".join(f"{w['shake']:.1f}" for w in windows))
+        except Exception as err:
+            if on_note:
+                on_note(f"  ! {clip['name']}: {err.__class__.__name__}: {str(err)[:90]}")
+        finally:
+            with lock:
+                done += 1
+
+    workers = max(1, min(config.video.workers, len(fetched) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(inspect, fetched))
+    return segments
+
+
+def _pick_clips(groups: list[dict], *, window_seconds: float, on_note=None) -> list[dict]:
+    """Which clips are worth fetching at all.
+
+    Everything here is decided from the Drive listing, before a byte is
+    downloaded: a clip too short to fill one shot can never contribute, and a
+    half-gigabyte upload costs more to fetch than the reel is worth.
+    """
+    cfg = config.video
+    rows: list[dict] = []
+    too_short = too_big = too_small = 0
+    for group in groups:
+        for f in group.get("videos", []):
+            meta = f.get("videoMediaMetadata") or {}
+            millis = float(meta.get("durationMillis") or 0)
+            size_mb = float(f.get("size") or 0) / 1_048_576
+            # durationMillis is absent for a format Drive did not transcode, so
+            # zero means unknown and the clip gets the benefit of the doubt.
+            if millis and millis / 1000.0 < window_seconds:
+                too_short += 1
+                continue
+            if cfg.max_size_mb and size_mb > cfg.max_size_mb:
+                too_big += 1
+                continue
+            # Drive reports the dimensions, so a clip too low-resolution to fill
+            # the frame can be dropped without spending the download on it.
+            factor = video.upscale(int(meta.get("width") or 0), int(meta.get("height") or 0))
+            if factor > cfg.max_upscale:
+                too_small += 1
+                continue
+            rows.append({"id": f["id"], "name": f["name"], "temple": group["temple"],
+                         "createdTime": f.get("createdTime", ""),
+                         "mimeType": f.get("mimeType", ""), "size": f.get("size")})
+    if on_note and (too_short or too_big):
+        parts = []
+        if too_short:
+            parts.append(f"{too_short} shorter than one shot")
+        if too_big:
+            parts.append(f"{too_big} over {cfg.max_size_mb:.0f} MB")
+        if too_small:
+            parts.append(f"{too_small} too low-resolution to fill the frame")
+        on_note("skipped before download: " + ", ".join(parts))
+    if cfg.max_clips and len(rows) > cfg.max_clips:
+        rows = _sample_evenly(rows, cfg.max_clips)
+    return rows
 
 
 def _safe(name: str) -> str:
@@ -354,7 +461,7 @@ def _pipeline(job_id: str, work_dir: str) -> None:
 
     candidates: list[dict] = []
     for group in groups:
-        for f in group["images"]:
+        for f in group.get("images", []):
             candidates.append({
                 "id": f["id"],
                 "name": f["name"],
@@ -362,8 +469,12 @@ def _pipeline(job_id: str, work_dir: str) -> None:
                 "createdTime": f.get("createdTime", ""),
                 "mimeType": f.get("mimeType", ""),
             })
-    temples = sorted({c["temple"] for c in candidates if c["temple"]})
-    _log(job_id, f"{len(candidates)} images across {len(groups)} folder(s): {', '.join(temples) or 'unnamed'}")
+    temples = sorted({g["temple"] for g in groups if g["temple"]})
+    clip_count = sum(len(g.get("videos", [])) for g in groups)
+    _log(job_id, f"{len(candidates)} images and {clip_count} video(s) across {len(groups)} "
+                 f"folder(s): {', '.join(temples) or 'unnamed'}")
+    if not candidates and not clip_count:
+        raise RuntimeError("no photographs or videos found in the event folder")
 
     pool = _pool_size(wanted)
     # Fetch several times the pool so the prefilter has real choice — a good
@@ -382,9 +493,9 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         item["path"] = os.path.join(work_dir, f"{index:04d}{ext}")
 
     def downloaded(done: int, total: int) -> None:
-        _update(job_id, progress=0.05 + 0.25 * done / total, detail=f"{done}/{total} downloaded")
+        _update(job_id, progress=0.05 + 0.17 * done / max(total, 1), detail=f"{done}/{total} downloaded")
 
-    fetched = drive.download_many(candidates, on_progress=downloaded)
+    fetched = drive.download_many(candidates, on_progress=downloaded) if candidates else []
     failed = [c for c in candidates if c.get("download_error")]
     candidates = fetched
     _log(job_id, f"downloaded {len(candidates)} images" + (f", {len(failed)} FAILED" if failed else ""))
@@ -394,10 +505,34 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         _log(job_id, f"  ! {item['name']}: {item['download_error']}")
     if len(failed) > 5:
         _log(job_id, f"  ! and {len(failed) - 5} more")
+    # -------------------------------------------------- clips
+    # Video joins the pool here, as ordinary candidates. From this line on
+    # nothing distinguishes a clip window from a photograph: it carries a still
+    # at `path`, so the prefilter measures it, the dHash collapses it against a
+    # near-identical photo, and the model scores it on the same rubric.
+    want_video = config.video.enabled and bool(options.get("include_videos", True))
+    clip_segments: list[dict] = []
+    if want_video and clip_count:
+        clips = _pick_clips(groups, window_seconds=per, on_note=lambda m: _log(job_id, f"  {m}"))
+        if clips:
+            _update(job_id, detail=f"0/{len(clips)} clips")
+            _log(job_id, f"examining {len(clips)} of {clip_count} video(s) for steady footage")
+            clip_segments = _clip_windows(
+                clips, work_dir, window_seconds=per,
+                on_note=lambda m: _log(job_id, m),
+                on_progress=lambda done, total: _update(
+                    job_id, progress=0.22 + 0.08 * done / max(total, 1),
+                    detail=f"{done}/{total} clips downloaded"),
+            )
+        _log(job_id, f"video contributed {len(clip_segments)} usable window(s)")
+        candidates.extend(clip_segments)
+    elif clip_count:
+        _log(job_id, f"{clip_count} video(s) ignored — video is switched off for this run")
+
     if not candidates:
         raise RuntimeError(
-            "every image failed to download — check the network and that the "
-            "Google refresh token is still valid"
+            "nothing downloaded — check the network and that the Google refresh "
+            "token is still valid"
         )
 
     # -------------------------------------------------- prefilter
@@ -435,12 +570,18 @@ def _pipeline(job_id: str, work_dir: str) -> None:
 
     # -------------------------------------------------- sequence
     _stage(job_id, "sequencing", 0.60)
-    shots = sequence.build(kept, wanted, min_per_temple=int(options.get("min_per_temple") or 0) or None)
+    shots = sequence.build(
+        kept, wanted,
+        min_per_temple=int(options.get("min_per_temple") or 0) or None,
+        max_video=max(1, int(wanted * config.video.share)) if want_video else 0,
+    )
     duration = sequence.duration_for(len(shots), seconds_per_image=per, transition_seconds=xt)
     picked = {}
     for shot in shots:
         picked[shot["temple"] or "—"] = picked.get(shot["temple"] or "—", 0) + 1
-    _log(job_id, f"selected {len(shots)} shots ({', '.join(f'{k}: {v}' for k, v in picked.items())})")
+    clips_used = sum(1 for s in shots if s.get("is_video"))
+    _log(job_id, f"selected {len(shots)} shots — {len(shots) - clips_used} photo(s), "
+                 f"{clips_used} clip(s) ({', '.join(f'{k}: {v}' for k, v in picked.items())})")
 
     # -------------------------------------------------- render
     _stage(job_id, "rendering", 0.62)
@@ -501,6 +642,7 @@ def _pipeline(job_id: str, work_dir: str) -> None:
         "considered": len(candidates),
         "kept": len(kept),
         "used": len(shots),
+        "clips_used": clips_used,
         "temples": len(temples) or len(groups),
         "duration_seconds": round(duration, 1),
         "render_seconds": round(render_seconds, 1),

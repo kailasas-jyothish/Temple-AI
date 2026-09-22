@@ -36,7 +36,11 @@ SOCKET_TIMEOUT = 90
 DOWNLOAD_ATTEMPTS = 3
 
 # Fields worth having on every file we touch; Drive returns almost nothing by default.
-FILE_FIELDS = "id, name, mimeType, size, createdTime, modifiedTime, imageMediaMetadata(width,height,time), webViewLink"
+FILE_FIELDS = ("id, name, mimeType, size, createdTime, modifiedTime, "
+               "imageMediaMetadata(width,height,time), "
+               # Duration lets a clip too short to fill one shot be dropped
+               # before it is downloaded, which is the expensive part.
+               "videoMediaMetadata(width,height,durationMillis), webViewLink")
 
 _local = threading.local()
 
@@ -178,21 +182,62 @@ def find_child(parent_id: str, name: str, *, folder: bool = False) -> dict | Non
     return files[0] if files else None
 
 
+def _is_video(f: dict) -> bool:
+    """Drive's mimeType first, then the extension.
+
+    Both are needed: a .mov uploaded from a phone occasionally arrives as
+    application/octet-stream, and a file called "clip" with no extension is
+    still a video if Drive says so.
+    """
+    from .video import is_video_name
+
+    return str(f.get("mimeType", "")).startswith("video/") or is_video_name(f.get("name", ""))
+
+
+def _is_output_folder(name: str) -> bool:
+    """Is this a folder of finished reels rather than source material?
+
+    It matters more than it looks. The service writes into a `Reels` folder
+    inside the event folder, and the archive already holds hand-made ones —
+    "Final Diwali Reel", "KB Final Reels", "REELS". Those were harmless while
+    only photographs were read, because they contain none. Now that clips are
+    ingested, a reel spliced from last month's finished reels is exactly what
+    would happen, and it would look like a rendering fault rather than a
+    sourcing one.
+    """
+    from .config import config
+
+    lowered = name.strip().lower()
+    return "reel" in lowered or lowered == config.drive.reels_folder.strip().lower()
+
+
+def _split_media(files: list[dict]) -> tuple[list[dict], list[dict]]:
+    images = [f for f in files if str(f.get("mimeType", "")).startswith("image/")]
+    videos = [f for f in files if _is_video(f)]
+    return images, videos
+
+
 def walk_event(folder_id: str) -> list[dict]:
     """An event folder holds one sub-folder per temple.
 
     Images sitting loose in the event folder are not dropped — they become an
     unnamed group, because a team that uploaded without making a folder still
-    took the photos.
+    took the photos. Video is collected the same way and kept in its own list:
+    it costs far more to fetch than a photograph, so the caller caps it
+    separately.
     """
     groups: list[dict] = []
-    loose = [f for f in list_children(folder_id) if str(f.get("mimeType", "")).startswith("image/")]
+    loose_images, loose_videos = _split_media(list_children(folder_id))
     for sub in list_children(folder_id, folders_only=True):
-        images = list_children(sub["id"], mime_prefix="image/")
-        if images:
-            groups.append({"temple": sub["name"], "folder_id": sub["id"], "images": images})
-    if loose:
-        groups.append({"temple": "", "folder_id": folder_id, "images": loose})
+        if _is_output_folder(sub["name"]):
+            continue
+        images, videos = _split_media(list_children(sub["id"]))
+        if images or videos:
+            groups.append({"temple": sub["name"], "folder_id": sub["id"],
+                           "images": images, "videos": videos})
+    if loose_images or loose_videos:
+        groups.append({"temple": "", "folder_id": folder_id,
+                       "images": loose_images, "videos": loose_videos})
     return groups
 
 

@@ -20,7 +20,22 @@ reels --target 45         a 45-second reel, without being asked
 reels --status            what the last run is doing (run it in a second window)
 reels --song-start 90      start the music 90s in, instead of letting it choose
 reels --caption "Day 3"   caption without being asked; --caption "" for none
+reels --no-videos         photographs only, ignore the clips
 ```
+
+**Video clips are used alongside the photographs.** A clip is not a candidate —
+its *steady windows* are. `video.py` extracts frames, measures how much the
+frame's velocity changes from moment to moment, and keeps only the stretches
+that are steady enough, so a clip with one jerky passage contributes its calm
+part instead of being thrown away. Each surviving window carries a full-
+resolution still, and from that point **it is indistinguishable from a
+photograph**: the same prefilter measures it, the same duplicate check collapses
+it against a near-identical still, and the model scores it against the same
+rubric. A clip fills one shot slot exactly like a photo, so asking for 30
+seconds still gives 30 seconds. Clips are silent — the song carries the reel —
+and no more than half the shots may be clips, so one long video cannot take
+over. Every clip that is rejected says why in the job log, with its measured
+shake, which is what `VIDEO_SHAKE_THRESHOLD` tunes against.
 
 **A caption is asked for on every run, and skipping it is a real answer.** Type
 the text and it is burnt over the bottom of the photographs in white Mart, above
@@ -59,7 +74,7 @@ This is the rule the whole service is built around:
 | | Decides |
 |---|---|
 | **The LLM** | which photographs are worth using, and which are blurry, duplicated, badly framed or not photographs of the event at all |
-| **ffmpeg** | every visual decision — Ken Burns motion, transitions, timing, letterboxing, the logo, the end card, the caption, the audio fades |
+| **ffmpeg** | every visual decision — Ken Burns motion, transitions, timing, letterboxing, the logo, the end card, the caption, which part of a clip is steady enough to use, the audio fades |
 
 The model is never asked for an effect, a transition name or a duration. It
 returns scores. `sequence.py` turns scores into an order and `render.py` turns

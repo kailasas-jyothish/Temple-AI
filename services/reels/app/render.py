@@ -295,7 +295,14 @@ def build_command(
         segments.append({"path": intro_path, "duration": _card_duration(intro_path, r.intro_seconds),
                          "motion": False, "video": is_video(intro_path)})
     for shot in shots:
-        segments.append({"path": shot["path"], "duration": per, "motion": True, "video": False})
+        if shot.get("is_video") and shot.get("clip_path"):
+            # A clip fills the same slot as a still, so the timing algebra above
+            # is untouched — it simply plays instead of being panned across.
+            segments.append({"path": shot["clip_path"], "duration": per, "motion": False,
+                             "video": True, "clip": True,
+                             "seek": float(shot.get("clip_start") or 0.0)})
+        else:
+            segments.append({"path": shot["path"], "duration": per, "motion": True, "video": False})
     if endcard_path:
         segments.append({"path": endcard_path, "duration": _card_duration(endcard_path, r.endcard_seconds),
                          "motion": False, "video": is_video(endcard_path)})
@@ -310,6 +317,11 @@ def build_command(
     args: list[str] = [r.ffmpeg, "-hide_banner", "-loglevel", "error", "-nostats", "-y"]
     for seg in segments:
         if seg["video"]:
+            if seg.get("seek") is not None:
+                # Seek before -i so ffmpeg jumps by keyframe and decodes only
+                # what it needs; a whole untrimmed clip per shot would decode
+                # minutes of footage to use three seconds of it.
+                args += ["-ss", f"{seg['seek']:.3f}", "-t", f"{seg['duration'] + 1.0:.4f}"]
             args += ["-i", seg["path"]]
         else:
             # -framerate makes the looped still produce exactly duration*fps
@@ -355,6 +367,18 @@ def build_command(
                 f"crop={big_w}:{big_h},"
                 f"zoompan=z='{z}':x='{x}':y='{y}':d=1:s={width}x{height}:fps={fps},"
                 f"setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v{i}]"
+            )
+        elif seg.get("clip"):
+            # A clip is cropped to fill, like a photograph — the repo's rule is
+            # that content fills the frame and only branding is letterboxed.
+            # tpad clones the last frame before the trim: -ss lands on a
+            # keyframe and a clip can run a few frames short of the window, and
+            # one short segment would shift every xfade offset after it.
+            filters.append(
+                f"[{i}:v]scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop={width}:{height},fps={fps},setsar=1,format=yuv420p,"
+                f"tpad=stop_mode=clone:stop_duration=1,"
+                f"trim=duration={seg['duration']:.4f},setpts=PTS-STARTPTS[v{i}]"
             )
         else:
             # Branding cards are letterboxed rather than cropped — a logo with

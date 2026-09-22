@@ -38,8 +38,15 @@ def duration_for(n: int, *, seconds_per_image: float, transition_seconds: float)
     return n * (seconds_per_image - transition_seconds) + transition_seconds
 
 
-def build(candidates: list[dict], wanted: int, *, min_per_temple: int | None = None) -> list[dict]:
-    """Select `wanted` shots and put them in screening order."""
+def build(candidates: list[dict], wanted: int, *, min_per_temple: int | None = None,
+          max_video: int | None = None) -> list[dict]:
+    """Select `wanted` shots and put them in screening order.
+
+    `max_video` caps how many of the chosen shots may be clip windows. Clips
+    compete with photographs on score like anything else, but a single long
+    video yields several high-scoring windows and would otherwise be able to
+    take the whole reel.
+    """
     if not candidates:
         raise ValueError("no candidates survived the prefilter, so there is nothing to sequence")
     floor = config.curation.min_per_temple if min_per_temple is None else min_per_temple
@@ -56,27 +63,62 @@ def build(candidates: list[dict], wanted: int, *, min_per_temple: int | None = N
     for shots in by_temple.values():
         shots.sort(key=lambda c: c["score"], reverse=True)
 
+    video_cap = wanted if max_video is None else max(0, min(max_video, wanted))
+
+    class Picker:
+        """Selection with the clip cap applied, wherever selecting happens.
+
+        The cap has to hold in both passes — the per-temple floor and the merit
+        fill — or a temple that uploaded only video would spend the whole
+        allowance before merit was considered at all.
+        """
+
+        def __init__(self):
+            self.chosen: list[dict] = []
+            self.seen: set[str] = set()
+            self.videos = 0
+
+        def allowed(self, item: dict) -> bool:
+            return not item.get("is_video") or self.videos < video_cap
+
+        def take(self, item: dict) -> None:
+            self.chosen.append(item)
+            self.seen.add(item["id"])
+            if item.get("is_video"):
+                self.videos += 1
+
     # A temple with one enthusiastic photographer would otherwise take the whole
     # reel, so each gets a floor before anything is allocated on merit.
-    chosen: list[dict] = []
-    seen: set[str] = set()
+    picker = Picker()
     for shots in by_temple.values():
-        for item in shots[:floor]:
-            chosen.append(item)
-            seen.add(item["id"])
+        taken = 0
+        for item in shots:
+            if taken >= floor:
+                break
+            if picker.allowed(item):
+                picker.take(item)
+                taken += 1
 
-    if len(chosen) > wanted:
-        # More temples than slots: keep the best one from each, best temples first.
-        chosen.sort(key=lambda c: c["score"], reverse=True)
-        chosen = chosen[:wanted]
-        seen = {c["id"] for c in chosen}
+    if len(picker.chosen) > wanted:
+        # More temples than slots: keep the best one from each, best temples
+        # first — re-run the pick so the clip cap survives the trim.
+        ranked = sorted(picker.chosen, key=lambda c: c["score"], reverse=True)
+        picker = Picker()
+        for item in ranked:
+            if len(picker.chosen) >= wanted:
+                break
+            if picker.allowed(item):
+                picker.take(item)
     else:
-        rest = sorted((c for c in usable if c["id"] not in seen), key=lambda c: c["score"], reverse=True)
-        for item in rest[: wanted - len(chosen)]:
-            chosen.append(item)
-            seen.add(item["id"])
+        rest = sorted((c for c in usable if c["id"] not in picker.seen),
+                      key=lambda c: c["score"], reverse=True)
+        for item in rest:
+            if len(picker.chosen) >= wanted:
+                break
+            if picker.allowed(item):
+                picker.take(item)
 
-    return _order(chosen)
+    return _order(picker.chosen)
 
 
 def _order(chosen: list[dict]) -> list[dict]:

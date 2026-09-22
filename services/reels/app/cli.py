@@ -265,6 +265,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--song-start", type=float, default=None,
                         help="seconds into the song to start; omit to let the loudest passage decide")
     parser.add_argument("--shots", type=int, default=None)
+    parser.add_argument("--no-videos", action="store_true",
+                        help="photographs only; skip the video clips in the event folder")
     parser.add_argument("--no-upload", action="store_true",
                         help="render to ./reel.mp4 and stop, without writing to Drive or Slack")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation")
@@ -322,10 +324,12 @@ def main(argv: list[str] | None = None) -> int:
     # photographs and close to a gigabyte, and knowing that up front is the
     # difference between a long wait and an apparent hang.
     groups = drive.walk_event(event["id"])
-    photos = [f for g in groups for f in g["images"]]
+    photos = [f for g in groups for f in g.get("images", [])]
+    clips = [f for g in groups for f in g.get("videos", [])]
+    use_video = config.video.enabled and not args.no_videos
     megabytes = sum(int(f.get("size") or 0) for f in photos) / 1_048_576
-    if not photos:
-        print(f"\n  {event['name']} has no photographs in it — pick a different folder.")
+    if not photos and not (clips and use_video):
+        print(f"\n  {event['name']} has nothing usable in it — pick a different folder.")
         return 1
 
     pool = jobs._pool_size(wanted)
@@ -336,6 +340,13 @@ def main(argv: list[str] | None = None) -> int:
               f"about {megabytes * cap / len(photos):.0f} MB")
     else:
         print(f"  photos   {len(photos)} across {len(groups)} folder(s), about {megabytes:.0f} MB")
+    if clips:
+        if use_video:
+            examined = min(len(clips), config.video.max_clips)
+            print(f"  videos   {len(clips)} — examining {examined} for steady footage, "
+                  f"up to {max(1, int(wanted * config.video.share))} can reach the reel")
+        else:
+            print(f"  videos   {len(clips)} found, skipped (--no-videos)")
     print(f"  song     {drive.get_file(song)['name'] if song else '(silent)'}"
           + (f", from {args.song_start:.0f}s" if song and args.song_start is not None
              else ", loudest passage" if song and config.render.music_pick == "auto" else ""))
@@ -363,6 +374,7 @@ def main(argv: list[str] | None = None) -> int:
             "transition_seconds": xt,
             "shot_count": args.shots or 0,
             "song_start_seconds": args.song_start,
+            "include_videos": use_video,
             "skip_upload": args.no_upload,
         },
     )
@@ -378,7 +390,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     stats = finished.get("stats", {})
-    print(f"\nDone — {stats.get('used')} of {stats.get('considered')} photos, "
+    clips_used = stats.get("clips_used") or 0
+    print(f"\nDone — {stats.get('used')} shots"
+          + (f" ({clips_used} from video)" if clips_used else "")
+          + f" of {stats.get('considered')} considered, "
           f"{stats.get('duration_seconds')}s, selection by {stats.get('curation_mode')}")
     if finished.get("reel_url"):
         print(f"  {finished['reel_url']}")

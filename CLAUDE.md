@@ -867,6 +867,68 @@ which the type stays readable.
   prints the caption already broken, so a mistyped token shows up before the
   render rather than in the finished file.
 
+### Video clips (2026-09-22)
+
+The ask was that clips be used too, with the same pipeline that picks
+photographs, and that shaky stretches be removed.
+
+**A clip is never a candidate; its steady windows are.** `app/video.py` finds
+them, and each window comes back carrying a full-resolution still at `path`.
+From that line on nothing downstream can tell it from a photograph:
+`prefilter.triage` measures it, the dHash collapses it against a near-identical
+still, `curate.py` sends it to the model under the same rubric, and
+`sequence.py` ranks it on the same 0–10 scale. `render.py` is the only module
+that knows, and only to play the clip instead of panning the still. This is why
+"use the same pipeline" needed almost no new pipeline.
+
+- **A clip fills exactly one shot slot**, so `total = n*(d-t)+t` is untouched
+  and a 30s reel is still 30s. Asserted: planned 19.20s, produced 19.20s.
+- **Shake is a measurement, so it stays out of the model** — like the music
+  window in `music.py`. It is the mean change in frame velocity across a
+  window (not velocity itself: a steady pan is fast and fine, handheld jitter
+  is slow and reverses constantly), by phase correlation between frames,
+  normalised to frame height.
+- **The sampling rate is load-bearing and nearly shipped wrong.** Handheld
+  jitter is 2–6Hz, so at the first-guess 5/s it aliased: a 4.5Hz shake folded
+  to 0.5Hz and measured *smoother* than a gentle walk, ranking the six
+  calibration clips in the wrong order. At 15/s they rank correctly with a wide
+  margin — locked off 0.0, smooth pan 0.26, gentle handheld 0.29, brisk walking
+  3.3, shaky 25, violent 39. `VIDEO_SHAKE_THRESHOLD` is 1.6, inside the
+  eleven-fold gap. Never lower `VIDEO_ANALYSIS_FPS` below ~12.
+- **`MIN_IMAGE_PX` must not apply to video, and nor does a height rule.** The
+  right measure is how far the 9:16 crop must stretch the source,
+  `max(1080/w, 1920/h)`, because the binding side differs by orientation. A
+  scan of the real archive settled it: most temple video is WhatsApp 480x848,
+  whose *height* passes any sane height test while its *width* is what gets
+  upscaled 2.25x. Real values — 1080x1920 1.0, 2160x3840 0.5, 720x1280 1.5,
+  1920x1080 1.78, 480x848 2.26, then a cliff to 848x480 and 640x480 at 4.0.
+  `VIDEO_MAX_UPSCALE` is 2.5, in that cliff. Drive reports the dimensions, so
+  this is applied before download as well as in `analyse()`. The blur test
+  still applies to both photographs and clips.
+- **`walk_event` skips folders whose name contains "reel".** The service writes
+  into a `Reels` folder inside the event folder, and the archive already holds
+  `Final Diwali Reel`, `KB Final Reels` and `REELS` full of finished reels.
+  This was harmless while only photographs were read — those folders hold none
+  — but with clips ingested the service would splice last month's finished
+  reels into this month's, which would read as a rendering fault rather than a
+  sourcing one. Found by scanning the real Drive, not by testing.
+- Windows from one clip need unique ids (`<fileId>#<n>`) — `sequence.py`
+  dedupes on `id`, so every window of a clip would otherwise collapse into one.
+- `-ss` before `-i` seeks by keyframe and can land a few frames short, and one
+  short segment would shift every xfade offset after it. The clip filter ends
+  `tpad=stop_mode=clone:stop_duration=1,trim=duration=<per>` so the length is
+  exact regardless.
+- Clips are cropped to fill, not letterboxed — the repo's rule is that content
+  fills the frame and only branding is letterboxed. They are silent; the song
+  carries the reel, and no clip audio is ever mapped.
+- `VIDEO_SHARE` (0.5) caps the clip count, enforced inside `sequence.build` in
+  *both* passes — the per-temple floor and the merit fill — or a temple that
+  uploaded only video would spend the whole allowance before merit was reached.
+- Cost is bounded the §12 way: clips are filtered on duration and size from the
+  Drive listing before download, `VIDEO_MAX_CLIPS` caps the count,
+  `VIDEO_MAX_ANALYSIS_SECONDS` caps how much of a long clip is examined, and
+  analysis runs on a pool of 3. Measured: 11s to analyse a 120s clip.
+
 ### Why not agent-native for the UI (asked 2026-09-22)
 
 `BuilderIO/agent-native` is TypeScript + React + Postgres (PGlite locally).
@@ -898,6 +960,12 @@ Not yet proven:
 - **A caption over real temple photographs.** It was proven against synthetic
   stills with the real gradient, font, logo and end card — frames extracted and
   looked at — but not yet on a real event, and never in the container.
+- **Video against real temple footage.** The clip path is proven end to end on
+  synthesised camera moves: shaky rejected, steady and panning kept, share cap
+  held, reel length unchanged to 0.000s, frames looked at. The shake thresholds
+  have never met a real handheld temple video, and that is the one number most
+  likely to need moving — the job log prints the measured shake of every
+  rejected clip, which is what to tune against.
 - Whether the refresh token survives — the OAuth consent screen must be Internal
   or Production, or it dies after 7 days with `invalid_grant` as the only sign.
 

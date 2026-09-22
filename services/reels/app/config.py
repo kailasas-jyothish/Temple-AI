@@ -142,6 +142,56 @@ class Curation:
 
 
 @dataclass(frozen=True)
+class Video:
+    """Clips from the temple folders, treated as candidates like photographs.
+
+    A clip contributes *windows*, not itself: `video.analyse` finds the steady
+    stretches and each becomes an ordinary candidate carrying a still, so the
+    prefilter, the dHash and the model all work on it unchanged.
+    """
+    enabled: bool = field(default_factory=lambda: _bool("INCLUDE_VIDEOS", True))
+    # Clips are one to two orders of magnitude larger than photographs, so the
+    # download cap is a count and a size rather than the photo cap.
+    max_clips: int = field(default_factory=lambda: _int("VIDEO_MAX_CLIPS", 24))
+    max_size_mb: float = field(default_factory=lambda: _float("VIDEO_MAX_SIZE_MB", 400.0))
+    # No more than this share of the reel, so one long video cannot become the
+    # whole thing however well it scores.
+    share: float = field(default_factory=lambda: _float("VIDEO_SHARE", 0.5))
+    max_segments_per_clip: int = field(default_factory=lambda: _int("VIDEO_SEGMENTS_PER_CLIP", 2))
+    min_gap_seconds: float = field(default_factory=lambda: _float("VIDEO_MIN_GAP_SECONDS", 1.0))
+    # Handheld jitter lives around 2-6Hz, so this must stay above 12/s or the
+    # sampling aliases it: at 5/s a 4.5Hz shake folded down to 0.5Hz and read as
+    # *smoother* than a gentle walk, which is exactly backwards. Measured, not
+    # assumed - at 5/s the six calibration clips ranked in the wrong order, and
+    # at 15/s they rank correctly with a wide margin.
+    analysis_fps: float = field(default_factory=lambda: _float("VIDEO_ANALYSIS_FPS", 15.0))
+    window_hop_seconds: float = field(default_factory=lambda: _float("VIDEO_WINDOW_HOP_SECONDS", 0.6))
+    # A ceiling on how much of a long clip is examined; a twenty-minute upload
+    # would otherwise be twenty minutes of decoding for three seconds of reel.
+    max_analysis_seconds: float = field(default_factory=lambda: _float("VIDEO_MAX_ANALYSIS_SECONDS", 120.0))
+    # Shake is the mean change in frame velocity across a window, as a
+    # percentage of frame height per analysis step. Calibrated against
+    # synthesised camera moves at 15/s: locked off 0.0, smooth pan 0.26, gentle
+    # handheld 0.29, brisk walking 3.3, shaky 25, violent 39. 1.6 sits in the
+    # eleven-fold gap between the ones worth keeping and the ones that are not.
+    shake_threshold: float = field(default_factory=lambda: _float("VIDEO_SHAKE_THRESHOLD", 1.6))
+    # One violent jolt ruins a window even if its average is calm.
+    shake_peak_threshold: float = field(default_factory=lambda: _float("VIDEO_SHAKE_PEAK", 6.0))
+    min_sharpness: float = field(default_factory=lambda: _float("VIDEO_MIN_SHARPNESS", 25.0))
+    # Video gets its own resolution rule, and the right measure is how far the
+    # 9:16 crop has to stretch the source: max(1080/w, 1920/h). Neither
+    # MIN_IMAGE_PX nor a plain height works. The archive is mostly WhatsApp
+    # video at 480x848 — its height passes any sane height test while its
+    # *width* is what actually gets upscaled, 2.25x. Measured against the real
+    # folders: 1080x1920 is 1.0, 2160x3840 0.5, 720x1280 1.5, 1920x1080 1.78,
+    # 480x848 2.26, then a cliff to 848x480 and 640x480 at 4.0. 2.5 keeps the
+    # WhatsApp portrait clips, which are most of the archive, and drops the
+    # landscape ones that would be stretched past use.
+    max_upscale: float = field(default_factory=lambda: _float("VIDEO_MAX_UPSCALE", 2.5))
+    workers: int = field(default_factory=lambda: _int("VIDEO_WORKERS", 3))
+
+
+@dataclass(frozen=True)
 class Render:
     width: int = field(default_factory=lambda: _int("VIDEO_WIDTH", 1080))
     height: int = field(default_factory=lambda: _int("VIDEO_HEIGHT", 1920))
@@ -210,6 +260,7 @@ class Config:
     gemini: Gemini = field(default_factory=Gemini)
     slack: Slack = field(default_factory=Slack)
     curation: Curation = field(default_factory=Curation)
+    video: Video = field(default_factory=Video)
     render: Render = field(default_factory=Render)
 
     @property
