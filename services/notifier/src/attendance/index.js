@@ -4,7 +4,7 @@ import { every } from '../http.js';
 import { getMeta, setMeta, flushIfDirty } from '../store.js';
 import { postMessage, postPlain } from '../slack.js';
 import { serviceAccount } from '../google/auth.js';
-import { videosList, recentUploads, watchUrl, thumbUrl } from '../youtube/api.js';
+import { videosList, recentUploads, watchUrl, thumbUrl, bestThumb } from '../youtube/api.js';
 import { templeForChannel, allTemples } from './temples.js';
 import { matchesGarbhaMandir, utcDateLabel, utcDayStart, localTimeLabel } from './match.js';
 import { readLayout, ensureGroup, groupFor, writeStarted, markAbsentees, STATUS } from './sheet.js';
@@ -69,9 +69,15 @@ export async function recordLive(item, event) {
 
   // Remembering the stream is what lets a genuinely continuous broadcast keep
   // counting tomorrow: it fires one live event and then stays up for days.
+  // For a 24/7 broadcast YouTube's own thumbnail is an auto-generated frame of
+  // the stream, so it is a real picture of the garbha mandir rather than a
+  // poster — which is what makes it an acceptable stand-in when yt-dlp is
+  // refused. Carried along because only the API item knows which sizes exist.
+  const thumbnail = bestThumb(item.snippet) || thumbUrl(item.id);
+
   setMeta(LIVE_KEY, {
     ...liveStreams(),
-    [channelId]: { videoId: item.id, startedAt, title: event.title },
+    [channelId]: { videoId: item.id, startedAt, title: event.title, thumbnail },
   });
 
   enqueue({
@@ -80,6 +86,7 @@ export async function recordLive(item, event) {
     date: utcDateLabel(startedAt),
     startedAt,
     title: event.title,
+    thumbnail,
   });
   log.info(`attendance: ${temple.row} matched "${matched}" — queued for ${utcDateLabel(startedAt)}`);
   await flush();
@@ -137,7 +144,7 @@ async function applyMark(item) {
   }
 
   const name = await captureFrame(item.videoId, item.date);
-  const image = snapshotUrl(name) || thumbUrl(item.videoId);
+  const image = snapshotUrl(name) || item.thumbnail || thumbUrl(item.videoId);
 
   // A continuing stream is credited under today's date but started earlier, so
   // say so — "11:10 AM PDT" in the 23-Sep column, with no hint it began on the
@@ -213,6 +220,7 @@ async function discoverLiveStreams(today) {
         videoId: item.id,
         startedAt: item.liveStreamingDetails?.actualStartTime || item.snippet.publishedAt,
         title: item.snippet.title,
+        thumbnail: bestThumb(item.snippet) || thumbUrl(item.id),
       };
       log.info(`attendance: ${temple.row} is already live on ${item.id} — tracking it`);
     } catch (err) {
@@ -266,6 +274,7 @@ async function creditContinuingStreams(today) {
       date: today,
       startedAt: stream.startedAt,
       title: stream.title,
+      thumbnail: stream.thumbnail || bestThumb(item.snippet) || thumbUrl(stream.videoId),
     });
   }
   setMeta(LIVE_KEY, next);
