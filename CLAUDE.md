@@ -1025,7 +1025,7 @@ its own rows and columns and depends on no human. Manual edits must survive.
 | Column order | **newest date at column B**, older pushed right |
 | Duplicate starts | first one wins |
 | Continuous stream | credited for **48h** from its start, then it must be restarted |
-| Snapshot | real frame via **yt-dlp + ffmpeg**, thumbnail as fallback |
+| Snapshot | real frame via **yt-dlp + ffmpeg**, thumbnail as fallback — and the fallback is what production uses, see below |
 
 ### The sheet as found
 
@@ -1060,9 +1060,20 @@ The result decided the design:
 | LA | `Live Garbha Mandir 24/7`, `24/7 Garbha Mandir Livestream` |
 | Toronto | `KAILASA TORONTO 24/7 LIVESTREAM` |
 | San Jose | `#Live: Kailasa San Jose Garbhamandir Darshan` |
-| Ohio | `🔴 LIVE  DARSHAN` — standardised 2026-09-22 to `LIVE: KAILASA OHIO GARBHA MANDIR`, not yet used |
-| Singapore | `Live Darshan Of The Main Deities Of Kailasa Singapore` — no convention |
+| Ohio | `🔴 LIVE  DARSHAN` — renaming to carry `Garbhamandir`, not yet used |
+| Singapore | `Live Darshan of The Main Deities of Kailasa Singapore` — confirmed by the user 2026-09-23 as their Garbha Mandir stream |
 | Houston | nothing live since April 2025 |
+
+**Singapore needed a per-temple pattern, and it is deliberately the tail, not
+the head.** `main deities of kailasa singapore` matches **1 of that channel's
+22 live titles** — the right one — and ignores all 21 SPH satsangs
+(`The SPH Reveals…`, `Live SPH Venkateshwara Darshan…`). A pattern of
+`live darshan` would have counted every one of them as temple attendance.
+It also leaks onto no other channel, which was asserted rather than assumed,
+because per-temple patterns are only ever applied to their own channel.
+
+Ohio needed **nothing**: `garbhamandir` is already shared, so their rename
+takes effect with no deploy.
 
 The shared patterns are `24/7`, `24x7`, `garbhamandir`, `garbha mandir`,
 `garbha mandhir`. Measured against all 300 titles: **25 matches, all genuine,
@@ -1116,8 +1127,61 @@ purpose** — Google fetches that URL server-side and carries no token. They are
 frames of a public live stream. The base URL is
 `http://157.180.15.165:8478` (`ATTENDANCE_SNAPSHOT_BASE_URL`), because the edge
 is Caddy and there is no hostname for this app (§12, "The edge, settled").
-Whether Google will fetch plain HTTP from a bare IP on a non-standard port is
-**unverified**.
+Whether Google will fetch plain HTTP from a bare IP is moot in production,
+because production does not use that URL — see the next section.
+
+### yt-dlp cannot work from this host, and the fallback is better than expected
+
+§9 predicted trouble and understated it. `POST /admin/attendance/snapshot`
+against a real stream on the deployed container returns, verbatim:
+
+```
+ERROR: [youtube] mLcLd3AENdI: Sign in to confirm you're not a bot.
+Use --cookies-from-browser or --cookies for the authentication.
+```
+
+**The only remedy yt-dlp offers is cookies, which is a load-bearing prohibition
+of this project** (§1, §8). So the frame grab is off in production
+(`ATTENDANCE_SNAPSHOT_ENABLED=false`) rather than running a doomed subprocess
+every sweep. The code stays: it works from a residential IP — proven on the
+user's laptop, where it captured a real frame that was extracted and looked at.
+
+The fallback turned out to be the better answer anyway. **For a 24/7 broadcast
+YouTube auto-generates the thumbnail from the stream itself**, so
+`maxresdefault_live.jpg` is a 1280x720 frame of the garbha mandir — verified by
+fetching and looking at it, side by side with the yt-dlp capture of the same
+stream. It is served over HTTPS from `i.ytimg.com`, so `=IMAGE()` is pointed at
+Google's own CDN and the bare-IP question disappears. `bestThumb(item.snippet)`
+is carried on the queue entry, because only the API item knows which sizes
+exist; `thumbUrl()` (hqdefault) is the last resort.
+
+Diagnosis is permanent, not a one-off: the last attempt's outcome is in
+`GET /admin/attendance` as `lastSnapshot`, and the probe endpoint forces one
+and hands back stderr. "The cell shows a thumbnail" looks identical whether
+yt-dlp was blocked, timed out, or was never installed.
+
+### Deployed (2026-09-23)
+
+Live on the Dokploy notifier, container rolled and verified by age three times
+(`deployment.all` is still not evidence — §10). `GET /admin/attendance` on
+`http://157.180.15.165:8478` reports attendance enabled, `23-Sep-2026` created,
+and LA's stream tracked. The deployed service wrote LA's row itself.
+
+**A git trap worth remembering: HEAD was on `caption-overlay`, not `main`.**
+The session opened claiming `main`, and every attendance commit landed on the
+feature branch; `git push origin main` then failed as "behind" for reasons that
+had nothing to do with the push. `origin/main` had also moved (an empty merge
+of PR #1 — `git diff --stat HEAD...origin/main` was empty, which is what made
+rebasing obviously safe). Fixed by rebasing the branch onto `origin/main`,
+fast-forwarding `main` to it, and resetting `caption-overlay` back to its
+remote so the stale local branch cannot be force-pushed later by accident.
+**Check `git rev-parse --abbrev-ref HEAD` before committing in this repo.**
+
+Also: PowerShell 5.1's `Out-File -Encoding utf8` writes a **BOM**, which lands
+in the commit subject as a leading `﻿`. Use
+`[IO.File]::WriteAllText($p, $msg, (New-Object Text.UTF8Encoding $false))` and
+`git commit -F`. An inline `-m @'…'@` here-string also mis-parses when the
+message contains quotes.
 
 ### Quota
 
@@ -1145,13 +1209,31 @@ now includes the sweep in its daily estimate. Negligible against §9's ~7,200.
 
 ### Not verified
 
-- **Whether the Snapshot cell actually shows a picture.** See above — a human
-  has to look.
-- **yt-dlp from the Dokploy host.** It works from the user's laptop. §9 is the
-  reason to expect trouble from a datacenter IP; the fallback exists for it.
-- Nothing is deployed. The code is committed-ready but unpushed, per §7.4.
+- **Whether the Snapshot cell actually shows a picture.** See above — Sheets
+  will not evaluate `=IMAGE()` for an API client, so a human has to look. The
+  URL itself is proven: HTTP 200, 318KB, a real frame.
 - An `Absent` sweep at a real UTC midnight, and a first-ever go-live detected
-  live by the poller rather than by a scan.
+  live by the poller rather than by a daily scan. Every mark so far came from
+  the scan path, because all four live streams predate the feature.
+- Ohio's and Singapore's patterns against a **live** match. Singapore's was
+  measured against its own archive; Ohio's rename has not happened yet.
+
+### The 48h rule is stricter than the goal, and should probably be revisited
+
+On the first real day, **three of the four live temples read `Yet to Start`**:
+San Jose (live 77h), Singapore (live 78h) and Ohio (title not renamed yet).
+Only LA (31h) was credited.
+
+The user's words were: *"we can mark them as present / live if they are
+something like 48 hrs live. Cuz our main priority is to have them continuously
+stream their garbhamandir live. Ideally they should be re-scheduling and
+starting stream every once in 12 hrs, but for now it does not have to be the
+caveat."* That reads as **leniency** — credit a stream even if it has been up
+a long time — whereas the implementation treats 48h as an expiry, which
+penalises exactly the temples that never stop streaming. That inverts the
+stated priority. It is one value (`ATTENDANCE_CONTINUATION_HOURS`); raising it
+effectively means "any currently-live matching stream counts". Flagged to the
+user, awaiting their call.
 
 ### Credential hygiene
 

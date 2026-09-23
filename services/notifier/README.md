@@ -137,10 +137,14 @@ spreadsheet. Four columns per date, newest date at column B:
   the broadcast. The cell says `11:10 AM PDT (since 21-Sep)` when the credit
   comes from an earlier day's stream.
 - **Absent** is written when a UTC day closes with the cell still pending.
-- The snapshot is a real frame off the live stream via yt-dlp + ffmpeg, served
-  from `/snapshots/`. That is a youtube.com request from a datacenter IP, so it
-  may fail at any time; it falls back to the Data API thumbnail and the log
-  says which was used.
+- **The snapshot is YouTube's own frame.** A yt-dlp + ffmpeg grab exists and
+  works from a residential IP, but the Dokploy host gets *"Sign in to confirm
+  you're not a bot"*, whose only cure is cookies — which this project does not
+  do. So `ATTENDANCE_SNAPSHOT_ENABLED=false` in production and the cell uses
+  `maxresdefault_live.jpg`, which for a 24/7 broadcast is an auto-generated
+  1280x720 frame of that stream. `GET /admin/attendance` reports `lastSnapshot`
+  and `POST /admin/attendance/snapshot?video=<id>` forces an attempt and returns
+  yt-dlp's stderr.
 
 ```bash
 node --env-file=.env scripts/attendance.mjs inspect              # layout + channel→row map
