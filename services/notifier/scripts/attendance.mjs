@@ -31,8 +31,15 @@ import {
   GROUP_WIDTH,
   STATUS,
 } from '../src/attendance/sheet.js';
-import { allTemples, normaliseLabel } from '../src/attendance/temples.js';
-import { utcDateLabel, localTimeLabel, matchesGarbhaMandir } from '../src/attendance/match.js';
+import {
+  allTemples,
+  normaliseLabel,
+  templeByKey,
+  templeForStream,
+  templesForChannel,
+  matchTemple,
+} from '../src/attendance/temples.js';
+import { utcDateLabel, startedCellLabel } from '../src/attendance/match.js';
 import { sweep, statusReport } from '../src/attendance/index.js';
 import { captureFrame, snapshotUrl } from '../src/attendance/snapshot.js';
 import { serviceAccount } from '../src/google/auth.js';
@@ -207,14 +214,14 @@ async function mark() {
   const [item] = await videosList([videoId]);
   if (!item) throw new Error(`video ${videoId} not found`);
 
+  const title = item.snippet?.title || '';
   const wanted = flag('temple');
   const temple = wanted
-    ? allTemples().find((t) => normaliseLabel(t.row) === normaliseLabel(wanted))
-    : allTemples().find((t) => t.channelId === item.snippet?.channelId);
+    ? templeByKey(wanted)
+    : templeForStream(item.snippet?.channelId, title)?.temple || templesForChannel(item.snippet?.channelId)[0];
   if (!temple) throw new Error('no temple matched — pass --temple "<row label>"');
 
-  const title = item.snippet?.title || '';
-  const matched = matchesGarbhaMandir(title, temple.patterns);
+  const matched = matchTemple(temple, title);
   console.log(`title    ${title}`);
   console.log(`temple   ${temple.row} (${temple.tz})`);
   console.log(`matches  ${matched ? `yes, on "${matched}"` : 'NO — this would not be counted'}`);
@@ -236,7 +243,7 @@ async function mark() {
 
   const written = await writeStarted(layout, group, row, {
     url: watchUrl(videoId),
-    localTime: localTimeLabel(startedAt, temple.tz),
+    localTime: startedCellLabel(startedAt, date, temple.tz),
     imageFormula: image ? `=IMAGE("${image}",4,60,107)` : '',
   });
   console.log(written ? `written to ${date} row ${row}` : 'left alone — the cell already holds a value');

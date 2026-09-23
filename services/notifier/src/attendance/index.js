@@ -5,9 +5,17 @@ import { getMeta, setMeta, flushIfDirty } from '../store.js';
 import { postMessage, postPlain } from '../slack.js';
 import { serviceAccount } from '../google/auth.js';
 import { videosList, recentUploads, watchUrl, thumbUrl, bestThumb } from '../youtube/api.js';
-import { templeForChannel, allTemples } from './temples.js';
-import { matchesGarbhaMandir, utcDateLabel, utcDayStart, localTimeLabel } from './match.js';
-import { readLayout, ensureGroup, groupFor, writeStarted, markAbsentees, STATUS } from './sheet.js';
+import { allTemples, templeByKey, templesForChannel, templeForStream, matchTemple } from './temples.js';
+import { utcDateLabel, utcDayStart, localTimeLabel, startedCellLabel } from './match.js';
+import {
+  readLayout,
+  ensureGroup,
+  groupFor,
+  writeStarted,
+  markAbsentees,
+  markTrackedPending,
+  STATUS,
+} from './sheet.js';
 import { captureFrame, snapshotUrl, lastCapture } from './snapshot.js';
 
 /**
@@ -26,9 +34,25 @@ const SCANNED_KEY = 'attendanceScannedDate';
 
 let timer = null;
 
-const queue = () => getMeta(QUEUE_KEY, []);
+// State written before a channel could carry two temples is keyed by channel
+// id. Such a channel had exactly one temple then, so the first is the right one.
+const legacyTemple = (channelId) => templesForChannel(channelId)[0] || null;
+
+const templeOf = (entry) => templeByKey(entry.templeKey) || legacyTemple(entry.channelId);
+
+const queue = () =>
+  getMeta(QUEUE_KEY, []).map((i) => (i.templeKey ? i : { ...i, templeKey: legacyTemple(i.channelId)?.key }));
 const setQueue = (items) => setMeta(QUEUE_KEY, items);
-const liveStreams = () => getMeta(LIVE_KEY, {});
+
+/** Streams being credited, keyed by temple. */
+function liveStreams() {
+  const out = {};
+  for (const [key, stream] of Object.entries(getMeta(LIVE_KEY, {}))) {
+    const temple = templeByKey(key) || (key.startsWith('UC') ? legacyTemple(key) : null);
+    if (temple) out[temple.key] = { channelId: stream.channelId || temple.channelId, ...stream };
+  }
+  return out;
+}
 
 export const isEnabled = () =>
   config.attendance.enabled && Boolean(config.attendance.spreadsheetId) && Boolean(serviceAccount());
@@ -59,11 +83,11 @@ export async function recordLive(item, event) {
   if (!isEnabled()) return 'attendance disabled';
 
   const channelId = item.snippet?.channelId;
-  const temple = templeForChannel(channelId);
-  if (!temple) return `channel ${channelId} is not mapped to a temple`;
+  if (!templesForChannel(channelId).length) return `channel ${channelId} is not mapped to a temple`;
 
-  const matched = matchesGarbhaMandir(event.title, temple.patterns);
-  if (!matched) return `title does not name the Garbha Mandir stream: "${event.title}"`;
+  const found = templeForStream(channelId, event.title);
+  if (!found) return `title does not name a Garbha Mandir stream: "${event.title}"`;
+  const { temple, matched } = found;
 
   const startedAt = item.liveStreamingDetails?.actualStartTime || event.publishedAt || new Date().toISOString();
 
@@ -77,10 +101,11 @@ export async function recordLive(item, event) {
 
   setMeta(LIVE_KEY, {
     ...liveStreams(),
-    [channelId]: { videoId: item.id, startedAt, title: event.title, thumbnail },
+    [temple.key]: { channelId, videoId: item.id, startedAt, title: event.title, thumbnail },
   });
 
   enqueue({
+    templeKey: temple.key,
     channelId,
     videoId: item.id,
     date: utcDateLabel(startedAt),
@@ -97,7 +122,7 @@ function enqueue(entry) {
   const items = queue();
   // One mark per temple per date. First one wins, so a second stream the same
   // day is not even queued.
-  if (items.some((i) => i.channelId === entry.channelId && i.date === entry.date)) return;
+  if (items.some((i) => i.templeKey === entry.templeKey && i.date === entry.date)) return;
   setQueue([...items, { ...entry, attempts: 0 }]);
   flushIfDirty();
 }
@@ -128,8 +153,8 @@ async function flush() {
 }
 
 async function applyMark(item) {
-  const temple = templeForChannel(item.channelId);
-  if (!temple) throw new Error(`no temple mapped to ${item.channelId}`);
+  const temple = templeOf(item);
+  if (!temple) throw new Error(`no temple mapped to ${item.templeKey || item.channelId}`);
 
   const { layout, group } = await ensureGroup(item.date);
   if (!group) throw new Error(`could not create the column group for ${item.date}`);
@@ -146,12 +171,7 @@ async function applyMark(item) {
   const name = await captureFrame(item.videoId, item.date);
   const image = snapshotUrl(name) || item.thumbnail || thumbUrl(item.videoId);
 
-  // A continuing stream is credited under today's date but started earlier, so
-  // say so — "11:10 AM PDT" in the 23-Sep column, with no hint it began on the
-  // 21st, is the kind of cell someone reasonably misreads.
-  const startedOn = utcDateLabel(item.startedAt);
-  const clock = localTimeLabel(item.startedAt, temple.tz);
-  const localTime = startedOn === item.date ? clock : `${clock} (since ${startedOn.slice(0, 6)})`;
+  const localTime = startedCellLabel(item.startedAt, item.date, temple.tz);
 
   const written = await writeStarted(layout, group, row, {
     url: watchUrl(item.videoId),
@@ -172,6 +192,8 @@ async function sweep() {
   const today = utcDateLabel();
 
   await ensureGroup(today);
+  // A temple added after today's group was built still reads "—" there.
+  await markTrackedPending(today);
   await discoverLiveStreams(today);
   await creditContinuingStreams(today);
   await closePreviousDay(today);
@@ -193,18 +215,19 @@ async function discoverLiveStreams(today) {
   if (getMeta(SCANNED_KEY) === today) return;
 
   const found = { ...liveStreams() };
-  for (const temple of allTemples()) {
-    if (!temple.channelId) continue;
+  // One scan per channel, however many temples share it.
+  const channelIds = [...new Set(allTemples().map((t) => t.channelId).filter(Boolean))];
+  for (const channelId of channelIds) {
+    const temples = templesForChannel(channelId);
     try {
-      const uploads = await recentUploads(temple.channelId);
+      const uploads = await recentUploads(channelId);
       const items = await videosList(uploads.map((u) => u.videoId).filter(Boolean));
       const live = items
         .filter(
           (i) =>
-            i.snippet?.channelId === temple.channelId &&
+            i.snippet?.channelId === channelId &&
             i.snippet?.liveBroadcastContent === 'live' &&
-            !i.liveStreamingDetails?.actualEndTime &&
-            matchesGarbhaMandir(i.snippet.title, temple.patterns),
+            !i.liveStreamingDetails?.actualEndTime,
         )
         // If they restarted the broadcast, the newest one is the current one,
         // and its fresher start time is what the credit window should run from.
@@ -214,18 +237,21 @@ async function discoverLiveStreams(today) {
             Date.parse(a.liveStreamingDetails?.actualStartTime || 0),
         );
 
-      if (!live.length) continue;
-      const item = live[0];
-      found[temple.channelId] = {
-        videoId: item.id,
-        startedAt: item.liveStreamingDetails?.actualStartTime || item.snippet.publishedAt,
-        title: item.snippet.title,
-        thumbnail: bestThumb(item.snippet) || thumbUrl(item.id),
-      };
-      log.info(`attendance: ${temple.row} is already live on ${item.id} — tracking it`);
+      for (const temple of temples) {
+        const item = live.find((i) => matchTemple(temple, i.snippet.title));
+        if (!item) continue;
+        found[temple.key] = {
+          channelId,
+          videoId: item.id,
+          startedAt: item.liveStreamingDetails?.actualStartTime || item.snippet.publishedAt,
+          title: item.snippet.title,
+          thumbnail: bestThumb(item.snippet) || thumbUrl(item.id),
+        };
+        log.info(`attendance: ${temple.row} is already live on ${item.id} — tracking it`);
+      }
     } catch (err) {
       // A channel that fails today is retried tomorrow; the rest still scan.
-      log.warn(`attendance: live scan failed for ${temple.row}: ${err.message}`);
+      log.warn(`attendance: live scan failed for ${temples.map((t) => t.row).join(', ')}: ${err.message}`);
     }
   }
   setMeta(LIVE_KEY, found);
@@ -248,7 +274,7 @@ async function creditContinuingStreams(today) {
   const byId = new Map(items.map((i) => [i.id, i]));
   const next = {};
 
-  for (const [channelId, stream] of Object.entries(active)) {
+  for (const [templeKey, stream] of Object.entries(active)) {
     const item = byId.get(stream.videoId);
     const details = item?.liveStreamingDetails;
     const stillLive =
@@ -267,9 +293,10 @@ async function creditContinuingStreams(today) {
       continue;
     }
 
-    next[channelId] = stream;
+    next[templeKey] = stream;
     enqueue({
-      channelId,
+      templeKey,
+      channelId: stream.channelId,
       videoId: stream.videoId,
       date: today,
       startedAt: stream.startedAt,
@@ -305,7 +332,7 @@ async function notifyMarked(temple, item, imageSource) {
 }
 
 async function reportFailure(item, err) {
-  const temple = templeForChannel(item.channelId);
+  const temple = templeOf(item);
   await postMessage({
     text: `Attendance sheet write failed for ${temple?.row || item.channelId} on ${item.date}`,
     blocks: [

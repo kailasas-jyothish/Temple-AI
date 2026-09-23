@@ -59,6 +59,64 @@
       "row": "KAILASA Guinea-Bissau",
       "tz": "Africa/Bissau",
       "note": "The channel is titled 'KAILASA's Nithyananda Sarvajna Peetham'; the user confirmed it is Guinea-Bissau's (2026-09-23)."
+    },
+    {
+      "handle": "@kailasainhyderabadsripuram3448",
+      "channelId": "UCK5W8nur-ePUKXB1Xr7Y71Q",
+      "row": "Sripuram Kailasa (Hyderabad)",
+      "tz": "Asia/Kolkata"
+    },
+    {
+      "handle": "@KAILASAKothapet-Hyderabad",
+      "channelId": "UCvpo-hrAjwra1eYhYtzzDIA",
+      "row": "KAILASA Kothapet-Hyderabad",
+      "tz": "Asia/Kolkata",
+      "note": "No live stream on the channel yet (2026-09-23)."
+    },
+    {
+      "handle": "@KAILASATanjavur",
+      "channelId": "UCaabyRiVLUda_BYhEVk_jug",
+      "row": "Kailasa Tanjavur",
+      "tz": "Asia/Kolkata",
+      "excludes": ["rwanda"],
+      "note": "This channel also carries Rwanda's Garbha Mandir, which must credit Rwanda's row, not this one."
+    },
+    {
+      "handle": "@KAILASATanjavur",
+      "channelId": "UCaabyRiVLUda_BYhEVk_jug",
+      "row": "KAILASA Rwanda",
+      "tz": "Africa/Kigali",
+      "requires": ["rwanda"],
+      "note": "Rwanda has no channel of its own; 'LIVE: KAILASA Rwanda Garbha Mandir' streams on Tanjavur's (confirmed 2026-09-23)."
+    },
+    {
+      "handle": "@KAILASATiruvannamalaiSriNithya",
+      "channelId": "UC8iuf3Y08CkoHiKNXRZpJjw",
+      "row": "NJB",
+      "tz": "Asia/Kolkata",
+      "patterns": ["janmabhumi temple darshan"],
+      "note": "Their stream is 'LIVE: KAILASA TIRUVANNAMALAI - SRI NITHYANANDA JANMABHUMI TEMPLE DARSHAN' (approved 2026-09-23). The Annadhanam streams do not count."
+    },
+    {
+      "handle": "@KAILASATiruvannamalai-NJBK",
+      "channelId": "UCiInXisf3TshwwCxV6HFGlQ",
+      "row": "NJBK",
+      "tz": "Asia/Kolkata",
+      "note": "Only Annadhanam streams so far, which do not count."
+    },
+    {
+      "handle": "@kailasaindubai",
+      "channelId": "UCDTnPcc0Hr677QnVrAgJWyg",
+      "row": "Kailasa Dubai (Sri Chidambara)",
+      "tz": "Asia/Dubai",
+      "patterns": ["kailasa dubai temple"],
+      "note": "Their stream is 'LIVE from KAILASA Dubai Temple' (approved 2026-09-23)."
+    },
+    {
+      "handle": "@kailasauganda",
+      "channelId": "UCFX9fyfBd6moDbyvdSdFtAQ",
+      "row": "KAILASA Uganda",
+      "tz": "Africa/Kampala"
     }
   ]
 }

@@ -326,6 +326,34 @@ export async function writeStarted(layout, group, row, { url, localTime, imageFo
   return true;
 }
 
+/**
+ * A temple added to temples.json after `date`'s group was built reads "—"
+ * there, and "—" is never closed to Absent. Give it the pending status now.
+ * Only "—" and blank are touched, so nothing a person wrote is replaced.
+ */
+export async function markTrackedPending(date) {
+  const layout = await readLayout();
+  const group = groupFor(layout, date);
+  if (!group) return 0;
+
+  const col = columnLetter(group.startCol);
+  const values = await getValues(
+    config.attendance.spreadsheetId,
+    tabRange(`${col}${FIRST_TEMPLE_ROW}:${col}${layout.lastTempleRow}`),
+  );
+
+  const tracked = trackedRowLabels();
+  const data = [];
+  for (const [label, row] of layout.rows) {
+    if (!tracked.has(label) || row > layout.lastTempleRow) continue;
+    const current = String(values[row - FIRST_TEMPLE_ROW]?.[0] || '').trim();
+    if (current !== '' && current !== STATUS.untracked) continue;
+    data.push({ range: tabRange(`${col}${row}`), values: [[STATUS.pending]] });
+  }
+  if (data.length) await updateValues(config.attendance.spreadsheetId, data);
+  return data.length;
+}
+
 /** Close a finished day: everything still pending becomes Absent. */
 export async function markAbsentees(date) {
   const layout = await readLayout({ force: true });

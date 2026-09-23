@@ -74,6 +74,17 @@ export function utcDayStart(date = new Date()) {
 }
 
 /**
+ * The Started cell. A continuing stream is credited under a later date than
+ * it began on, so it says so — "11:10 AM PDT" in the 23-Sep column, with no
+ * hint it began on the 21st, is the kind of cell someone reasonably misreads.
+ */
+export function startedCellLabel(startedAt, date, timeZone) {
+  const startedOn = utcDateLabel(startedAt);
+  const clock = localTimeLabel(startedAt, timeZone);
+  return startedOn === date ? clock : `${clock} (since ${startedOn.slice(0, 6)})`;
+}
+
+/**
  * "04:02 AM PDT" in the temple's own timezone, with whichever abbreviation is
  * correct on that date — the user asked for PST, and for half the year the
  * honest answer is PDT.

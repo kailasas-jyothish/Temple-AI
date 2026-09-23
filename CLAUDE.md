@@ -1239,6 +1239,34 @@ stated priority. It is one value (`ATTENDANCE_CONTINUATION_HOURS`); raising it
 effectively means "any currently-live matching stream counts". Flagged to the
 user, awaiting their call.
 
+### Fifteen channels, and one channel can carry two temples (2026-09-23)
+
+The user added eight channels in Dokploy and a ninth, `@kailasasjp` (the
+channel is titled "KAILASA's Nithyananda Sarvajna Peetham", and it belongs to
+the **KAILASA Guinea-Bissau** row). Uganda, Rwanda and Kothapet had no rows,
+so they were inserted: Kothapet below Sripuram, and Uganda and Rwanda below
+Kenya. The rows were inserted *inside* the temple block on purpose, because an
+insert inside a COUNTIF's range stretches it and an insert after its last row
+does not.
+
+**Rwanda has no channel. Its `LIVE: KAILASA Rwanda Garbha Mandir` streams on
+Tanjavur's.** That is why attendance state (`attendanceLive`, the queue) is now
+keyed by **temple row**, not by channel. A temple entry can carry `requires`
+and `excludes`. Rwanda requires `rwanda`, and Tanjavur excludes it. Otherwise
+the shared `garbha mandir` pattern would credit Rwanda's stream to Tanjavur.
+State written under the old channel-id keys is read through `legacyTemple()`,
+which is safe because every channel had one temple at the time.
+
+Two per-temple patterns were approved: Dubai's `kailasa dubai temple` and NJB's
+`janmabhumi temple darshan`. Both were measured against the channel archives
+(Dubai 1/9 titles, NJB 3/259), with no false positives. Annadhanam streams (NJB,
+NJBK, NJS) do not count. **NJS is not mapped**: the user was asked whether it is
+the `NAS` row and has not answered.
+
+`markTrackedPending()` runs each sweep. It turns today's `—` into `Yet to Start`
+for any temple added after the day's group was built. Without it, a new temple
+reads `—` all day and is never closed to Absent.
+
 ### Credential hygiene
 
 The key arrived as `complete-energy-507909-r5-6f7e0b3219f3.json` **in the repo
