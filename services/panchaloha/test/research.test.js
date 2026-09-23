@@ -334,3 +334,103 @@ test('every catalog material appears in the prompt', async () => {
   const prompt = JSON.parse(calls[0].init.body).messages.map((m) => m.content).join('\n');
   for (const m of MATERIALS) assert.ok(prompt.includes(m.id), m.id);
 });
+
+// ------------------------------------------------------------------ model choice
+
+test('the chosen model is what gets called', async () => {
+  const calls = mockFetch([['api.groq.com', () => ({ body: groqResponse() })]]);
+  await make().research({ provider: 'groq', market: 'IN', model: 'openai/gpt-oss-20b' });
+  const sent = JSON.parse(calls[0].init.body);
+  assert.equal(sent.model, 'openai/gpt-oss-20b');
+  assert.deepEqual(sent.tools, [{ type: 'browser_search' }]);
+});
+
+test('groq/compound is called without a tools list (it searches by itself)', async () => {
+  const calls = mockFetch([['api.groq.com', () => ({ body: groqResponse() })]]);
+  await make().research({ provider: 'groq', market: 'IN', model: 'groq/compound' });
+  assert.equal(JSON.parse(calls[0].init.body).tools, undefined);
+});
+
+test('a malformed model id is refused before any call', async () => {
+  const calls = mockFetch([]);
+  await assert.rejects(make().research({ provider: 'gemini', market: 'IN', model: '../../evil?x=1' }), (e) => e.code === 'bad_request');
+  assert.equal(calls.length, 0);
+});
+
+test('a missing model -> model_unavailable, after trying every key', async () => {
+  const calls = mockFetch([['api.groq.com', () => ({ status: 404, body: '{"error":{"message":"The model `groq/compound` does not exist or you do not have access to it.","code":"model_not_found"}}' })]]);
+  await assert.rejects(make().research({ provider: 'groq', market: 'IN', model: 'groq/compound' }), (e) => e.code === 'model_unavailable' && e.status === 422 && /Choose another model/.test(e.message));
+  assert.equal(calls.length, 2);
+});
+
+test('a missing model on one key falls through to a key that has it', async () => {
+  mockFetch([['api.groq.com', (_u, init) => init.headers.authorization === 'Bearer g1'
+    ? { status: 404, body: '{"error":{"code":"model_not_found"}}' }
+    : { body: groqResponse() }]]);
+  const r = await make().research({ provider: 'groq', market: 'IN', model: 'groq/compound' });
+  assert.equal(r.materials.length, 5);
+});
+
+test('Gemini 404 "models/x is not found" -> model_unavailable', async () => {
+  mockFetch([['generativelanguage.googleapis.com', () => ({ status: 404, body: '{"error":{"code":404,"message":"models/gemini-9 is not found for API version v1beta"}}' })]]);
+  await assert.rejects(make().research({ provider: 'gemini', market: 'IN', model: 'gemini-9' }), (e) => e.code === 'model_unavailable');
+});
+
+test('Groq model list: search-capable only, merged across keys', async () => {
+  mockFetch([['api.groq.com/openai/v1/models', (_u, init) => ({ body: { data: init.headers.authorization === 'Bearer g1'
+    ? [{ id: 'openai/gpt-oss-120b' }, { id: 'llama-3.3-70b-versatile' }, { id: 'openai/gpt-oss-safeguard-20b' }]
+    : [{ id: 'openai/gpt-oss-20b' }, { id: 'groq/compound' }, { id: 'whisper-large-v3' }] } })]]);
+  const r = await make().listModels('groq');
+  assert.deepEqual(r.models.map((m) => m.id), ['groq/compound', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']);
+  assert.equal(r.default, 'openai/gpt-oss-120b');
+});
+
+test('Gemini model list drops non-text variants', async () => {
+  mockFetch([['generativelanguage.googleapis.com', () => ({ body: { models: [
+    { name: 'models/gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/gemini-3.5-flash-lite', displayName: 'Gemini 3.5 Flash-Lite', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/gemini-embedding-001', supportedGenerationMethods: ['embedContent'] },
+    { name: 'models/gemini-3.5-flash-preview-tts', supportedGenerationMethods: ['generateContent'] },
+    { name: 'models/gemini-3.5-flash-image', supportedGenerationMethods: ['generateContent'] },
+  ] } })]]);
+  const r = await make().listModels('gemini');
+  assert.deepEqual(r.models.map((m) => m.id), ['gemini-3.5-flash-lite', 'gemini-3.5-flash']);
+});
+
+test('OpenAI model list keeps web_search-capable text models', async () => {
+  mockFetch([['api.openai.com/v1/models', () => ({ body: { data: ['gpt-5', 'gpt-5-mini', 'gpt-4o-audio-preview', 'text-embedding-3-large', 'gpt-4.1', 'gpt-realtime', 'dall-e-3'].map((id) => ({ id })) } })]]);
+  const r = await make().listModels('openai');
+  assert.deepEqual(r.models.map((m) => m.id), ['gpt-5-mini', 'gpt-5', 'gpt-4.1']);
+});
+
+test('Anthropic model list comes from the Models API', async () => {
+  mockFetch([['api.anthropic.com/v1/models', () => ({ body: { data: [
+    { type: 'model', id: 'claude-opus-5', display_name: 'Claude Opus 5', created_at: '2026-01-01T00:00:00Z' },
+    { type: 'model', id: 'claude-haiku-4-5', display_name: 'Claude Haiku 4.5', created_at: '2025-10-01T00:00:00Z' },
+  ], has_more: false, first_id: 'claude-opus-5', last_id: 'claude-haiku-4-5' } })]]);
+  const r = await make().listModels('anthropic');
+  assert.deepEqual(r.models.map((m) => m.id), ['claude-opus-5', 'claude-haiku-4-5']);
+});
+
+test('Anthropic request adapts to the model generation', async () => {
+  const { requestShape } = await import('../src/research/providers/anthropic.js');
+  const current = requestShape('claude-opus-5');
+  assert.deepEqual(current.thinking, { type: 'adaptive' });
+  assert.equal(current.tools[0].type, 'web_search_20260209');
+  assert.equal(current.fallbacks, 'default');
+  const older = requestShape('claude-haiku-4-5');
+  assert.equal(older.thinking, undefined);
+  assert.equal(older.fallbacks, undefined);
+  assert.equal(older.tools[0].type, 'web_search_20250305');
+  assert.equal(older.tools[1].type, 'web_fetch_20250910');
+  assert.equal(requestShape('claude-sonnet-5').fallbacks, undefined);
+});
+
+test('model lists are cached, and a missing key is reported', async () => {
+  const calls = mockFetch([['api.openai.com/v1/models', () => ({ body: { data: [{ id: 'gpt-5' }] } })]]);
+  const research = make();
+  await research.listModels('openai');
+  await research.listModels('openai');
+  assert.equal(calls.length, 1);
+  await assert.rejects(make(env({ OPENAI_API_KEYS: '' })).listModels('openai'), (e) => e.code === 'no_api_key');
+});

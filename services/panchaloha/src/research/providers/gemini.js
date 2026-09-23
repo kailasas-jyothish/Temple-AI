@@ -5,7 +5,7 @@
  * themselves, so each is resolved to its real URL (one redirect, no body) —
  * otherwise no URL the model cites could ever be matched to a chunk.
  */
-import { postJson, readKeys, withKeys } from './base.js';
+import { getJson, postJson, readKeys, withKeys } from './base.js';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -23,13 +23,26 @@ async function resolveRedirect(uri, signal) {
 /** @param {Record<string, string | undefined>} env @returns {import('./base.js').LLMProvider} */
 export function geminiProvider(env) {
   const keys = readKeys(env, 'GEMINI');
-  const model = env.GEMINI_RESEARCH_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash';
+  const defaultModel = env.GEMINI_RESEARCH_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash';
   return {
     id: 'gemini',
     label: 'Google Gemini',
-    model,
+    model: defaultModel,
     configured: () => keys.length > 0,
-    search: ({ system, user, signal }) =>
+
+    // Every generateContent-capable Gemini text model; audio, image, TTS,
+    // embedding and live variants cannot take the search tool.
+    listModels: (signal) =>
+      withKeys(keys, async (key) => {
+        const body = await getJson(`${BASE}?pageSize=1000`, { headers: { 'x-goog-api-key': key }, signal });
+        return (body?.models || [])
+          .filter((/** @type {any} */ m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+          .map((/** @type {any} */ m) => ({ id: String(m.name || '').replace(/^models\//, ''), label: m.displayName }))
+          .filter((/** @type {{ id: string }} */ m) => /^gemini-/.test(m.id) && !/(embedding|tts|image|audio|live|native|robotics|computer-use|transcribe|customtools)/i.test(m.id))
+          .sort((/** @type {{ id: string }} */ a, /** @type {{ id: string }} */ b) => b.id.localeCompare(a.id));
+      }),
+
+    search: ({ system, user, model, signal }) =>
       withKeys(keys, async (key) => {
         const body = await postJson(
           `${BASE}/${encodeURIComponent(model)}:generateContent`,

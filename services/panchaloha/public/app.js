@@ -41,6 +41,8 @@ function defaults() {
     waxType: d.waxType,
     market: d.market,
     provider: d.provider,
+    models: {},        // provider id -> chosen model id
+    customModel: {},   // provider id -> true while "Custom model id…" is selected
     overheadPercent: String(d.overheadPercent),
     waxRatioPercent: String(d.waxRatioPercent),
     ratesByMarket: {},
@@ -172,12 +174,7 @@ function renderInputs({ skipRateInputs = false } = {}) {
     meta.replaceChildren(...parts);
   }
 
-  const provider = catalog.providers.find((p) => p.id === state.provider);
-  const ready = provider?.configured;
-  $('research-provider-line').textContent = provider
-    ? `Research uses ${provider.label} (${provider.model}) for ${m.name}, ${m.currency}.${ready ? '' : ' No API key for it is set on the server — choose another provider in Settings, or enter rates manually.'}`
-    : 'No research provider selected.';
-  $('research-btn').disabled = !ready || researching;
+  renderResearchControls();
 }
 
 // ------------------------------------------------------------------ calculation
@@ -267,9 +264,113 @@ function update(opts) {
 
 let researching = false;
 
+const CUSTOM = '__custom__';
+/** Per provider: { status: 'loading'|'ok'|'error', models: [{id,label}], error } — this page load only. */
+const modelLists = {};
+/** "provider:model" pairs that failed this session, so the list can say so. */
+const failedModels = new Map();
+
+const currentProvider = () => catalog.providers.find((p) => p.id === state.provider);
+/** The model research will use: the person's choice for this provider, else the server default. */
+const currentModel = () => (state.models?.[state.provider] ?? currentProvider()?.model ?? '').trim();
+
+async function loadModels(providerId, { force = false } = {}) {
+  const provider = catalog.providers.find((p) => p.id === providerId);
+  if (!provider?.configured) return;
+  if (!force && modelLists[providerId] && modelLists[providerId].status !== 'error') return;
+  modelLists[providerId] = { status: 'loading', models: [] };
+  renderResearchControls();
+  try {
+    const res = await fetch(`/api/models?provider=${encodeURIComponent(providerId)}`);
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || body.error) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+    modelLists[providerId] = { status: 'ok', models: body.models || [] };
+  } catch (err) {
+    modelLists[providerId] = { status: 'error', models: [], error: err.message || String(err) };
+  }
+  renderResearchControls();
+}
+
+function renderResearchControls() {
+  const providerSelect = $('research-provider');
+  providerSelect.replaceChildren(...catalog.providers.map((p) =>
+    el('option', { value: p.id }, p.configured ? p.label : `${p.label} (no API key)`)));
+  providerSelect.value = state.provider;
+  providerSelect.disabled = researching;
+
+  const provider = currentProvider();
+  const list = modelLists[state.provider];
+  const chosen = currentModel();
+  const customMode = state.customModel?.[state.provider] === true;
+  const listed = (list?.models || []).map((x) => x.id);
+  const failedLabel = (id) => (failedModels.has(`${state.provider}:${id}`) ? ' — failed last try' : '');
+
+  /** @type {HTMLElement[]} */
+  const options = [];
+  // The chosen model always appears, listed or not: the list can lag a release,
+  // and an env default the key cannot see should still be visible as such.
+  if (chosen && !listed.includes(chosen) && !customMode) {
+    options.push(el('option', { value: chosen }, `${chosen}${chosen === provider?.model ? ' (default)' : ''}${list?.status === 'ok' ? ' — not offered to this key' : ''}${failedLabel(chosen)}`));
+  }
+  for (const m of list?.models || []) {
+    const tag = m.id === provider?.model ? ' (default)' : '';
+    options.push(el('option', { value: m.id }, `${m.label && m.label !== m.id ? `${m.label} — ${m.id}` : m.id}${tag}${failedLabel(m.id)}`));
+  }
+  options.push(el('option', { value: CUSTOM }, 'Custom model id…'));
+  const modelSelect = $('research-model');
+  modelSelect.replaceChildren(...options);
+  modelSelect.value = customMode ? CUSTOM : chosen;
+  modelSelect.disabled = !provider?.configured || researching;
+
+  const custom = $('research-model-custom');
+  custom.hidden = !customMode;
+  if (customMode && document.activeElement !== custom) custom.value = chosen;
+  custom.disabled = researching;
+
+  const m = market();
+  let line;
+  if (!provider?.configured) line = `No API key for ${provider?.label || 'this provider'} is set on the server. Choose another provider, or enter rates manually.`;
+  else if (!list || list.status === 'loading') line = `Loading the models your ${provider.label} key can use…`;
+  else if (list.status === 'error') line = `Could not list ${provider.label} models (${list.error}). You can still choose “Custom model id…” and type one.`;
+  else if (!list.models.length) line = `${provider.label} lists no web-search-capable models for this key. Try another provider, or type a model id.`;
+  else line = `${list.models.length} web-search-capable model${list.models.length === 1 ? '' : 's'} available to this key. Research runs for ${m.name}, in ${m.currency}.`;
+  $('research-provider-line').textContent = line;
+
+  $('research-btn').disabled = !provider?.configured || researching || !chosen;
+}
+
+$('research-provider').addEventListener('change', (e) => {
+  state.provider = e.target.value;
+  save();
+  renderResearchControls();
+  loadModels(state.provider);
+});
+$('research-model').addEventListener('change', (e) => {
+  state.models ||= {};
+  state.customModel ||= {};
+  if (e.target.value === CUSTOM) {
+    state.customModel[state.provider] = true;
+    state.models[state.provider] = '';
+    renderResearchControls();
+    $('research-model-custom').focus();
+  } else {
+    state.customModel[state.provider] = false;
+    state.models[state.provider] = e.target.value;
+    renderResearchControls();
+  }
+  save();
+});
+$('research-model-custom').addEventListener('input', (e) => {
+  state.models ||= {};
+  state.models[state.provider] = e.target.value;
+  save();
+  $('research-btn').disabled = researching || !e.target.value.trim();
+});
+
 async function runResearch() {
   const m = market();
-  const provider = catalog.providers.find((p) => p.id === state.provider);
+  const provider = currentProvider();
+  const model = currentModel();
   researching = true;
   lastResearch = null;
   $('research-btn').disabled = true;
@@ -277,27 +378,48 @@ async function runResearch() {
   $('research-panel').hidden = false;
   $('use-all-btn').hidden = true;
   $('research-body').replaceChildren(
-    el('div', { class: 'notice info' }, `${provider.label} is searching the web for ${m.name} rates in ${m.currency}. This usually takes one to three minutes. Your current rates are not changed by this.`),
+    el('div', { class: 'notice info' }, `${provider.label} (${model}) is searching the web for ${m.name} rates in ${m.currency}. This usually takes one to three minutes. Your current rates are not changed by this.`),
   );
+  renderResearchControls();
+  let failure = null;
   try {
     const res = await fetch('/api/research', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ provider: state.provider, market: state.market }),
+      body: JSON.stringify({ provider: state.provider, market: state.market, model }),
     });
     const body = await res.json().catch(() => null);
     if (!res.ok || !body || body.error) {
-      throw new Error(body?.error?.message || `Research failed (HTTP ${res.status}). Enter rates manually.`);
+      failure = { code: body?.error?.code || 'http', message: body?.error?.message || `Research failed (HTTP ${res.status}). Enter rates manually.` };
+    } else {
+      failedModels.delete(`${state.provider}:${model}`);
+      lastResearch = { ...body, marketId: state.market };
     }
-    lastResearch = { ...body, marketId: state.market };
-    renderResearch();
   } catch (err) {
-    $('research-body').replaceChildren(el('div', { class: 'notice bad', role: 'alert' }, err.message || String(err)));
+    failure = { code: 'network', message: err.message || String(err) };
   } finally {
     researching = false;
     $('research-btn').replaceChildren(el('span', { 'aria-hidden': 'true' }, '✨'), ' Get latest rates');
-    renderInputs();
   }
+
+  if (failure) {
+    // These are all "this model, here, now" failures: another model is the fix.
+    const modelProblem = ['model_unavailable', 'web_search_unavailable', 'rate_limited', 'timeout', 'invalid_response', 'provider_unavailable'].includes(failure.code);
+    if (modelProblem) failedModels.set(`${state.provider}:${model}`, failure.code);
+    $('research-body').replaceChildren(
+      el('div', { class: 'notice bad', role: 'alert' },
+        el('strong', {}, `${provider.label} · ${model}: `), failure.message),
+      modelProblem
+        ? el('div', { class: 'notice info' }, 'Pick a different model or provider above and press “Get latest rates” again. Your rates were not changed.')
+        : null,
+    );
+    // A list fetched before the failure may itself be stale; ask again.
+    if (failure.code === 'model_unavailable') loadModels(state.provider, { force: true });
+  } else {
+    renderResearch();
+  }
+  renderInputs();
+  if (failure) $('research-model').focus();
 }
 
 function useRate(item) {
@@ -387,11 +509,8 @@ $('use-all-btn').addEventListener('click', () => {
 // ------------------------------------------------------------------ settings
 
 function openSettings() {
-  $('set-provider').replaceChildren(...catalog.providers.map((p) =>
-    el('option', { value: p.id }, `${p.label} — ${p.model}${p.configured ? '' : ' (no API key on server)'}`)));
   $('set-market').replaceChildren(...catalog.markets.map((m) => el('option', { value: m.id }, m.name)));
   $('set-composition').replaceChildren(...catalog.compositions.map((c) => el('option', { value: c.id }, c.id)));
-  $('set-provider').value = state.provider;
   $('set-market').value = state.market;
   $('set-composition').value = state.defaultCompositionId;
   $('set-overhead').value = state.overheadPercent;
@@ -411,7 +530,6 @@ $('set-market').addEventListener('change', syncCurrency);
 $('cancel-settings').addEventListener('click', () => $('settings').close());
 $('reset-settings').addEventListener('click', () => {
   const d = defaults();
-  $('set-provider').value = d.provider;
   $('set-market').value = d.market;
   $('set-composition').value = d.compositionId;
   $('set-overhead').value = d.overheadPercent;
@@ -435,7 +553,6 @@ $('settings-form').addEventListener('submit', (e) => {
   const newDefaultComposition = $('set-composition').value;
   if (newDefaultComposition !== state.defaultCompositionId) state.compositionId = newDefaultComposition;
   state.defaultCompositionId = newDefaultComposition;
-  state.provider = $('set-provider').value;
   state.market = $('set-market').value;
   state.overheadPercent = overhead;
   state.waxRatioPercent = ratio;
@@ -457,6 +574,9 @@ $('research-btn').addEventListener('click', runResearch);
     return;
   }
   state = load();
+  state.models ||= {};
+  state.customModel ||= {};
   renderStatic();
   update();
+  loadModels(state.provider);
 })();

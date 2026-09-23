@@ -1354,3 +1354,23 @@ stray literal `null` in the panel was caught.
 - The local folder rename: Windows will not rename a directory a running
   process holds as its working directory, so it could not be done from inside
   the session that did the GitHub rename.
+### Model choice in the UI (2026-09-23, same day)
+
+The user's point: a model fixed in `.env` means one retired or unavailable
+model stops research dead. Now the rates card has provider + model dropdowns
+beside "Get latest rates". The model list is each provider's own models
+endpoint, called with the key and filtered to search-capable models: Groq
+gpt-oss/compound merged across all keys, Gemini text models, OpenAI
+gpt-5/4.1/4o/o3/o4 text models, and Claude's Models API. It is cached for 10
+minutes. "Custom model id…" allows any id. A 404 or `model_not_found` is its own
+`model_unavailable` error (422). `withKeys` tries the next key on it, because
+Groq organisations differ. The Claude request adapts to the model: adaptive
+thinking and the `_20260209` tools on the 4.6+ generation, the basic tool
+versions and no thinking on older models, and refusal fallbacks only on the
+models documented for them. Provider choice moved out of Settings into the card.
+
+Checked live: Groq lists `openai/gpt-oss-120b` and `openai/gpt-oss-20b`;
+choosing `groq/compound` fails in about 1s with the new message. Gemini lists 17
+models, but every current one answers 429 for grounded calls on both keys and
+the 2.5 models answer 404 ("no longer available"). Google still lists retired
+models, which is why the error path matters as much as the list.

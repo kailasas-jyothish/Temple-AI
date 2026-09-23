@@ -53,6 +53,17 @@
             <span aria-hidden="true">✨</span> Get latest rates
           </button>
         </div>
+        <div class="research-bar">
+          <div class="field">
+            <label for="research-provider">AI provider</label>
+            <select id="research-provider"></select>
+          </div>
+          <div class="field">
+            <label for="research-model">Model</label>
+            <select id="research-model" aria-describedby="research-provider-line"></select>
+            <input id="research-model-custom" placeholder="Type a model id, e.g. openai/gpt-oss-20b" aria-label="Custom model id" hidden>
+          </div>
+        </div>
         <p class="hint" id="research-provider-line"></p>
         <div id="rate-rows" class="rate-rows"></div>
       </section>
@@ -95,10 +106,7 @@
       <h2 id="settings-title">Settings</h2>
       <p class="hint">Saved in this browser. API keys live on the server and are never sent here.</p>
 
-      <div class="field">
-        <label for="set-provider">AI provider for rate research</label>
-        <select id="set-provider"></select>
-      </div>
+      <p class="hint">The AI provider and model are chosen next to “Get latest rates”, and remembered.</p>
       <div class="field">
         <label for="set-market">Market / country</label>
         <select id="set-market"></select>

@@ -84,3 +84,10 @@ test('UI_PASSWORD gates everything but /healthz', async () => {
     s.close();
   }
 });
+
+test('GET /api/models reports a missing key as JSON', async () => {
+  const res = await fetch(`${base}/api/models?provider=openai`);
+  assert.equal(res.status, 412);
+  assert.equal((await res.json()).error.code, 'no_api_key');
+  assert.equal((await fetch(`${base}/api/models?provider=nope`)).status, 400);
+});

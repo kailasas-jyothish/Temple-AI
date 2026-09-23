@@ -162,6 +162,11 @@ input[aria-invalid="true"] { border-color: var(--bad); background: var(--bad-sof
 
 /* ---------------------------------------------------------------- rates */
 
+.research-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 0.75rem; margin-top: 0.8rem; }
+.research-bar .field { margin: 0; }
+.research-bar input { margin-top: 0.4rem; }
+@media (max-width: 560px) { .research-bar { grid-template-columns: 1fr; } }
+
 .rate-rows { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.8rem; }
 .rate-row {
   display: grid;

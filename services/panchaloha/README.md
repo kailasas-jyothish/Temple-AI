@@ -102,6 +102,15 @@ page exists, not that the right row was read — on 2026-09-23 two Indian
 | OpenAI | Responses API `web_search` tool | `gpt-5` | `OPENAI_API_KEYS` |
 | Anthropic Claude | server-side `web_search` + `web_fetch` tools | `claude-opus-5` | `ANTHROPIC_API_KEYS` |
 
+**Choosing the model.** Next to "Get latest rates" are an *AI provider* and a
+*Model* dropdown. The model list is fetched live from the provider with your
+key (`GET /api/models`), so it shows only models that key can actually use,
+filtered to the ones that can search the web. "Custom model id…" accepts any id
+for a model newer than the list. The choice is remembered per provider. If a
+model has been retired, isn't enabled for the account, is out of quota or
+can't search, the error says so and focuses the model dropdown. That model is
+marked "failed last try" for the session. The `.env` model is only the default.
+
 Keys live only in this service's `.env` (comma-separate several to rotate past
 a rate-limited one) and are never sent to the browser. A provider without a
 key is listed as unavailable. If a provider answers without searching, the
@@ -109,7 +118,7 @@ page says web research is unavailable for it rather than showing a guessed rate.
 
 ## Settings
 
-The Settings dialog holds the AI provider, market (currency follows it),
+The Settings dialog holds the market (currency follows it),
 default composition, overhead % and wax ratio %. They and the last rates you
 used are saved in the browser's localStorage, per market. API keys are not.
 
@@ -122,7 +131,8 @@ Set `UI_PASSWORD` in `.env` before exposing the app beyond your own machine:
 |---|---|
 | `GET /api/config` | catalog, defaults, providers (`configured` flag, never keys) |
 | `POST /api/calculate` | `CalculatorInput` → `CalculatorResult`, or 422 with `fields` |
-| `POST /api/research` | `{ provider, market }` → reviewed-rate list, or `{ error: { code, message } }` |
+| `GET /api/models?provider=` | models this key can use for web research, plus the default |
+| `POST /api/research` | `{ provider, market, model? }` → reviewed-rate list, or `{ error: { code, message } }` |
 | `GET /healthz` | liveness |
 
 ## Extending it
@@ -134,8 +144,10 @@ Set `UI_PASSWORD` in `.env` before exposing the app beyond your own machine:
   and to the `RateKey` typedef.
 - **Another market** — add it to `MARKETS`; rates are stored per market.
 - **Another LLM provider** — write `src/research/providers/<name>.js` exporting
-  a factory that returns `{ id, label, model, configured, search }`, where
-  `search` returns the answer text **and the URLs its search tool returned**
+  a factory that returns `{ id, label, model, configured, listModels, search }`,
+  where `listModels` asks the provider which search-capable models the key can
+  use, and `search` (given the chosen `model`) returns the answer text **and the
+  URLs its search tool returned**
   (`base.js` has key rotation, HTTP error mapping and a URL collector). Add the
   factory to `FACTORIES` in `src/research/index.js`. A provider that cannot
   report its search results cannot pass validation, by design.

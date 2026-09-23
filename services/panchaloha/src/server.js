@@ -64,13 +64,24 @@ export function createServer({ config, research }) {
     }
   });
 
+  app.get('/api/models', async (req, res) => {
+    const provider = String(req.query.provider || '');
+    try {
+      res.json(await research.listModels(provider));
+    } catch (err) {
+      if (err instanceof ResearchError) return res.status(err.status).json({ error: { code: err.code, message: err.message } });
+      console.error('[models] unexpected', err);
+      res.status(500).json({ error: { code: 'internal', message: 'Could not list models.' } });
+    }
+  });
+
   app.post('/api/research', async (req, res) => {
     const started = Date.now();
-    const { provider, market } = req.body || {};
+    const { provider, market, model } = req.body || {};
     try {
-      const result = await research.research({ provider: String(provider || ''), market: String(market || '') });
+      const result = await research.research({ provider: String(provider || ''), market: String(market || ''), model: model ? String(model) : undefined });
       const verified = result.materials.filter((m) => m.status === 'verified').length;
-      console.log(`[research] ${provider} ${market}: ${verified}/${result.materials.length} verified, ${result.evidence.length} pages, ${Math.round((Date.now() - started) / 1000)}s`);
+      console.log(`[research] ${provider} ${result.model} ${market}: ${verified}/${result.materials.length} verified, ${result.evidence.length} pages, ${Math.round((Date.now() - started) / 1000)}s`);
       res.json(result);
     } catch (err) {
       if (err instanceof ResearchError) {
