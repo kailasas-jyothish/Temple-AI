@@ -6,6 +6,8 @@ import { announce } from './notify.js';
 import { postPlain } from './slack.js';
 import * as youtube from './youtube/index.js';
 import * as facebook from './facebook/index.js';
+import * as attendance from './attendance/index.js';
+import { snapshotDir } from './attendance/snapshot.js';
 import { CALLBACK_PATH, verifySignature as verifyYouTube, subscribe } from './youtube/websub.js';
 import { verifySignature as verifyFacebook } from './facebook/graph.js';
 
@@ -18,6 +20,20 @@ export function createServer() {
 
   app.get('/', (_req, res) => res.type('text/plain').send('social-media-notifications: ok'));
   app.get('/healthz', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
+  // Captured live frames, served unauthenticated on purpose: Google's servers
+  // fetch these when they render the =IMAGE() formula in the attendance sheet,
+  // and they carry no token. They are frames of a public live stream.
+  app.use(
+    '/snapshots',
+    express.static(snapshotDir(), {
+      immutable: true,
+      maxAge: '365d',
+      dotfiles: 'ignore',
+      index: false,
+      fallthrough: false,
+    }),
+  );
 
   // ---------------------------------------------------------------- YouTube
   // Hub verification handshake: echo hub.challenge verbatim.
@@ -139,6 +155,21 @@ export function createServer() {
   app.get('/admin/recent', requireAdmin, async (req, res) => {
     try {
       res.json({ ok: true, ...(await youtube.recentReport(req.query.channel || '')) });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  app.get('/admin/attendance', requireAdmin, (_req, res) => {
+    res.json({ ok: true, ...attendance.statusReport() });
+  });
+
+  // Force a sweep: rolls today's column, re-credits continuing streams and
+  // drains the retry queue without waiting for the interval.
+  app.post('/admin/attendance/sweep', requireAdmin, async (_req, res) => {
+    try {
+      await attendance.sweep();
+      res.json({ ok: true, ...attendance.statusReport() });
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
     }

@@ -103,6 +103,56 @@ already being watched are untouched.
 | `GET  /admin/recent` | what the API reports per channel now; `?channel=@handle` for one |
 | `POST /admin/test` | post a test message to Slack |
 | `POST /admin/resubscribe` | force a WebSub lease renewal |
+| `GET  /admin/attendance` | queue, tracked live streams, day state (`x-admin-token`) |
+| `POST /admin/attendance/sweep` | run the attendance sweep now |
+| `GET  /snapshots/<file>` | captured live frames — **public**, because Google fetches them for `=IMAGE()` |
+
+---
+
+## Attendance: the 24/7 Garbha Mandir sheet
+
+When a temple's Garbha Mandir live stream starts, the service marks it present
+in the `24x7-Live-Stream-Monitoring` tab of the *2.0 Global Temples Attendance*
+spreadsheet. Four columns per date, newest date at column B:
+
+| | Status | Started | Link | Snapshot |
+|---|---|---|---|---|
+| Kailasa USA LA | `Started` | `11:10 AM PDT` | ▶ Watch | *(frame)* |
+| Ohio Kailasa | `Yet to Start` | | | |
+| Seattle | `—` | | | |
+
+- **Only live streams count**, and only ones whose title names the Garbha
+  Mandir stream (`24/7`, `24x7`, `garbha mandir`, `garbhamandir`, …). A
+  festival puja or a satsang is not attendance however live it is. Patterns
+  live in `temples.json` and are matched after Unicode NFKC folding, because
+  these channels post titles in mathematical-bold characters.
+- **A temple with no configured channel shows `—`**, never `Absent`. Nothing is
+  watching it, and saying otherwise would make the sheet lie.
+- **The date column is UTC** (the report is read from Guinea-Bissau, UTC+0).
+  The clock time in the cell is the temple's own local time, with the right
+  abbreviation for that date — `PDT` in summer, `PST` in winter.
+- **First one wins**, and a cell a person has typed into is never overwritten.
+- **A continuous stream keeps counting** for `ATTENDANCE_CONTINUATION_HOURS`
+  (48) from when it started, then stops — the temples are expected to restart
+  the broadcast. The cell says `11:10 AM PDT (since 21-Sep)` when the credit
+  comes from an earlier day's stream.
+- **Absent** is written when a UTC day closes with the cell still pending.
+- The snapshot is a real frame off the live stream via yt-dlp + ffmpeg, served
+  from `/snapshots/`. That is a youtube.com request from a datacenter IP, so it
+  may fail at any time; it falls back to the Data API thumbnail and the log
+  says which was used.
+
+```bash
+node --env-file=.env scripts/attendance.mjs inspect              # layout + channel→row map
+node --env-file=.env scripts/attendance.mjs restructure --confirm # one-time migration
+node --env-file=.env scripts/attendance.mjs sweep                 # roll the day, credit, close
+node --env-file=.env scripts/attendance.mjs mark --video <id>     # test one stream
+node --env-file=.env scripts/attendance.mjs drop --date 22-Sep-2026 --confirm
+```
+
+Adding a channel means two edits: `YOUTUBE_CHANNELS` in `.env`, and an entry in
+`temples.json` giving its exact row label in column A and its IANA timezone.
+The selftest fails if a row label no longer exists in the sheet.
 
 ---
 

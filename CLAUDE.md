@@ -999,3 +999,168 @@ Outstanding, still needing the user:
 
 1. The Caddy hostname, which becomes `PUBLIC_URL` (see "The edge, settled").
 2. Confirmation that the OAuth consent screen is off *Testing*.
+
+---
+
+## 13. Attendance in Google Sheets (2026-09-22/23, notifier)
+
+### The request
+
+> "When the live stream of the respective temple starts, i need the automation
+> to mark off attendance of temples that have started their live stream in a
+> google sheet."
+
+Specifically: only the **24/7 Garbha Mandir** stream counts, never a festival
+puja or a satsang. Per date the sheet holds a Started / Yet to Start status,
+the stream link, the local start time and a screenshot. The automation creates
+its own rows and columns and depends on no human. Manual edits must survive.
+
+### Decisions taken with the user
+
+| Question | Answer |
+|---|---|
+| Credential | **Service account**, not the reels OAuth token — no 7-day `invalid_grant` expiry, no browser flow, access scoped to one shared sheet |
+| Day boundary | **UTC**, which is also Guinea-Bissau local time, where the user reads the report |
+| Clock in the cell | the **temple's** own timezone, correct abbreviation for the date (PDT vs PST) |
+| Column order | **newest date at column B**, older pushed right |
+| Duplicate starts | first one wins |
+| Continuous stream | credited for **48h** from its start, then it must be restarted |
+| Snapshot | real frame via **yt-dlp + ffmpeg**, thumbnail as fallback |
+
+### The sheet as found
+
+`1wk999_S72yIuUiQ70x3Ci-0h5TzzBenbeSjAmg9Z8_8`, tab
+`24x7-Live-Stream-Monitoring` (id `471812663`) of *2.0 Global Temples
+Attendance*: 59 temples in column A, six single date columns, and a summary
+block whose COUNTIF formulas were **leftovers from a copied template** —
+counting `"*Attended*"` and `"*Yes - Attended"` across 100+ columns that no
+longer meant anything. Restructuring deleted the date columns and inserted a
+sub-header row; the old formulas survived the shift and had to be cleared
+separately (`F123:FO125`). Worth knowing that this workbook is full of such
+copied-over leftovers.
+
+Only 6 of the 59 temples have a YouTube channel. **They show `—`, never
+`Absent`** — marking 53 unmonitored temples absent every day would be the
+sheet lying confidently.
+
+### No new dependencies
+
+Service-account auth is one RS256 JWT exchanged for a bearer token, which
+`node:crypto` signs natively (`src/google/auth.js`, ~40 lines). Pulling in
+`google-auth-library` would have multiplied this service's dependency count for
+that. `src/google/sheets.js` is a thin `fetch` wrapper over the v4 REST API.
+
+### Naming is the real constraint, and it is not solved
+
+300 real titles were pulled from the six channels before writing the matcher.
+The result decided the design:
+
+| Temple | How they title the 24/7 stream |
+|---|---|
+| LA | `Live Garbha Mandir 24/7`, `24/7 Garbha Mandir Livestream` |
+| Toronto | `KAILASA TORONTO 24/7 LIVESTREAM` |
+| San Jose | `#Live: Kailasa San Jose Garbhamandir Darshan` |
+| Ohio | `🔴 LIVE  DARSHAN` — standardised 2026-09-22 to `LIVE: KAILASA OHIO GARBHA MANDIR`, not yet used |
+| Singapore | `Live Darshan Of The Main Deities Of Kailasa Singapore` — no convention |
+| Houston | nothing live since April 2025 |
+
+The shared patterns are `24/7`, `24x7`, `garbhamandir`, `garbha mandir`,
+`garbha mandhir`. Measured against all 300 titles: **25 matches, all genuine,
+zero false positives**. Houston and Singapore therefore read `Absent` every day
+until their titles change — deliberately, because the alternative (matching
+`Live Darshan …`) would count every ordinary satsang.
+
+One title is genuinely ambiguous and was left matching:
+`LIVE: 24/7 Adhika Maasam VENKATESHWARA PUJA` (LA). It carries `24/7`, so it
+counts. Ask before narrowing this.
+
+**Titles must be NFKC-normalised before matching.** These channels post
+`𝟮𝟰/𝟳 𝗚𝗔𝗥𝗕𝗛𝗔 𝗠𝗔𝗡𝗗𝗜𝗥` in mathematical-bold characters, which are not the
+letters they look like to any regex. Patterns are also matched against a
+separator-stripped form, so one pattern covers `24/7`, `24 x 7` and `24-7`.
+
+### Things that were got wrong first, and why they matter
+
+- **A backfilled date must not be inserted at column B.** The first version
+  always inserted at B, so marking a stream that started two days ago put
+  `21-Sep` to the *left* of `23-Sep`. `ensureGroup` now counts how many
+  existing groups are newer and inserts after them, which keeps the invariant
+  "groups run newest-first, left to right" that everything else assumes.
+- **`yt-dlp -f best[ext=mp4]` fails on every live stream.** A broadcast is
+  served as HLS, so a container-named selector matches nothing and yt-dlp exits
+  `Requested format is not available`. `-f best/bv*` works. Found by running it
+  against a real stream, not by reading the docs.
+- **Attendance would have come up blind on first deploy.** It learns about a
+  stream from the live event, but that event only fires for a video the
+  notifier has not seen — and after seeding, every already-running stream is
+  already seen. A 24/7 stream up since yesterday would never be noticed and its
+  temple would read Absent while visibly broadcasting. `discoverLiveStreams()`
+  scans each channel once per UTC day (2 quota units per channel) and seeds the
+  continuation memory. Verified from a completely fresh `DATA_DIR`.
+- **A continuation credit must say it is one.** `11:10 AM PDT` in the 23-Sep
+  column, for a stream that began on the 21st, reads as a start that morning.
+  The cell now says `11:10 AM PDT (since 21-Sep)`.
+
+### `=IMAGE()` cannot be verified through the API
+
+A written `=IMAGE(...)` reads back as
+`REF: "Please use a desktop web browser to allow access to fetch data from
+external urls."` — Sheets does not evaluate it for an API client. **Whether the
+picture renders can only be checked by opening the sheet in a browser.** There
+is no `imageValue` in the v4 `CellData` schema, so `=IMAGE()` is the only
+supported way to put a picture in a cell; the alternative (embedded objects) is
+not per-cell.
+
+Captured frames are served from `GET /snapshots/<file>`, **unauthenticated on
+purpose** — Google fetches that URL server-side and carries no token. They are
+frames of a public live stream. The base URL is
+`http://157.180.15.165:8478` (`ATTENDANCE_SNAPSHOT_BASE_URL`), because the edge
+is Caddy and there is no hostname for this app (§12, "The edge, settled").
+Whether Google will fetch plain HTTP from a bare IP on a non-standard port is
+**unverified**.
+
+### Quota
+
+`discoverLiveStreams` is 12 units/day for six channels. The continuation check
+is one `videos.list` per sweep — 144/day at the 600s default. `configProblems()`
+now includes the sweep in its daily estimate. Negligible against §9's ~7,200.
+
+### Verified
+
+- Service account reads *and writes* (probe write to an unused cell, read back,
+  cleared).
+- The tab restructured: sub-header row, `Temple` in A1, frozen 2x1, 240px label
+  column, 66px rows, three summary rows (`Started` / `Yet to Start` / `Absent`)
+  with per-group COUNTIFs, and all six temples resolving to rows 3–39.
+- Matcher: 25/143 live titles matched, zero false positives, NFKC cases pass,
+  PDT↔PST switches by date, unknown timezone degrades to UTC rather than throwing.
+- End to end against four genuinely-live streams: LA and San Jose taken, Ohio
+  and Singapore correctly ignored, group placement sorted, a **real frame of the
+  LA Garbha Mandir captured and looked at**, Slack success notice posted.
+- The 48h rule firing for real: San Jose had been live 53h and was dropped from
+  continuation with `it needs restarting` in the log.
+- Fresh-`DATA_DIR` boot: discovery, credit, idempotent re-run, and the
+  `yt-dlp is not installed` fallback path.
+- Full app boot with the new imports; six channels seeded silently.
+
+### Not verified
+
+- **Whether the Snapshot cell actually shows a picture.** See above — a human
+  has to look.
+- **yt-dlp from the Dokploy host.** It works from the user's laptop. §9 is the
+  reason to expect trouble from a datacenter IP; the fallback exists for it.
+- Nothing is deployed. The code is committed-ready but unpushed, per §7.4.
+- An `Absent` sweep at a real UTC midnight, and a first-ever go-live detected
+  live by the poller rather than by a scan.
+
+### Credential hygiene
+
+The key arrived as `complete-energy-507909-r5-6f7e0b3219f3.json` **in the repo
+root and not gitignored** — the next `git add -A` would have published a live
+credential to a public repo. Moved to `services/notifier/service-account.json`,
+which is now gitignored, and delivered to the container as
+`GOOGLE_SERVICE_ACCOUNT_JSON_B64` (base64 of the same file; a PEM cannot be a
+single `.env` line otherwise). The service account is
+`temple-attendance@complete-energy-507909-r5.iam.gserviceaccount.com`. The
+Sheets API is enabled on that project; the **Drive API is not**, and is not
+needed.

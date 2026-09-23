@@ -23,3 +23,6 @@ venv/
 # except the Dokploy API spec, which scripts/dokploy.mjs writes here on demand
 # and is worth keeping when it exists.
 !/dokploy-openapi.json
+
+# Google service-account key for the attendance sheet (delivered to Dokploy as base64 env)
+service-account.json

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 
 const bool = (v, dflt = false) => {
   if (v === undefined || v === '') return dflt;
@@ -79,6 +80,34 @@ export const config = {
     notifyUpcoming: bool(process.env.YOUTUBE_NOTIFY_UPCOMING, false),
   },
 
+  google: {
+    // Dokploy pushes env vars, not files, and a PEM key spans many lines —
+    // base64 is what fits in a .env. The file path is the local-development
+    // path and is gitignored.
+    keyBase64: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_B64 || '',
+    keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_FILE || './service-account.json',
+  },
+
+  attendance: {
+    enabled: bool(process.env.ATTENDANCE_ENABLED, true),
+    spreadsheetId: process.env.ATTENDANCE_SPREADSHEET_ID || '',
+    tab: process.env.ATTENDANCE_TAB || '24x7-Live-Stream-Monitoring',
+    templesFile: process.env.ATTENDANCE_TEMPLES_FILE || './temples.json',
+    sweepSeconds: num(process.env.ATTENDANCE_SWEEP_SECONDS, 600),
+    // A 24/7 stream fires one live event and then runs for days. It keeps
+    // counting for this long before the temple is expected to restart it.
+    continuationHours: num(process.env.ATTENDANCE_CONTINUATION_HOURS, 48),
+    notifySlack: bool(process.env.ATTENDANCE_NOTIFY_SLACK, true),
+    alertAfterAttempts: num(process.env.ATTENDANCE_ALERT_AFTER_ATTEMPTS, 3),
+    // Best-effort frame grab off the live stream; falls back to the Data API
+    // thumbnail, which always works.
+    snapshotEnabled: bool(process.env.ATTENDANCE_SNAPSHOT_ENABLED, true),
+    snapshotBaseUrl: (process.env.ATTENDANCE_SNAPSHOT_BASE_URL || '').replace(/\/+$/, ''),
+    snapshotTimeoutSeconds: num(process.env.ATTENDANCE_SNAPSHOT_TIMEOUT_SECONDS, 45),
+    ytDlpPath: process.env.YT_DLP_PATH || 'yt-dlp',
+    ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
+  },
+
   facebook: {
     // Graph API path. Requires a Page access token — no cookies, no scraping.
     enabled: bool(process.env.FACEBOOK_ENABLED, false),
@@ -115,10 +144,13 @@ export function configProblems() {
   }
   if (config.youtube.enabled) {
     // playlistItems (1 unit/tick, round-robin) + videos.list on the watchlist
-    // (1 unit/tick). The default 10,000 units/day is the ceiling; going over
-    // means 403 for the rest of the day, not slower polling.
+    // (1 unit/tick) + videos.list on the attendance continuation sweep. The
+    // default 10,000 units/day is the ceiling; going over means 403 for the
+    // rest of the day, not slower polling.
     const daily =
-      86400 / config.youtube.uploadsPollSeconds + 86400 / config.youtube.livePollSeconds;
+      86400 / config.youtube.uploadsPollSeconds +
+      86400 / config.youtube.livePollSeconds +
+      (config.attendance.enabled ? 86400 / config.attendance.sweepSeconds : 0);
     if (daily > 9000) {
       p.push(
         `YouTube polling intervals imply ~${Math.round(daily)} quota units/day, close to or over ` +
@@ -128,6 +160,23 @@ export function configProblems() {
   }
   if (config.youtube.enabled && config.youtube.websubEnabled && !config.publicUrl) {
     p.push('PUBLIC_URL is not set — YouTube WebSub push cannot be subscribed; falling back to polling only.');
+  }
+  if (config.attendance.enabled) {
+    if (!config.attendance.spreadsheetId) {
+      p.push('ATTENDANCE_ENABLED=true but ATTENDANCE_SPREADSHEET_ID is missing.');
+    }
+    if (!config.google.keyBase64 && !fs.existsSync(config.google.keyFile)) {
+      p.push(
+        'Attendance is enabled but no Google service account is available: set ' +
+          'GOOGLE_SERVICE_ACCOUNT_JSON_B64 (or GOOGLE_SERVICE_ACCOUNT_FILE).',
+      );
+    }
+    if (!config.attendance.snapshotBaseUrl && !config.publicUrl) {
+      p.push(
+        'No ATTENDANCE_SNAPSHOT_BASE_URL or PUBLIC_URL — captured frames cannot be served to ' +
+          'Google Sheets, so the Snapshot column will fall back to YouTube thumbnails.',
+      );
+    }
   }
   if (config.facebook.enabled && (!config.facebook.pageId || !config.facebook.pageToken)) {
     p.push('FACEBOOK_ENABLED=true but FACEBOOK_PAGE_ID / FACEBOOK_PAGE_ACCESS_TOKEN are missing.');

@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { log } from '../log.js';
 import { announce, suppress } from '../notify.js';
 import { addWatch, dropWatch, hasSeen, getMeta } from '../store.js';
+import { recordLive } from '../attendance/index.js';
 import {
   videosList,
   isoDurationSeconds,
@@ -47,6 +48,14 @@ export async function handleItem(item, hint = {}, mode = 'notify') {
   }
 
   const posted = await announce(event);
+
+  // Attendance is deliberately not conditional on `posted`: a Slack failure
+  // must not also cost the sheet entry, and recordLive has its own dedupe
+  // (one mark per temple per UTC date).
+  if (event.kind === 'live') {
+    const skipped = await recordLive(item, event).catch((err) => `error: ${err.message}`);
+    if (skipped) log.debug(`attendance skipped ${item.id}: ${skipped}`);
+  }
 
   // The watchlist is the only thing that retries a live start: announce()
   // re-arms the dedupe key when Slack fails, so keep polling this stream until

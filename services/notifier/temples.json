@@ -1,0 +1,56 @@
+{
+  "_comment": [
+    "Which YouTube channel belongs to which row of the attendance sheet.",
+    "`row` must equal the temple's label in column A of the tab, exactly. It is",
+    "matched case-insensitively and ignoring surrounding spaces, but nothing",
+    "cleverer than that: if someone renames a temple in the sheet the service",
+    "reports the mismatch in Slack rather than guessing a neighbouring row.",
+    "`tz` is an IANA zone and only decides the clock time shown in the cell —",
+    "the date column itself is UTC for every temple.",
+    "`patterns` here are added to the shared list below for that temple alone."
+  ],
+
+  "patterns": ["24/7", "24x7", "garbhamandir", "garbha mandir", "garbha mandhir"],
+
+  "temples": [
+    {
+      "handle": "@kailasasanjoseus",
+      "channelId": "UCT08Oyc76TM1Cn84mzwuGaA",
+      "row": "San Jose Kailasa",
+      "tz": "America/Los_Angeles"
+    },
+    {
+      "handle": "@KailasaLA",
+      "channelId": "UCq4_WXUpm8ein5ou4qESDcQ",
+      "row": "Kailasa USA LA",
+      "tz": "America/Los_Angeles"
+    },
+    {
+      "handle": "@kailasahouston9302",
+      "channelId": "UCl2cPxGNvohKD012qhU_NVQ",
+      "row": "Houston Kailasa",
+      "tz": "America/Chicago",
+      "note": "No Garbha Mandir naming convention yet — will read Absent until one exists."
+    },
+    {
+      "handle": "@kailasaohio7452",
+      "channelId": "UCQUOYoDKqvPTi0iXvytDyng",
+      "row": "Ohio Kailasa",
+      "tz": "America/New_York",
+      "note": "Standardised 2026-09-22 on 'LIVE: KAILASA OHIO GARBHA MANDIR'."
+    },
+    {
+      "handle": "@kailasatoronto8217",
+      "channelId": "UCRg-BvocTHMhQfvGfpt3W1A",
+      "row": "Toronto Kailasa",
+      "tz": "America/Toronto"
+    },
+    {
+      "handle": "@KailasaSG",
+      "channelId": "UC9GvlY2FoWOBEj0pz1hOCVw",
+      "row": "Kailasa Singapore",
+      "tz": "Asia/Singapore",
+      "note": "No Garbha Mandir naming convention yet — will read Absent until one exists."
+    }
+  ]
+}
