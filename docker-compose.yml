@@ -30,6 +30,14 @@ services:
     volumes:
       - reels-data:/data
 
+  panchaloha:
+    build:
+      context: services/panchaloha
+    restart: unless-stopped
+    env_file: services/panchaloha/.env
+    ports:
+      - "3100:3100"
+
 volumes:
   notifier-data:
   reels-data:

@@ -1,4 +1,4 @@
-# CLAUDE.md — project context for the Temple Social Media App
+# CLAUDE.md — project context for Temple AI
 
 This file carries the full context of the conversations that built this repo, so
 any future Claude Code session in this folder can pick up mid-stream without
@@ -6,13 +6,16 @@ re-deriving decisions or re-researching dead ends.
 
 Created: 2026-09-05 → 2026-09-06 as `social-media-notifications`, a single Node
 service. Renamed and restructured into a multi-service app on 2026-09-19 when the
-reels pipeline was added. Working dir:
-`C:\Users\GD\Desktop\GD\social-media-notifications`.
+reels pipeline was added. Renamed again on 2026-09-23 to **Temple AI** — the
+home for all temple automation, not only social media — when the Panchaloha
+calculator arrived (§14). GitHub repo: `kailasas-jyothish/Temple-AI`. The local
+folder was `C:\Users\GD\Desktop\GD\social-media-notifications` and is meant to
+become `…\GD\Temple-AI`; see §14 for whether that happened.
 
 **Sections 1–10 are the notifier service** (`services/notifier`) and describe it
 as it was when it lived at the repo root; the only thing that changed for it in
-the restructure is where its files sit. §11 covers the restructure itself and
-§12 onward the reels service.
+the restructure is where its files sit. §11 covers the restructure itself,
+§12 the reels service, §13 attendance, §14 the Panchaloha calculator.
 
 ---
 
@@ -522,7 +525,8 @@ Three things about this layout that are load-bearing:
   notifier cannot receive Google Drive credentials and the reels service cannot
   receive the YouTube API key. The old single root `.env` was split on
   2026-09-19; `PORT`, `DATA_DIR` and `PUBLIC_URL` would have collided otherwise.
-- **The GitHub repo is now `kailasas-jyothish/temple-social-media`** (public;
+- **The GitHub repo was `kailasas-jyothish/temple-social-media`, and since
+  2026-09-23 is `kailasas-jyothish/Temple-AI`** (§14). As `temple-social-media` (public;
   Dokploy clones it with no deploy key). The name was already taken by a private
   placeholder repo holding one README, which was renamed to
   `temple-social-media-old` rather than deleted. After the rename, Dokploy's git
@@ -1246,3 +1250,107 @@ single `.env` line otherwise). The service account is
 `temple-attendance@complete-energy-507909-r5.iam.gserviceaccount.com`. The
 Sheets API is enabled on that project; the **Drive API is not**, and is not
 needed.
+
+---
+
+## 14. Panchaloha murthy calculator (`services/panchaloha`, 2026-09-23)
+
+### The request
+
+A calculator for the manufacturing cost **per kg** of a Panchaloha murthy, from
+a step-by-step methodology the user supplied (a long spec pasted in the
+session). The one number that matters is `FINAL RATE ₹__/kg`. Rules, fixed:
+metals by composition (80:15:5 default, 70:25:5), wax = 10% of weight
+(Beeswax/Thaenukku or Paraffin, separate rates), overhead 5% of raw material
+only, labour = material rate after overhead, total = material + labour,
+final = total ÷ weight. Rates typed in or researched by an LLM with web search
+across Groq, Gemini, OpenAI and Claude — **the LLM never calculates**, never
+invents a rate or source, and never overwrites a person's rate.
+
+The same message asked to rename the repo, local and remote, to **Temple-AI**.
+The pasted spec itself said to keep `temple-social-media`; the user's own
+sentence won, because it was theirs and the spec was a template.
+
+### Why it is a service and not a page in an existing one
+
+Nothing to integrate into: there is no shared frontend, nav or settings system
+across services, and the only LLM code (reels' `curate.py`) is Python behind a
+build context the calculator cannot reach (§11). So it is a third service on
+the notifier's pattern — Node 22, Express, its own `.env`, no build step — with
+Groq and Gemini keys copied from `services/reels/.env` (same
+`*_API_KEYS` comma-rotation convention). The Anthropic path uses the official
+SDK (`@anthropic-ai/sdk`); the other three are plain `fetch`, as reels does.
+`agent-native` was not adopted for the reasons in §12 ("Why not agent-native").
+
+### Decisions worth not re-deriving
+
+- **One engine, run in both places.** `src/calculator.js`, `decimal.js` and
+  `catalog.js` have no Node imports; the server serves exactly those three at
+  `/lib/` and the page imports them, so results update per keystroke and match
+  `POST /api/calculate` by construction. Don't fork the maths into `app.js`.
+- **BigInt fixed-point, rounded per money line.** Quantities exact; each line
+  cost rounded half-up to the minor unit as produced; everything after is exact
+  sums, so the on-screen breakdown adds up to the paisa. The per-kg rate is the
+  only other rounding. The spec's §30 example is a test: ₹346.50/kg.
+- **Only the selected wax rate is required.** The other is shown as reference
+  and a blank there does not block a calculation that does not use it.
+- **The model reports units as quoted; the server converts.** Unit conversion is
+  arithmetic, so it stays out of the model like everything else.
+- **Evidence gate.** Each provider returns the URLs its search tool actually
+  produced (Groq `executed_tools`, Gemini grounding chunks resolved through
+  their redirect, OpenAI `web_search_call` sources + `url_citation`s, Claude
+  `web_search_tool_result` blocks + citations). A cited URL not among them is
+  rejected as possibly invented; same site/different page passes with
+  confidence capped at medium. Metals must be `scrap`; wax must be
+  wholesale/supplier/retail. An answer with zero search results is
+  `web_search_unavailable`, never a rate.
+- **One research call at a time** (409 `busy`), and `UI_PASSWORD` basic auth,
+  because each call is paid and takes 30s–2min.
+
+### Found by running it, not by reading docs
+
+- **`groq/compound` answers `model_not_found` for all six Groq keys.** None of
+  the three Groq organisations has it. `openai/gpt-oss-120b` with
+  `tools: [{type: "browser_search"}]` works and is the default; the provider
+  still supports compound if an org gains it.
+- **Gemini search grounding is unusable on the two current keys:** every
+  grounded call is an immediate `429 exceeded your current quota`, and plain
+  calls to `gemini-3.5-flash-lite` timed out at 25s. The Gemini provider is
+  proven only against mocked responses.
+- **OpenAI and Anthropic have no keys in this project**, so those two paths are
+  also proven only by mocked tests (including the SDK's error classes and a
+  `pause_turn` resume).
+- **A verified source is not a correct number.** Two live Groq runs returned
+  copper scrap at ₹607 and ₹650/kg, each from a real page the search returned,
+  while a dated Delhi dealer list the same day showed armature copper at
+  ₹1,468. The ₹650 page genuinely lists "Heavy Copper Scrap ₹650–780" — it is an
+  undated generic page, and the model read it faithfully. Gun metal (₹1,085–1,138)
+  and zinc (₹339–372) matched the dealer list. So `validate.js` now also warns
+  when gun metal comes back dearer than copper (or paraffin dearer than
+  beeswax), and the prompt asks for good-grade copper and cross-checking. This
+  is why no researched rate is ever applied without a person pressing "Use".
+- `extractJson` hung the test run: `lastIndexOf('{', -1)` clamps to 0, so a
+  backwards scan over a string starting with `{` never terminates.
+- `AbortSignal.timeout` does not hold Node's event loop open; a test of the
+  timeout path needs its own timer (the listening server does it in the app).
+
+### Verified
+
+`npm run check` — `tsc` over the JSDoc types (strict) and 50 `node:test` tests:
+both compositions, both waxes, decimal weights, both of the spec's worked
+examples, every validation error, every research failure mode, all four
+provider response shapes, the HTTP routes, and that `/api/config` never leaks a
+key. Two live Groq research runs end to end (30s/50 pages, 116s/92 pages, all
+five rates verified). The UI was rendered in headless Edge at desktop and
+tablet widths, with a real research result in the review panel — that is how a
+stray literal `null` in the panel was caught.
+
+### Not done / open
+
+- **Not deployed.** `scripts/dokploy.mjs` knows it (`--app panchaloha`, port
+  8480, stateless) but no Dokploy application exists. The user's machine blocks
+  bare IPs (§12), so it would be reached only once a Caddy hostname exists; it
+  runs locally with `npm run start:local` meanwhile.
+- The local folder rename: Windows will not rename a directory a running
+  process holds as its working directory, so it could not be done from inside
+  the session that did the GitHub rename.

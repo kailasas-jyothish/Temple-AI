@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panchaloha Calculator</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">◆</span>
+      <div>
+        <h1>Panchaloha Murthy Calculator</h1>
+        <p class="muted">Manufacturing cost per kg of murthy — Temple AI</p>
+      </div>
+    </div>
+    <button type="button" class="btn ghost" id="open-settings" aria-haspopup="dialog">Settings</button>
+  </header>
+
+  <main class="layout">
+    <section class="inputs" aria-label="Inputs">
+      <form id="calc-form" class="card" novalidate autocomplete="off">
+        <h2>Murthy</h2>
+
+        <div class="field">
+          <label for="weight">Murthy weight</label>
+          <div class="input-affix">
+            <input id="weight" name="weight" inputmode="decimal" placeholder="10" aria-describedby="weight-error">
+            <span class="affix">kg</span>
+          </div>
+          <p class="field-error" id="weight-error" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="composition">Composition</label>
+          <select id="composition" name="composition"></select>
+          <p class="hint" id="composition-hint"></p>
+        </div>
+
+        <fieldset class="field">
+          <legend>Wax type</legend>
+          <div class="radio-row" id="wax-options"></div>
+          <p class="hint" id="wax-hint"></p>
+        </fieldset>
+      </form>
+
+      <section class="card" aria-labelledby="rates-title">
+        <div class="card-head">
+          <h2 id="rates-title">Material rates <span class="muted" id="rates-unit"></span></h2>
+          <button type="button" class="btn primary" id="research-btn">
+            <span aria-hidden="true">✨</span> Get latest rates
+          </button>
+        </div>
+        <p class="hint" id="research-provider-line"></p>
+        <div id="rate-rows" class="rate-rows"></div>
+      </section>
+
+      <section class="card research" id="research-panel" hidden aria-labelledby="research-title" aria-live="polite">
+        <div class="card-head">
+          <h2 id="research-title">Researched rates — review before use</h2>
+          <button type="button" class="btn" id="use-all-btn">Use all verified</button>
+        </div>
+        <div id="research-body"></div>
+      </section>
+    </section>
+
+    <aside class="results" aria-label="Results">
+      <section class="card final" aria-live="polite">
+        <p class="final-label">Final rate</p>
+        <p class="final-value" id="final-rate">—</p>
+        <p class="final-sub" id="final-sub">Enter the weight and rates to calculate.</p>
+        <ul class="problems" id="problems"></ul>
+      </section>
+
+      <section class="card" id="requirement-card">
+        <h2>Material requirement</h2>
+        <table class="figures" id="requirement-table"></table>
+      </section>
+
+      <section class="card" id="cost-card">
+        <h2>Cost calculation</h2>
+        <table class="figures" id="cost-table"></table>
+        <details class="breakdown">
+          <summary>View calculation breakdown</summary>
+          <ol id="breakdown"></ol>
+        </details>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form method="dialog" class="settings-form" id="settings-form">
+      <h2 id="settings-title">Settings</h2>
+      <p class="hint">Saved in this browser. API keys live on the server and are never sent here.</p>
+
+      <div class="field">
+        <label for="set-provider">AI provider for rate research</label>
+        <select id="set-provider"></select>
+      </div>
+      <div class="field">
+        <label for="set-market">Market / country</label>
+        <select id="set-market"></select>
+      </div>
+      <div class="field">
+        <label for="set-currency">Currency</label>
+        <input id="set-currency" readonly>
+        <p class="hint">Follows the market. Rates are kept separately per market.</p>
+      </div>
+      <div class="field">
+        <label for="set-composition">Default composition</label>
+        <select id="set-composition"></select>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="set-overhead">Overhead %</label>
+          <input id="set-overhead" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="set-wax-ratio">Wax ratio % of weight</label>
+          <input id="set-wax-ratio" inputmode="decimal">
+        </div>
+      </div>
+      <p class="field-error" id="settings-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" id="reset-settings">Restore defaults</button>
+        <button type="button" class="btn" id="cancel-settings">Cancel</button>
+        <button type="submit" class="btn primary" id="save-settings">Save</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

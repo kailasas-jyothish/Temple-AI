@@ -1,13 +1,14 @@
-# Temple Social Media App
+# Temple AI
 
-Automation for KAILASA temple social media, in one repo. Each service is its own
+Automation for KAILASA temple work, in one repo. Each service is its own
 container, deployed independently to the same Dokploy instance from this one git
-source.
+source (`github.com/kailasas-jyothish/Temple-AI`).
 
 | Service | What it does | Stack | Dokploy app |
 |---|---|---|---|
-| [`services/notifier`](services/notifier) | Posts every new YouTube video, Short, premiere and live stream across six temple channels into Slack the moment it goes out. Facebook path written, dormant until a Page token exists. | Node 22 | `Social-media-notifications` |
+| [`services/notifier`](services/notifier) | Posts every new YouTube video, Short, premiere and live stream across six temple channels into Slack the moment it goes out, and marks Garbha Mandir live-stream attendance in a Google Sheet. Facebook path written, dormant until a Page token exists. | Node 22 | `Social-media-notifications` |
 | [`services/reels`](services/reels) | Turns a day's ritual photos from Google Drive into a branded vertical reel — an LLM picks the images, ffmpeg does every visual effect — and files it back into Drive with a Slack ping. | Python 3.12 | `Temple-reels` |
+| [`services/panchaloha`](services/panchaloha) | Panchaloha murthy cost calculator: final manufacturing cost per kg from weight, composition, wax and material rates, with AI-researched, source-checked rates a person approves. | Node 22 | not deployed |
 
 `CLAUDE.md` carries the full working history: the decisions, the dead ends, and
 the traps that have already cost a day each. Read it before changing deployment
@@ -26,6 +27,7 @@ scripts/dokploy.mjs       repo-level Dokploy driver, --app <service>
 services/
   notifier/               Node app + its own .env, Dockerfile, README
   reels/                  Python app + its own .env, Dockerfile, README
+  panchaloha/             Node app + its own .env, Dockerfile, README
 ```
 
 **Each service owns its own `.env`.** The repo-root `.env` holds nothing but
@@ -47,6 +49,7 @@ outside its own directory at build time.
 node scripts/dokploy.mjs show    --app notifier
 node scripts/dokploy.mjs setup   --app reels     # configure, push env, deploy, verify
 node scripts/dokploy.mjs verify  --app notifier  # container age
+node scripts/dokploy.mjs source  --app reels     # re-point the git source only (after a repo rename)
 ```
 
 `verify` exists because Dokploy's `deployment.all` reports `done` whether or not
@@ -56,8 +59,12 @@ deploy actually took effect — `CLAUDE.md` §10 has the full story.
 ## Local development
 
 ```bash
-docker compose up --build            # both services
-docker compose up --build notifier   # one of them
+docker compose up --build              # every service
+docker compose up --build panchaloha   # one of them
 ```
 
-Each service's README covers running it without Docker.
+Each service's README covers running it without Docker, e.g.
+
+```bash
+cd services/panchaloha && npm install && npm run start:local   # http://localhost:3100
+```

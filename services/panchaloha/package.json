@@ -1,0 +1,29 @@
+{
+  "name": "temple-ai-panchaloha",
+  "version": "1.0.0",
+  "description": "Panchaloha murthy cost calculator: deterministic per-kg cost engine with AI-assisted, source-checked material rate research.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:local": "node --env-file=.env src/index.js",
+    "dev": "node --env-file=.env --watch src/index.js",
+    "test": "node --test test/*.test.js",
+    "typecheck": "tsc -p jsconfig.json",
+    "check": "npm run typecheck && npm test",
+    "dokploy": "node ../../scripts/dokploy.mjs --app panchaloha"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "express": "^4.22.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT"
+}

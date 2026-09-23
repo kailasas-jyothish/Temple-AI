@@ -5,6 +5,7 @@
  *   node scripts/dokploy.mjs probe                    # discover the API surface + auth
  *   node scripts/dokploy.mjs show    [--app notifier] # dump the app's current config
  *   node scripts/dokploy.mjs configure [--app reels]  # git source + Dockerfile + domain + volume + swarm
+ *   node scripts/dokploy.mjs source    [--app reels]  # re-point the git source only (after a repo rename)
  *   node scripts/dokploy.mjs push-env  [--app reels]  # upload services/<app>/.env to the app
  *   node scripts/dokploy.mjs deploy    [--app reels]  # trigger a deploy
  *   node scripts/dokploy.mjs verify    [--app reels]  # prove the container actually rolled
@@ -59,6 +60,15 @@ const SERVICES = {
     volumeName: 'temple-reels-data',
     defaultPort: 8000,
     publishedPort: 8479,
+  },
+  // Not created on Dokploy yet. Stateless: preferences live in the browser.
+  panchaloha: {
+    dir: 'services/panchaloha',
+    appName: env.DOKPLOY_PANCHALOHA_APP_NAME || 'Temple-panchaloha',
+    dockerfile: 'services/panchaloha/Dockerfile',
+    volumeName: null,
+    defaultPort: 3100,
+    publishedPort: 8480,
   },
 };
 
@@ -213,11 +223,9 @@ async function show() {
   return { app, project, environment };
 }
 
-async function configure() {
+async function setSource(app) {
   if (!GIT_URL) throw new Error('set DOKPLOY_GIT_URL in the repo-root .env');
-  const { app } = await findApp();
   const applicationId = app.applicationId;
-
   // Public repo over a plain git URL: no GitHub App install, no deploy key.
   const src = await tryRoutes([
     ['POST', 'application.saveGitProvider', { applicationId, customGitUrl: GIT_URL, customGitBranch: GIT_BRANCH, customGitBuildPath: '/', customGitSSHKeyId: null, enableSubmodules: false, watchPaths: [] }],
@@ -225,6 +233,22 @@ async function configure() {
   ]);
   if (!src.ok) throw new Error(`could not set git source: ${JSON.stringify(src.attempts)}`);
   console.log(`source set  ${GIT_URL} @ ${GIT_BRANCH}  (via ${src.route})`);
+}
+
+/**
+ * Only the git source, for after a repository rename. GitHub redirects the old
+ * URL, but a production deploy should not depend on a redirect.
+ */
+async function source() {
+  const { app } = await findApp();
+  console.log(`was         ${app.customGitUrl || '(none)'}`);
+  await setSource(app);
+}
+
+async function configure() {
+  const { app } = await findApp();
+  const applicationId = app.applicationId;
+  await setSource(app);
 
   // Build context stays at the repo root; each service points at its own
   // Dockerfile, which addresses its files by full path.
@@ -250,7 +274,9 @@ async function configure() {
 
   // State under DATA_DIR must survive redeploys.
   const mountPath = serviceEnv.DATA_DIR || '/data';
-  if ((app.mounts || []).some((m) => m.mountPath === mountPath)) {
+  if (!service.volumeName) {
+    console.log('mount       skipped (stateless service)');
+  } else if ((app.mounts || []).some((m) => m.mountPath === mountPath)) {
     console.log(`mount ok    ${mountPath} already mounted`);
   } else {
     const mount = await tryRoutes([
@@ -363,6 +389,7 @@ const commands = {
   find: show,
   show,
   configure,
+  source,
   'push-env': pushEnv,
   deploy,
   verify,
