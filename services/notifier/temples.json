@@ -37,7 +37,7 @@
       "channelId": "UCQUOYoDKqvPTi0iXvytDyng",
       "row": "Ohio Kailasa",
       "tz": "America/New_York",
-      "note": "Standardised 2026-09-22 on 'LIVE: KAILASA OHIO GARBHA MANDIR'."
+      "note": "Renaming their stream to carry 'Garbhamandir' (2026-09-23). No pattern needed — the shared list already covers it; until they rename, their current 'LIVE  DARSHAN' title does not count."
     },
     {
       "handle": "@kailasatoronto8217",
@@ -50,7 +50,8 @@
       "channelId": "UC9GvlY2FoWOBEj0pz1hOCVw",
       "row": "Kailasa Singapore",
       "tz": "Asia/Singapore",
-      "note": "No Garbha Mandir naming convention yet — will read Absent until one exists."
+      "patterns": ["main deities of kailasa singapore"],
+      "note": "Their Garbha Mandir stream is 'Live Darshan of The Main Deities of Kailasa Singapore' (confirmed 2026-09-23). The pattern is the distinctive tail, not 'live darshan' — this channel's other live streams are SPH satsangs that a looser rule would count."
     }
   ]
 }
