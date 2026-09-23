@@ -21,11 +21,17 @@ export const snapshotDir = () => path.join(config.dataDir, 'snapshots');
 
 const safeName = (s) => String(s).replace(/[^\w.-]/g, '_');
 
+// The outcome of the most recent attempt, for GET /admin/attendance. Whether
+// youtube.com answers this host at all is the open question about this
+// feature, and "the cell shows a thumbnail" is not enough to diagnose it.
+let lastResult = null;
+export const lastCapture = () => lastResult;
+
 /**
  * Capture a frame. Returns a path relative to the snapshot directory, or null.
  * Never throws: a missing picture must not cost the attendance mark.
  */
-export async function captureFrame(videoId, dateLabel) {
+export async function captureFrame(videoId, dateLabel, { force = false } = {}) {
   if (!config.attendance.snapshotEnabled) return null;
 
   const dir = snapshotDir();
@@ -34,7 +40,10 @@ export async function captureFrame(videoId, dateLabel) {
 
   try {
     fs.mkdirSync(dir, { recursive: true });
-    if (fs.existsSync(target)) return name;
+    if (fs.existsSync(target) && !force) {
+      lastResult = { videoId, at: new Date().toISOString(), ok: true, source: 'cached frame' };
+      return name;
+    }
 
     const timeout = config.attendance.snapshotTimeoutSeconds * 1000;
     const url = `https://www.youtube.com/watch?v=${videoId}`;
@@ -74,12 +83,22 @@ export async function captureFrame(videoId, dateLabel) {
       throw new Error('ffmpeg produced no frame');
     }
     log.info(`attendance: captured live frame for ${videoId}`);
+    lastResult = { videoId, at: new Date().toISOString(), ok: true, source: 'live frame' };
     prune();
     return name;
   } catch (err) {
     // ENOENT here means the binary is absent, which is a deployment fact
     // rather than a transient failure — worth a distinct message.
     const why = err.code === 'ENOENT' ? `${err.path || 'yt-dlp/ffmpeg'} is not installed` : err.message;
+    lastResult = {
+      videoId,
+      at: new Date().toISOString(),
+      ok: false,
+      source: 'thumbnail',
+      // stderr is where yt-dlp says *why* YouTube refused, which is the whole
+      // question on this host. Keep enough of it to be actionable.
+      error: String(err.stderr || why).slice(0, 600).trim(),
+    };
     log.warn(`attendance: live frame capture failed for ${videoId} (${why}); using the API thumbnail`);
     try {
       if (fs.existsSync(target)) fs.unlinkSync(target);

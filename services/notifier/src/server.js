@@ -175,6 +175,19 @@ export function createServer() {
     }
   });
 
+  // Whether youtube.com will answer this host is the open question about the
+  // snapshot (CLAUDE.md §9), so there is a way to ask it directly and read
+  // yt-dlp's own stderr back.
+  app.post('/admin/attendance/snapshot', requireAdmin, async (req, res) => {
+    const video = String(req.query.video || '');
+    if (!video) return res.status(400).json({ ok: false, error: 'pass ?video=<id>' });
+    try {
+      res.json({ ok: true, ...(await attendance.probeSnapshot(video)) });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   app.post('/admin/resubscribe', requireAdmin, async (_req, res) => {
     const ids = youtube.getChannelIds();
     if (!ids.length) return res.status(409).json({ ok: false, error: 'no channel resolved yet' });

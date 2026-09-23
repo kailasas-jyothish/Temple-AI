@@ -8,7 +8,7 @@ import { videosList, recentUploads, watchUrl, thumbUrl } from '../youtube/api.js
 import { templeForChannel, allTemples } from './temples.js';
 import { matchesGarbhaMandir, utcDateLabel, utcDayStart, localTimeLabel } from './match.js';
 import { readLayout, ensureGroup, groupFor, writeStarted, markAbsentees, STATUS } from './sheet.js';
-import { captureFrame, snapshotUrl } from './snapshot.js';
+import { captureFrame, snapshotUrl, lastCapture } from './snapshot.js';
 
 /**
  * Attendance for the 24/7 Garbha Mandir streams.
@@ -327,7 +327,14 @@ export function statusReport() {
     queued: queue(),
     live: liveStreams(),
     closedThrough: getMeta(CLOSED_KEY, null),
+    lastSnapshot: lastCapture(),
   };
+}
+
+/** Force one capture attempt and report exactly what happened. Admin only. */
+export async function probeSnapshot(videoId) {
+  const name = await captureFrame(videoId, utcDateLabel(), { force: true });
+  return { name, url: name ? snapshotUrl(name) : null, result: lastCapture() };
 }
 
 export { sweep };
