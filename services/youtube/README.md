@@ -34,7 +34,8 @@ Every `/v1` route needs `Authorization: Bearer $GATEWAY_TOKEN`.
 | Route | Returns |
 |---|---|
 | `GET /healthz` | `200 {"ok":true,"vpn":true,"po_token_server":true,"yt_dlp":"…"}`, or `503`. Local checks only, never calls out. |
-| `GET /v1/egress` | `{"egress_ip","host_ip","via_vpn"}`: the IP YouTube sees. |
+| `GET /v1/egress` | `{"egress_ip","host_ip","via_vpn","endpoint","rotations"}`: the IP YouTube sees, and the VPN server in use. |
+| `POST /v1/rotate` | Moves the tunnel to another VPN server now. Returns `{"changed", "endpoint", "egress_ip", "rotations"}`. |
 | `GET /v1/frame/{videoId}?width=960` | `image/jpeg` from the live edge, with `X-Captured-At` (UTC) and `X-Channel-Id` headers. `width` is 160–1920. |
 
 `/v1/frame` returns JSON errors with a stable `error` code:
@@ -45,7 +46,7 @@ Every `/v1` route needs `Authorization: Bearer $GATEWAY_TOKEN`.
 | 401 | `unauthorized` | missing or wrong token |
 | 404 | `unavailable` | private, removed or unavailable |
 | 409 | `not_live` | upcoming, ended, or not a live stream |
-| 502 | `bot_blocked` | YouTube flagged the VPN exit; switch location |
+| 502 | `bot_blocked` | still flagged after `VPN_BOT_BLOCK_RETRIES` rotations (see below) |
 | 502 | `extract_failed` / `ffmpeg_failed` | anything else; `detail` has the message |
 | 503 | `vpn_down` | tunnel is down; the request was refused, not sent |
 | 504 | `ffmpeg_timeout` | no frame within `FFMPEG_TIMEOUT_SECONDS` |
@@ -65,6 +66,25 @@ A resolved manifest is cached per video for `MANIFEST_TTL_SECONDS` (20 min by
 default), so repeat frames of the same stream take about 1s instead of 3–4s.
 At most `MAX_CONCURRENT` requests run at once.
 
+### When YouTube flags the exit
+
+YouTube bot-checks by IP, and a VPN hostname such as
+`nl-ams.prod.surfshark.com` hides many servers that share one peer key, each
+with its own exit IP. On `bot_blocked`, the gateway moves the tunnel to the
+next server and retries, up to `VPN_BOT_BLOCK_RETRIES` times (default 2).
+
+- **Switching server.** It uses `wg setconf` with the new endpoint. A plain
+  `wg set … endpoint` does not stick: the old server keeps sending on the
+  live session and WireGuard roams back to it. `setconf` drops the session
+  keys. `wg0`, its routes and the kill switch stay up the whole time, so
+  nothing leaves on the host IP.
+- **Finding servers.** Server IPs are resolved at boot, before the kill
+  switch is up. Each rotation also looks the hostname up again through the
+  tunnel, because the provider's DNS returns only 2 servers per query. The
+  pool grows over time; in testing it went from 2 to 8.
+- **Bursts.** A burst of failures moves the tunnel once. Rotations within
+  `VPN_ROTATE_COOLDOWN_SECONDS` (default 30) count for every waiting request.
+
 ## Configuration
 
 See `.env.example`. The WireGuard config can be given three ways, checked in
@@ -81,20 +101,36 @@ Boot fails, and the container exits, if no config is given, if the tunnel
 doesn't carry traffic within 30s, or if the egress IP still equals the host
 IP. `GATEWAY_TOKEN` is required.
 
-## Running it
+## Deploying
 
-The container needs `NET_ADMIN` and the `net.ipv4.conf.all.src_valid_mark=1`
-sysctl:
+Deploy it as a **Dokploy Compose app** with compose path
+`services/youtube/docker-compose.yml`, not as an Application. The compose file:
 
-```sh
-docker build -t temple-youtube services/youtube
-docker run -d --env-file services/youtube/.env \
-  --cap-add NET_ADMIN --sysctl net.ipv4.conf.all.src_valid_mark=1 \
-  -p 127.0.0.1:8090:8090 temple-youtube
-```
+- sets the `NET_ADMIN` capability and the
+  `net.ipv4.conf.all.src_valid_mark=1` sysctl that WireGuard needs;
+- **creates the network** `temple-ai-internal` (overlay, attachable,
+  `10.20.0.0/24`) on first deploy, so nothing is made by hand;
+- gives the service the alias `youtube` on that network, with no ports and no
+  domain;
+- defaults `ALLOWED_SOURCES` to the network's own subnet.
 
-Do not publish the port publicly. Other services reach it on the internal
-network.
+Put the `.env.example` values in Dokploy's Environment tab. To use another
+name or subnet, set `TEMPLE_NETWORK` / `TEMPLE_NETWORK_SUBNET`. Keep
+`ALLOWED_SOURCES` matching the subnet.
+
+Callers (notifier, reels) join `temple-ai-internal`. In Dokploy that's the
+app's Advanced → Swarm Settings → Network. They then use
+`http://youtube:8090`.
+
+Access is limited in two layers:
+
+1. **The network.** Only apps that joined `temple-ai-internal` can route to
+   the container.
+2. **A firewall inside the container.** The API port accepts
+   `ALLOWED_SOURCES` only. If the container is ever also on
+   `dokploy-network`, other apps there are still dropped.
+
+For local runs, the repo-root `docker-compose.yml` has a `youtube` service.
 
 ### Tested on the Dokploy host (2026-09-26)
 
@@ -107,12 +143,19 @@ the runtime Dokploy apps use:
 - An upcoming LA event returned 409 `not_live`.
 - Kill switch: after deleting `wg0`, direct egress was blocked, `/v1/frame`
   returned 503 `vpn_down`, and `/healthz` returned 503.
-- Another container on `dokploy-network` called it by service name and got a
-  frame.
-
-It is not yet a Dokploy app. Deploying it needs `NET_ADMIN` and the sysctl on
-the service. Check whether the Dokploy application settings expose these. If
-they don't, deploy it as a Dokploy Compose app instead.
+- Network isolation:
+  - A container on the internal network got a frame.
+  - Containers on `dokploy-network` and on the default bridge were blocked,
+    and so was the host.
+  - With the container on both networks, the firewall alone still blocked
+    `dokploy-network`.
+- `services/youtube/docker-compose.yml`:
+  - created the overlay network automatically; its subnet overlapped nothing
+    on the host;
+  - the VPN came up.
+- Rotation:
+  - three manual rotations each got a new exit IP;
+  - a simulated `bot_blocked` rotated and retried, and the frame came back.
 
 ## Traps
 
@@ -121,8 +164,10 @@ they don't, deploy it as a Dokploy Compose app instead.
   `extract_failed`, rebuild first.
 - **Keep the bgutil versions in step.** The server version (`BGUTIL_VERSION`
   in the Dockerfile) must match the pip plugin in `requirements.txt`.
-- **Plan for VPN exits getting flagged.** A `bot_blocked` streak means the exit
-  IP has been flagged. Keep a second location's endpoint and peer key ready.
+- **Switch location if `bot_blocked` persists.** The gateway rotates servers
+  within one location on its own. If `bot_blocked` still comes back after
+  rotating, the whole location is flagged. Set another location's
+  `WG_ENDPOINT` + `WG_PEER_PUBLIC_KEY` and redeploy.
 - **Watch for camera-clock drift.** The frame shows whatever the stream
   shows. Temple cameras sometimes burn in a wrong clock: NJB read 14:27 when
   it was 16:42 IST. Trust `X-Captured-At`, not the image.

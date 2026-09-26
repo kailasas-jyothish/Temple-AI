@@ -43,6 +43,9 @@ services:
       context: services/youtube
     restart: unless-stopped
     env_file: services/youtube/.env
+    environment:
+      # Local runs use the default compose bridge, not temple-ai-internal.
+      ALLOWED_SOURCES: 172.16.0.0/12
     # WireGuard runs inside the container; these two are all it needs.
     cap_add:
       - NET_ADMIN

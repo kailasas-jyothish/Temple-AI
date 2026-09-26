@@ -1,0 +1,39 @@
+# Deploy this service as a Dokploy *Compose* app (compose path:
+# services/youtube/docker-compose.yml), not as an Application:
+#   - it needs NET_ADMIN and a sysctl for WireGuard, which compose can set;
+#   - deploying it creates the temple-ai-internal network, so nothing has to
+#     be made by hand on the host.
+# Set the env vars from .env.example in the Dokploy Environment tab; Dokploy
+# writes them to .env next to this file.
+#
+# Other Temple AI apps join the network afterwards (Dokploy: Advanced ->
+# Swarm Settings -> Network, or `networks:` in their own compose) and call
+# http://youtube:8090. The network is attachable so swarm services can join.
+services:
+  youtube:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # The network's own subnet is the only source the API accepts.
+      ALLOWED_SOURCES: ${ALLOWED_SOURCES:-10.20.0.0/24}
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      temple-ai-internal:
+        aliases:
+          - youtube
+    # No ports: and no domain. Nothing outside the network reaches it.
+
+networks:
+  temple-ai-internal:
+    name: ${TEMPLE_NETWORK:-temple-ai-internal}
+    driver: overlay
+    attachable: true
+    ipam:
+      config:
+        - subnet: ${TEMPLE_NETWORK_SUBNET:-10.20.0.0/24}

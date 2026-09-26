@@ -47,6 +47,22 @@ if [ "${VPN_ENABLED:-true}" = "true" ]; then
   export HOST_IP
   log "host egress IP (must NOT be used): ${HOST_IP:-unknown}"
 
+  # Every server behind the endpoint hostname, resolved now while plain DNS
+  # still works. Once the kill switch is up, the hostname can't be resolved
+  # outside the tunnel, so rotating to another exit (app/vpn.py, used when
+  # YouTube flags the current one) swaps between these IPs with `wg set`.
+  EP=$(grep -i '^Endpoint' /etc/wireguard/wg0.conf | cut -d= -f2- | tr -d ' ')
+  EP_HOST=${EP%:*}
+  EP_PORT=${EP##*:}
+  # The provider's DNS hands out a couple of servers per query, a different
+  # couple each time, so ask several times and keep the union.
+  for _ in 1 2 3 4 5 6 7 8; do
+    getent ahostsv4 "$EP_HOST" | awk '{print $1}'
+  done | sort -u | sed "s/\$/:$EP_PORT/" > /run/wg-endpoints || true
+  # Rotation looks the hostname up again through the tunnel for fresh servers.
+  echo "$EP_HOST:$EP_PORT" > /run/wg-endpoint-host
+  log "VPN endpoints available for rotation: $(wc -l < /run/wg-endpoints)"
+
   # wg-quick sets src_valid_mark via sysctl, which an unprivileged container
   # can't write. Pass it with --sysctl / compose sysctls instead; skip it here.
   sed -i 's/cmd sysctl -q net.ipv4.conf.all.src_valid_mark=1/true/' "$(command -v wg-quick)"

@@ -20,12 +20,17 @@ from datetime import datetime, timezone
 import yt_dlp
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 
+from . import vpn
+
 TOKEN = os.environ.get("GATEWAY_TOKEN", "")
 PLAYER_CLIENTS = os.environ.get("PLAYER_CLIENTS", "web_safari,tv,default").split(",")
 MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT", "3"))
 MANIFEST_TTL = int(os.environ.get("MANIFEST_TTL_SECONDS", "1200"))
 FFMPEG_TIMEOUT = int(os.environ.get("FFMPEG_TIMEOUT_SECONDS", "60"))
 VPN_ENABLED = os.environ.get("VPN_ENABLED", "true") == "true"
+# How many times one request may move the tunnel to a new exit after YouTube
+# answers "confirm you're not a bot".
+BOT_BLOCK_RETRIES = int(os.environ.get("VPN_BOT_BLOCK_RETRIES", "2"))
 
 if not TOKEN:
     raise SystemExit("GATEWAY_TOKEN is required")
@@ -118,9 +123,7 @@ def _grab(manifest: str, width: int) -> bytes:
     return proc.stdout
 
 
-def _frame(video_id: str, width: int) -> tuple[bytes, dict]:
-    if VPN_ENABLED and not _vpn_up():
-        raise GatewayError(503, "vpn_down", "WireGuard interface is down; refusing to use the host IP")
+def _frame_once(video_id: str, width: int) -> tuple[bytes, dict]:
     manifest, meta = _resolve(video_id)
     try:
         return _grab(manifest, width), meta
@@ -129,6 +132,23 @@ def _frame(video_id: str, width: int) -> tuple[bytes, dict]:
         _manifests.pop(video_id, None)
         manifest, meta = _resolve(video_id)
         return _grab(manifest, width), meta
+
+
+def _frame(video_id: str, width: int) -> tuple[bytes, dict]:
+    if VPN_ENABLED and not _vpn_up():
+        raise GatewayError(503, "vpn_down", "WireGuard interface is down; refusing to use the host IP")
+    for attempt in range(BOT_BLOCK_RETRIES + 1):
+        try:
+            return _frame_once(video_id, width)
+        except GatewayError as e:
+            # YouTube flags exits by IP. Move the tunnel to another server and
+            # try again; give up once the retries or the servers run out.
+            if e.code != "bot_blocked" or not VPN_ENABLED or attempt == BOT_BLOCK_RETRIES:
+                raise
+            if not vpn.rotate(f"bot_blocked on {video_id}"):
+                raise
+            # Manifests resolved on the old exit are bound to its IP.
+            _manifests.clear()
 
 
 @app.get("/healthz")
@@ -152,7 +172,24 @@ def egress(authorization: str | None = Header(None)):
     """The IP YouTube sees. Calls out, so it is not part of the health probe."""
     _check_auth(authorization)
     ip = urllib.request.urlopen("https://ipinfo.io/ip", timeout=10).read().decode().strip()
-    return {"egress_ip": ip, "host_ip": os.environ.get("HOST_IP"), "via_vpn": ip != os.environ.get("HOST_IP")}
+    return {
+        "egress_ip": ip,
+        "host_ip": os.environ.get("HOST_IP"),
+        "via_vpn": ip != os.environ.get("HOST_IP"),
+        "endpoint": vpn.current_endpoint(),
+        "rotations": vpn.state,
+    }
+
+
+@app.post("/v1/rotate")
+async def rotate(authorization: str | None = Header(None)):
+    """Move the tunnel to another VPN server now, e.g. after a bot_blocked streak."""
+    _check_auth(authorization)
+    if not VPN_ENABLED:
+        raise HTTPException(409, {"error": "vpn_disabled"})
+    changed = await asyncio.to_thread(vpn.rotate, "manual")
+    _manifests.clear()
+    return {"changed": changed, **vpn.state}
 
 
 @app.get("/v1/frame/{video_id}")
