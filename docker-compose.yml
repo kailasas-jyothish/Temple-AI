@@ -38,6 +38,20 @@ services:
     ports:
       - "3100:3100"
 
+  youtube:
+    build:
+      context: services/youtube
+    restart: unless-stopped
+    env_file: services/youtube/.env
+    # WireGuard runs inside the container; these two are all it needs.
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    # Internal API: other services call http://youtube:8090. Loopback only.
+    ports:
+      - "127.0.0.1:8090:8090"
+
 volumes:
   notifier-data:
   reels-data:
