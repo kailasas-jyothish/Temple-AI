@@ -27,6 +27,10 @@ export function loadTemples() {
     channelId: t.channelId || '',
     row: String(t.row || '').trim(),
     tz: t.tz || 'UTC',
+    // UTC is a safe default for a clock label, not for a puja schedule: a
+    // ritual at "11:45" fired at 11:45 UTC would be hours off. Presence needs
+    // to know the difference.
+    tzConfigured: Boolean(t.tz),
     // Shared patterns plus this temple's own. A temple with an unusual title
     // convention gets it listed against itself rather than widening the rule
     // for every channel.

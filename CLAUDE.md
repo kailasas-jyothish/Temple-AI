@@ -1402,3 +1402,39 @@ choosing `groq/compound` fails in about 1s with the new message. Gemini lists 17
 models, but every current one answers 429 for grounded calls on both keys and
 the 2.5 models answer 404 ("no longer available"). Google still lists retired
 models, which is why the error path matters as much as the list.
+---
+
+## 15. Pujari presence monitor (2026-09-26, notifier, not yet enabled)
+
+The request: for each temple ritual time (e.g. "Kailasa USA LA, Naivedyam, 11:45
+America/Los_Angeles"), take a live frame, ask a vision model whether a pujari
+is present and performing puja, and log Present / Late / Absent with the frame
+to a sheet and Slack. The code is in `services/notifier/src/presence/`, CLI
+`scripts/presence.mjs`, README section "Pujari presence". It stays off behind
+`PRESENCE_ENABLED=false`.
+
+- **Frames come from `services/youtube`** (the VPN gateway). They don't come
+  from yt-dlp here, since this host is bot-blocked (§13). The live video id
+  comes from attendance's `attendanceLive` state via `currentStream()`, so
+  presence depends on attendance being enabled.
+- **The schedule is a sheet the team edits** (`Puja-Schedule`). Bad rows are
+  skipped and logged, never fatal. Times are temple-local. Slot instants are
+  computed with `Intl` in two passes, so DST is handled. The selftest pins
+  LA and Sydney on both sides of their transitions.
+- **Restart-safe by design.** Fired slot keys, in-progress checks and
+  unwritten sheet rows all live in `state.json`. A slot whose grace window
+  passed during downtime is logged as missed, never checked late.
+- **The prompt came from real frames.** Both tested streams have a Swamiji
+  inset photo, and NJB's camera shows a street and a woman seated by the
+  murthi. Overlays, the murthi and idle devotees are ruled out explicitly.
+  Nothing has been run against a real model yet. No keys were available
+  while building it.
+- **Snapshot retention was split.** Presence frames are `presence-*.jpg` in
+  the same public `/snapshots/` directory. The attendance prune (newest 400)
+  now skips them, and they age out after `PRESENCE_FRAME_RETENTION_DAYS`.
+- **Offline tests:** `node scripts/selftest.mjs --offline` runs only the
+  pure-function checks. The online checks still need `.env`.
+- **Open:** the team has to fill in the schedule. The gateway is not yet a
+  Dokploy app. The Groq model default is `qwen/qwen3.6-27b`, following
+  reels' code default. Reels' `.env.example` says `qwen3.8`, and that
+  disagreement needs checking against `/v1/models`.

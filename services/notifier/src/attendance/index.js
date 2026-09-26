@@ -54,6 +54,9 @@ function liveStreams() {
   return out;
 }
 
+/** The stream currently credited to a temple, or null. Read by presence. */
+export const currentStream = (templeKey) => liveStreams()[templeKey] || null;
+
 export const isEnabled = () =>
   config.attendance.enabled && Boolean(config.attendance.spreadsheetId) && Boolean(serviceAccount());
 

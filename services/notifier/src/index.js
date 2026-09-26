@@ -6,6 +6,7 @@ import { postPlain } from './slack.js';
 import * as youtube from './youtube/index.js';
 import * as facebook from './facebook/index.js';
 import * as attendance from './attendance/index.js';
+import * as presence from './presence/index.js';
 
 async function main() {
   log.info('social-media-notifications starting');
@@ -29,6 +30,12 @@ async function main() {
     log.error(`attendance start failed: ${err.message}`);
   }
 
+  try {
+    presence.start();
+  } catch (err) {
+    log.error(`presence start failed: ${err.message}`);
+  }
+
   if (config.slack.startupPing) {
     postPlain(
       `:satellite: social-media-notifications started — watching ${config.youtube.channels.join(', ')}`,
@@ -42,6 +49,7 @@ async function main() {
     youtube.stop();
     facebook.stop();
     attendance.stop();
+    presence.stop();
     save();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 5000).unref();

@@ -105,6 +105,7 @@ already being watched are untouched.
 | `POST /admin/resubscribe` | force a WebSub lease renewal |
 | `GET  /admin/attendance` | queue, tracked live streams, day state (`x-admin-token`) |
 | `POST /admin/attendance/sweep` | run the attendance sweep now |
+| `GET  /admin/presence` | puja schedule with next slots, checks in progress, last results (`x-admin-token`) |
 | `GET  /snapshots/<file>` | captured live frames — **public**, because Google fetches them for `=IMAGE()` |
 
 ---
@@ -157,6 +158,113 @@ node --env-file=.env scripts/attendance.mjs drop --date 22-Sep-2026 --confirm
 Adding a channel means two edits: `YOUTUBE_CHANNELS` in `.env`, and an entry in
 `temples.json` giving its exact row label in column A and its IANA timezone.
 The selftest fails if a row label no longer exists in the sheet.
+
+---
+
+## Pujari presence: is the puja actually being done?
+
+Attendance says a temple's stream is up. Presence says whether a pujari is at
+the deity at the times the rituals are due. For every row of the schedule, at
+the scheduled time in the temple's own timezone:
+
+1. Take the temple's current live video id from attendance's state. None →
+   **No stream**.
+2. Get a 960px frame from the gateway (`services/youtube`, `GET
+   /v1/frame/{id}`). `not_live` → **No stream**.
+3. Ask a vision model (Groq, Gemini as fallback) for
+   `{"pujari_present","performing_ritual","activity","confidence","reason"}`.
+   Present means both booleans are true and confidence ≥
+   `PRESENCE_MIN_CONFIDENCE` (0.6).
+4. Present on the first look → **Present**. Otherwise look again every
+   `PRESENCE_RETRY_MINUTES` (3) until the grace window ends. A later positive
+   → **Late (N min)**. None → **Absent**. If the gateway or model kept failing
+   and nothing was ever seen → **Error**, with the reason. A slot never costs
+   more than 12 looks.
+5. Save the frame the verdict was taken on, append a row to the results tab,
+   and post to Slack.
+
+The prompt is written against real frames. Both streams tested show an inset
+photo of Swamiji in a corner, and NJB's camera looks onto a street where
+people walk past and a woman sits beside the murthi. So overlays, the murthi
+itself, and devotees sitting, standing or walking by do not count. Only
+someone at the deity doing a ritual action counts: arati, naivedyam,
+abhishekam, alankara, or chanting with ritual items.
+
+Every fired slot is recorded in `state.json` as
+`temple|ritual|local date|HH:MM`, so a restart never checks a slot twice. A
+check in progress resumes after a restart. A slot whose grace window ended
+while the service was down is logged as missed, not checked late.
+
+### `Puja-Schedule` tab (the team fills this in)
+
+Same spreadsheet as attendance unless `PRESENCE_SPREADSHEET_ID` is set. Row 1
+is the header. Columns are found by header name, so their order doesn't
+matter:
+
+| Temple | Ritual | Time | Days | Grace minutes | Enabled |
+|---|---|---|---|---|---|
+| Kailasa USA LA | Naivedyam | 11:45 | Daily | | TRUE |
+| Kailasa USA LA | Sayana Arati | 20:30 | Daily | 20 | TRUE |
+| NJB | Abhishekam | 06:00 | Mon,Wed,Fri | 30 | |
+| Toronto Kailasa | Alankara | 07:15 | Sat-Sun | | FALSE |
+
+- **Temple** must equal a `row` label in `temples.json`. The temple needs a
+  `tz` there, or its rows are skipped with a log line naming it.
+- **Time** is temple-local 24h `HH:MM`. `11:45:00` and `6:30 PM` are also
+  read, because a cell formatted as a time comes back that way.
+- **Days** is `Daily` or blank, a list like `Mon,Wed,Fri`, or a range like
+  `Mon-Fri`. It uses the temple's own weekday.
+- **Grace minutes**: blank means `PRESENCE_DEFAULT_GRACE_MINUTES` (15).
+- **Enabled**: blank means enabled.
+
+The tab is re-read every `PRESENCE_SCHEDULE_REFRESH_SECONDS` (600). A bad row
+is logged and skipped, and the other rows still run. For testing without the
+sheet, point `PRESENCE_SCHEDULE_FILE` at a JSON array of the same fields:
+`[{"temple":"NJB","ritual":"Arati","time":"18:30","days":"Daily","grace":20}]`.
+
+### `Puja-Attendance` tab (append-only log)
+
+It is created with its header row if missing. There is one row per checked
+slot:
+
+| Date (temple-local) | Temple | Ritual | Scheduled (local) | Checked at (local) | Status | Minutes late | Confidence | Activity / reason | Frame | Frame link | Stream link |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-09-26 | Kailasa USA LA | Naivedyam | 11:45 PDT | 11:51 PDT | Late (6 min) | 6 | 0.84 | offering food — priest holding a plate before the deity | *(image)* | Frame | ▶ Watch |
+
+Frames are saved as `DATA_DIR/snapshots/presence-<date>-<temple>-<ritual>-<HHMM>.jpg`.
+The public `/snapshots/` route serves them, so `=IMAGE()` needs
+`ATTENDANCE_SNAPSHOT_BASE_URL` or `PUBLIC_URL`, same as attendance. They are
+deleted after `PRESENCE_FRAME_RETENTION_DAYS` (30). The attendance prune
+ignores them, so a busy schedule can't evict attendance frames.
+
+### Slack
+
+- **Present**: a one-line confirmation. Set `PRESENCE_NOTIFY_PRESENT=false`
+  to turn these off.
+- **Late, Absent, No stream, Error**: an alert with the temple, the ritual,
+  scheduled vs checked time, the reason, and the frame.
+- **Sheet write failures**: a row that fails to write stays queued and is
+  retried every tick, with one alert after the third failure.
+
+`PRESENCE_SLACK_CHANNEL_ID` sends all of these to a different channel.
+
+### Configuration and CLI
+
+It needs `PRESENCE_ENABLED=true`, `YOUTUBE_GATEWAY_URL` and
+`YOUTUBE_GATEWAY_TOKEN`, and at least one of `GROQ_API_KEYS` or
+`GEMINI_API_KEYS`. It also needs attendance enabled, since that is where the
+live video id comes from. See `.env.example` for the rest.
+
+```bash
+node --env-file=.env scripts/presence.mjs schedule        # parsed rows, next fire local + UTC, rejects
+node --env-file=.env scripts/presence.mjs check --temple "Kailasa USA LA" --ritual Naivedyam --dry-run
+node --env-file=.env scripts/presence.mjs check --temple NJB --video T04Cn1uRkjM   # writes the sheet + Slack
+node --env-file=.env scripts/presence.mjs classify frame.jpg --ritual Arati   # vision only
+node scripts/selftest.mjs --offline                        # schedule, DST, retry and parsing tests
+```
+
+`check` takes one frame now, with no retries. `--dry-run` writes the frame to
+the temp directory and skips the sheet and Slack.
 
 ---
 

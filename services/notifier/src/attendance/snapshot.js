@@ -116,13 +116,19 @@ export function snapshotUrl(name) {
   return `${base}/snapshots/${encodeURIComponent(name)}`;
 }
 
-/** Keep the newest N frames; this volume also holds the dedupe state. */
+/**
+ * Keep the newest N frames; this volume also holds the dedupe state.
+ *
+ * Presence frames share the directory (so the same public route serves them)
+ * but age out on their own clock in src/presence/frames.js. Counting them here
+ * would let a busy puja schedule evict attendance frames the sheet still shows.
+ */
 function prune(keep = 400) {
   try {
     const dir = snapshotDir();
     const files = fs
       .readdirSync(dir)
-      .filter((f) => f.endsWith('.jpg'))
+      .filter((f) => f.endsWith('.jpg') && !f.startsWith('presence-'))
       .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs }))
       .sort((a, b) => b.t - a.t);
     for (const { f } of files.slice(keep)) fs.unlinkSync(path.join(dir, f));

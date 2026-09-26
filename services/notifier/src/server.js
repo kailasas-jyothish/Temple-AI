@@ -7,6 +7,7 @@ import { postPlain } from './slack.js';
 import * as youtube from './youtube/index.js';
 import * as facebook from './facebook/index.js';
 import * as attendance from './attendance/index.js';
+import * as presence from './presence/index.js';
 import { snapshotDir } from './attendance/snapshot.js';
 import { CALLBACK_PATH, verifySignature as verifyYouTube, subscribe } from './youtube/websub.js';
 import { verifySignature as verifyFacebook } from './facebook/graph.js';
@@ -162,6 +163,12 @@ export function createServer() {
 
   app.get('/admin/attendance', requireAdmin, (_req, res) => {
     res.json({ ok: true, ...attendance.statusReport() });
+  });
+
+  // Loaded schedule with each row's next slot, checks mid-window, unwritten
+  // rows, and the last results.
+  app.get('/admin/presence', requireAdmin, (_req, res) => {
+    res.json({ ok: true, ...presence.statusReport() });
   });
 
   // Force a sweep: rolls today's column, re-credits continuing streams and

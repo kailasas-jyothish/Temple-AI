@@ -108,6 +108,40 @@ export const config = {
     ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
   },
 
+  presence: {
+    // Off by default: the scheduler, the vision calls and the results tab all
+    // stay dormant until someone has filled in the schedule and turned it on.
+    enabled: bool(process.env.PRESENCE_ENABLED, false),
+    spreadsheetId: process.env.PRESENCE_SPREADSHEET_ID || process.env.ATTENDANCE_SPREADSHEET_ID || '',
+    scheduleTab: process.env.PRESENCE_SCHEDULE_TAB || 'Puja-Schedule',
+    // A local JSON file takes the place of the sheet, for testing without one.
+    scheduleFile: process.env.PRESENCE_SCHEDULE_FILE || '',
+    scheduleRefreshSeconds: num(process.env.PRESENCE_SCHEDULE_REFRESH_SECONDS, 600),
+    resultsTab: process.env.PRESENCE_RESULTS_TAB || 'Puja-Attendance',
+    defaultGraceMinutes: num(process.env.PRESENCE_DEFAULT_GRACE_MINUTES, 15),
+    retryMinutes: num(process.env.PRESENCE_RETRY_MINUTES, 3),
+    minConfidence: num(process.env.PRESENCE_MIN_CONFIDENCE, 0.6),
+    notifyPresent: bool(process.env.PRESENCE_NOTIFY_PRESENT, true),
+    slackChannel: process.env.PRESENCE_SLACK_CHANNEL_ID || '',
+    // Frames are 960px wide, ~150 KB each, and share the /data volume with the
+    // dedupe state — so they are aged out rather than kept forever.
+    frameRetentionDays: num(process.env.PRESENCE_FRAME_RETENTION_DAYS, 30),
+    gatewayUrl: (process.env.YOUTUBE_GATEWAY_URL || '').replace(/\/+$/, ''),
+    gatewayToken: process.env.YOUTUBE_GATEWAY_TOKEN || '',
+    // A cold frame takes 3–4s; the rest is headroom for a slow VPN exit.
+    gatewayTimeoutSeconds: num(process.env.YOUTUBE_GATEWAY_TIMEOUT_SECONDS, 60),
+  },
+
+  // Same variable names and defaults as services/reels, so one set of keys
+  // can be pasted into both.
+  vision: {
+    groqKeys: [...new Set([...list(process.env.GROQ_API_KEYS), ...list(process.env.GROQ_API_KEY)])],
+    groqModel: process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b',
+    geminiKeys: [...new Set([...list(process.env.GEMINI_API_KEYS), ...list(process.env.GEMINI_API_KEY)])],
+    geminiModel: process.env.GEMINI_VISION_MODEL || 'gemini-3.5-flash-lite',
+    timeoutSeconds: num(process.env.VISION_TIMEOUT_SECONDS, 60),
+  },
+
   facebook: {
     // Graph API path. Requires a Page access token — no cookies, no scraping.
     enabled: bool(process.env.FACEBOOK_ENABLED, false),
@@ -176,6 +210,21 @@ export function configProblems() {
         'No ATTENDANCE_SNAPSHOT_BASE_URL or PUBLIC_URL — captured frames cannot be served to ' +
           'Google Sheets, so the Snapshot column will fall back to YouTube thumbnails.',
       );
+    }
+  }
+  if (config.presence.enabled) {
+    const pr = config.presence;
+    if (!pr.scheduleFile && !pr.spreadsheetId) {
+      p.push('PRESENCE_ENABLED=true but there is no schedule: set PRESENCE_SPREADSHEET_ID (or ATTENDANCE_SPREADSHEET_ID) or PRESENCE_SCHEDULE_FILE.');
+    }
+    if (!pr.gatewayUrl || !pr.gatewayToken) {
+      p.push('PRESENCE_ENABLED=true but YOUTUBE_GATEWAY_URL / YOUTUBE_GATEWAY_TOKEN are missing — no frame can be taken.');
+    }
+    if (!config.vision.groqKeys.length && !config.vision.geminiKeys.length) {
+      p.push('PRESENCE_ENABLED=true but neither GROQ_API_KEYS nor GEMINI_API_KEYS is set — every check will end in Error.');
+    }
+    if (!config.attendance.enabled) {
+      p.push('PRESENCE_ENABLED=true but ATTENDANCE_ENABLED=false — presence takes the live stream from attendance, so every check will read No stream.');
     }
   }
   if (config.facebook.enabled && (!config.facebook.pageId || !config.facebook.pageToken)) {

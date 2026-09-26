@@ -70,6 +70,18 @@ export async function updateValues(spreadsheetId, data) {
   });
 }
 
+/**
+ * Add rows after the last non-empty row of `range`. INSERT_ROWS rather than
+ * overwriting, so a note someone typed under the log is pushed down, not lost.
+ */
+export async function appendValues(spreadsheetId, range, values) {
+  return call(`/${spreadsheetId}/values/${encodeURIComponent(range)}:append`, {
+    method: 'POST',
+    query: { valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS' },
+    body: { values },
+  });
+}
+
 export async function clearValues(spreadsheetId, range) {
   return call(`/${spreadsheetId}/values/${encodeURIComponent(range)}:clear`, { method: 'POST' });
 }
