@@ -1,0 +1,696 @@
+{
+  "preamble": {
+    "dev": [
+      "अथ देव्याः कवचम्",
+      "ॐ अस्य श्रीचण्डीकवचस्य ब्रह्मा ऋषिः, अनुष्टुप् छन्दः, चामुण्डा देवता,",
+      "अङ्गन्यासोक्तमातरो बीजम् दिग्बन्धदेवतास्तत्त्वम्, श्रीजगदम्बाप्रीत्यर्थे | सप्तशतीपाठाङ्गत्वेन जपे विनियोगः ।",
+      "॥ ॐ नमश्चण्डिकायै ॥"
+    ],
+    "eng": [
+      "atha devyāḥ kavacam",
+      "oṃ asya śrīcaṇḍīkavacasya brahmā ṛṣiḥ, anuṣṭup chandaḥ, cāmuṇḍā devatā,",
+      "aṅganyāsoktamātaro bījam digbandhadevatāstattvam, śrījagadambāprītyarthe | saptaśatīpāṭhāṅgatvena jape viniyogaḥ ।",
+      "॥ oṃ namaścaṇḍikāyai ॥"
+    ]
+  },
+  "verses": [
+    {
+      "number": 1,
+      "speaker": {
+        "dev": "मार्कण्डेय उवाच",
+        "eng": "mārkaṇḍeya uvāca"
+      },
+      "dev": [
+        "ॐ यद्गुह्यं परमं लोके सर्वरक्षाकरं नृणाम् ।",
+        "यन्न कस्यचिदाख्यातं तन्मे ब्रूहि पितामह ॥ 1 ॥"
+      ],
+      "eng": [
+        "oṃ yadguhyaṃ paramaṃ loke sarvarakṣākaraṃ nṛṇām ।",
+        "yanna kasyacidākhyātaṃ tanme brūhi pitāmaha ॥ 1 ॥"
+      ]
+    },
+    {
+      "number": 2,
+      "speaker": {
+        "dev": "ब्रह्मोवाच",
+        "eng": "brahmovāca"
+      },
+      "dev": [
+        "अस्ति गुह्यतमं विप्र सर्वभूतोपकारकम् ।",
+        "देव्यास्तु कवचं पुण्यं तच्छृणुष्व महामुने ॥ 2॥"
+      ],
+      "eng": [
+        "asti guhyatamaṃ vipra sarvabhūtopakārakam ।",
+        "devyāstu kavacaṃ puṇyaṃ tacchṛṇuṣva mahāmune ॥ 2॥"
+      ]
+    },
+    {
+      "number": 3,
+      "speaker": null,
+      "dev": [
+        "प्रथमं शैलपुत्री च द्वितीयं ब्रह्मचारिणी ।",
+        "तृतीयं चन्द्रघण्टेति कूष्माण्डेति चतुर्थकम् ॥ 3 ॥"
+      ],
+      "eng": [
+        "prathamaṃ śailaputrī ca dvitīyaṃ brahmacāriṇī ।",
+        "tṛtīyaṃ candraghaṇṭeti kūṣmāṇḍeti caturthakam ॥ 3 ॥"
+      ]
+    },
+    {
+      "number": 4,
+      "speaker": null,
+      "dev": [
+        "पञ्चमं स्कन्दमातेति षष्ठं कात्यायनीति च।",
+        "सप्तमं कालरात्रीति महागौरीति चाष्टमम् ॥4॥"
+      ],
+      "eng": [
+        "pañcamaṃ skandamāteti ṣaṣṭhaṃ kātyāyanīti ca।",
+        "saptamaṃ kālarātrīti mahāgaurīti cāṣṭamam ॥4॥"
+      ]
+    },
+    {
+      "number": 5,
+      "speaker": null,
+      "dev": [
+        "नवमं सिद्धिदात्री च नवदुर्गाः प्रकीर्तिताः ।",
+        "उक्तान्येतानि नामानि ब्रह्मणैव महात्मना ॥ 5 ॥"
+      ],
+      "eng": [
+        "navamaṃ siddhidātrī ca navadurgāḥ prakīrtitāḥ ।",
+        "uktānyetāni nāmāni brahmaṇaiva mahātmanā ॥ 5 ॥"
+      ]
+    },
+    {
+      "number": 6,
+      "speaker": null,
+      "dev": [
+        "अग्निना दह्यमानस्तु शत्रुमध्ये गतो रणे ।",
+        "विषमे दुर्गमे चैव भयार्ताः शरणं गताः ॥ 6 ॥"
+      ],
+      "eng": [
+        "agninā dahyamānastu śatrumadhye gato raṇe ।",
+        "viṣame durgame caiva bhayārtāḥ śaraṇaṃ gatāḥ ॥ 6 ॥"
+      ]
+    },
+    {
+      "number": 7,
+      "speaker": null,
+      "dev": [
+        "न तेषां जायते किंचिदशुभं रणसंकटे ।",
+        "नापदं तस्य पश्यामि शोकदुःखभयं न हि ॥ 7 ॥"
+      ],
+      "eng": [
+        "na teṣāṃ jāyate kiṃcidaśubhaṃ raṇasaṃkaṭe ।",
+        "nāpadaṃ tasya paśyāmi śokaduḥkhabhayaṃ na hi ॥ 7 ॥"
+      ]
+    },
+    {
+      "number": 8,
+      "speaker": null,
+      "dev": [
+        "यैस्तु भक्त्या स्मृता नूनं तेषां वृद्धिः प्रजायते ।",
+        "ये त्वां स्मरन्ति देवेशि रक्षसे तान्न संशयः ॥ 8 ॥"
+      ],
+      "eng": [
+        "yaistu bhaktyā smṛtā nūnaṃ teṣāṃ vṛddhiḥ prajāyate ।",
+        "ye tvāṃ smaranti deveśi rakṣase tānna saṃśayaḥ ॥ 8 ॥"
+      ]
+    },
+    {
+      "number": 9,
+      "speaker": null,
+      "dev": [
+        "प्रेतसंस्था तु चामुण्डा वाराही महिषासना ।",
+        "ऐन्द्री गजसमारूढा वैष्णवी गरुडासना ॥ 9 ॥"
+      ],
+      "eng": [
+        "pretasaṃsthā tu cāmuṇḍā vārāhī mahiṣāsanā ।",
+        "aindrī gajasamārūḍhā vaiṣṇavī garuḍāsanā ॥ 9 ॥"
+      ]
+    },
+    {
+      "number": 10,
+      "speaker": null,
+      "dev": [
+        "माहेश्वरी वृषारूढा कौमारी शिखिवाहना ।",
+        "लक्ष्मीः पद्मासना देवी पद्महस्ता हरिप्रिया ॥ 10 ॥"
+      ],
+      "eng": [
+        "māheśvarī vṛṣārūḍhā kaumārī śikhivāhanā ।",
+        "lakṣmīḥ padmāsanā devī padmahastā haripriyā ॥ 10 ॥"
+      ]
+    },
+    {
+      "number": 11,
+      "speaker": null,
+      "dev": [
+        "श्वेतरूपधरा देवी ईश्वरी वृषवाहना ।",
+        "ब्राह्मी हंससमारूढा सर्वाभरणभूषिता ॥ 11 ॥"
+      ],
+      "eng": [
+        "śvetarūpadharā devī īśvarī vṛṣavāhanā ।",
+        "brāhmī haṃsasamārūḍhā sarvābharaṇabhūṣitā ॥ 11 ॥"
+      ]
+    },
+    {
+      "number": 12,
+      "speaker": null,
+      "dev": [
+        "इत्येता मातरः सर्वाः सर्वयोगसमन्विताः ।",
+        "नानाभरणशोभाढ्या नानारत्नोपशोभिताः ॥ 12 ॥"
+      ],
+      "eng": [
+        "ityetā mātaraḥ sarvāḥ sarvayogasamanvitāḥ ।",
+        "nānābharaṇaśobhāḍhyā nānāratnopaśobhitāḥ ॥ 12 ॥"
+      ]
+    },
+    {
+      "number": 13,
+      "speaker": null,
+      "dev": [
+        "दृश्यन्ते रथमारूढा देव्यः क्रोधसमाकुलाः ।",
+        "शङ्खं चक्रं गदां शक्तिं हलं च मुसलायुधम् ॥ 13॥"
+      ],
+      "eng": [
+        "dṛśyante rathamārūḍhā devyaḥ krodhasamākulāḥ ।",
+        "śaṅkhaṃ cakraṃ gadāṃ śaktiṃ halaṃ ca musalāyudham ॥ 13॥"
+      ]
+    },
+    {
+      "number": 14,
+      "speaker": null,
+      "dev": [
+        "खेटकं तोमरं चैव परशुं पाशमेव च ।",
+        "कुन्तायुधं त्रिशूलं च शार्ङ्ग मायुध मुत्तमम् ॥ 14 ॥"
+      ],
+      "eng": [
+        "kheṭakaṃ tomaraṃ caiva paraśuṃ pāśameva ca ।",
+        "kuntāyudhaṃ triśūlaṃ ca śārṅga māyudha muttamam ॥ 14 ॥"
+      ]
+    },
+    {
+      "number": 15,
+      "speaker": null,
+      "dev": [
+        "दैत्यानां देहनाशाय भक्तानामभयाय च ।",
+        "धारयन्त्यायुधानीत्थं देवानां च हिताय वै ॥ 15 ॥"
+      ],
+      "eng": [
+        "daityānāṃ dehanāśāya bhaktānāmabhayāya ca ।",
+        "dhārayantyāyudhānītthaṃ devānāṃ ca hitāya vai ॥ 15 ॥"
+      ]
+    },
+    {
+      "number": 16,
+      "speaker": null,
+      "dev": [
+        "नमस्तेऽस्तु महारौद्रे महाघोरपराक्रमे ।",
+        "महाबले महोत्साहे महाभयविनाशिनि ॥ 16 ॥"
+      ],
+      "eng": [
+        "namaste'stu mahāraudre mahāghoraparākrame ।",
+        "mahābale mahotsāhe mahābhayavināśini ॥ 16 ॥"
+      ]
+    },
+    {
+      "number": 17,
+      "speaker": null,
+      "dev": [
+        "त्राहि मां देवि दुष्प्रेक्ष्ये शत्रूणां भयवर्धिनि ।",
+        "प्राच्यां रक्षतु मामैन्द्री आग्नेय्यामग्निदेवता ॥ 17 ॥"
+      ],
+      "eng": [
+        "trāhi māṃ devi duṣprekṣye śatrūṇāṃ bhayavardhini ।",
+        "prācyāṃ rakṣatu māmaindrī āgneyyāmagnidevatā ॥ 17 ॥"
+      ]
+    },
+    {
+      "number": 18,
+      "speaker": null,
+      "dev": [
+        "दक्षिणेऽवतु वाराही नैरृत्यां खड्गधारिणी ।",
+        "प्रतीच्यां वारुणी रक्षेद् वायव्यां मृगवाहिनी ॥ 18 ॥"
+      ],
+      "eng": [
+        "dakṣiṇe'vatu vārāhī nairṛtyāṃ khaḍgadhāriṇī ।",
+        "pratīcyāṃ vāruṇī rakṣed vāyavyāṃ mṛgavāhinī ॥ 18 ॥"
+      ]
+    },
+    {
+      "number": 19,
+      "speaker": null,
+      "dev": [
+        "उदीच्यां पातु कौमारी ऐशान्यां शूलधारिणी ।",
+        "ऊर्ध्वं ब्रह्माणि मे रक्षेदधस्ताद् वैष्णवी तथा ॥ 19 ॥"
+      ],
+      "eng": [
+        "udīcyāṃ pātu kaumārī aiśānyāṃ śūladhāriṇī ।",
+        "ūrdhvaṃ brahmāṇi me rakṣedadhastād vaiṣṇavī tathā ॥ 19 ॥"
+      ]
+    },
+    {
+      "number": 20,
+      "speaker": null,
+      "dev": [
+        "एवं दश दिशो रक्षेच्चामुण्डा शववाहना ।",
+        "जया मे चाग्रतः पातु विजया पातु पृष्ठतः ॥ 20 ॥"
+      ],
+      "eng": [
+        "evaṃ daśa diśo rakṣeccāmuṇḍā śavavāhanā ।",
+        "jayā me cāgrataḥ pātu vijayā pātu pṛṣṭhataḥ ॥ 20 ॥"
+      ]
+    },
+    {
+      "number": 21,
+      "speaker": null,
+      "dev": [
+        "अजिता वामपार्श्वे तु दक्षिणे चापराजिता ।",
+        "शिखामुद्योतिनी रक्षेदुमा मूर्ध्नि व्यवस्थिता ॥ 21 ॥"
+      ],
+      "eng": [
+        "ajitā vāmapārśve tu dakṣiṇe cāparājitā ।",
+        "śikhāmudyotinī rakṣedumā mūrdhni vyavasthitā ॥ 21 ॥"
+      ]
+    },
+    {
+      "number": 22,
+      "speaker": null,
+      "dev": [
+        "मालाधरी ललाटे च भ्रुवौ रक्षेद् यशस्विनी ।",
+        "त्रिनेत्रा च भ्रुवोर्मध्ये यमघण्टा च नासिके ॥ 22 ॥"
+      ],
+      "eng": [
+        "mālādharī lalāṭe ca bhruvau rakṣed yaśasvinī ।",
+        "trinetrā ca bhruvormadhye yamaghaṇṭā ca nāsike ॥ 22 ॥"
+      ]
+    },
+    {
+      "number": 23,
+      "speaker": null,
+      "dev": [
+        "शङ्खिनी चक्षुषोर्मध्ये श्रोत्रयोर्द्वारवासिनी ।",
+        "कपोलौ कालिका रक्षेत्कर्णमूले तु शांकरी ॥ 23 ॥"
+      ],
+      "eng": [
+        "śaṅkhinī cakṣuṣormadhye śrotrayordvāravāsinī ।",
+        "kapolau kālikā rakṣetkarṇamūle tu śāṃkarī ॥ 23 ॥"
+      ]
+    },
+    {
+      "number": 24,
+      "speaker": null,
+      "dev": [
+        "नासिकायां सुगन्धा च उत्तरोष्ठे च चर्चिका ।",
+        "अधरे चामृतकला जिह्वायां च सरस्वती ॥ 24 ॥"
+      ],
+      "eng": [
+        "nāsikāyāṃ sugandhā ca uttaroṣṭhe ca carcikā ।",
+        "adhare cāmṛtakalā jihvāyāṃ ca sarasvatī ॥ 24 ॥"
+      ]
+    },
+    {
+      "number": 25,
+      "speaker": null,
+      "dev": [
+        "दन्तान् रक्षतु कौमारी कण्ठदेशे तु चण्डिका ।",
+        "घण्टिकां चित्रघण्टा च महामाया च तालुके ॥ 25 ॥"
+      ],
+      "eng": [
+        "dantān rakṣatu kaumārī kaṇṭhadeśe tu caṇḍikā ।",
+        "ghaṇṭikāṃ citraghaṇṭā ca mahāmāyā ca tāluke ॥ 25 ॥"
+      ]
+    },
+    {
+      "number": 26,
+      "speaker": null,
+      "dev": [
+        "कामाक्षी चिबुकं रक्षेद् वाचं मे सर्वमङ्गला ।",
+        "ग्रीवायां भद्रकाली च पृष्ठवंशे धनुर्धरी ॥ 26 ॥"
+      ],
+      "eng": [
+        "kāmākṣī cibukaṃ rakṣed vācaṃ me sarvamaṅgalā ।",
+        "grīvāyāṃ bhadrakālī ca pṛṣṭhavaṃśe dhanurdharī ॥ 26 ॥"
+      ]
+    },
+    {
+      "number": 27,
+      "speaker": null,
+      "dev": [
+        "नीलग्रीवा बहिः कण्ठे नलिकां नलकूबरी ।",
+        "स्कन्धयोः खड्गिनी रक्षेद् बाहू मे वज्रधारिणी ॥ 27 ॥"
+      ],
+      "eng": [
+        "nīlagrīvā bahiḥ kaṇṭhe nalikāṃ nalakūbarī ।",
+        "skandhayoḥ khaḍginī rakṣed bāhū me vajradhāriṇī ॥ 27 ॥"
+      ]
+    },
+    {
+      "number": 28,
+      "speaker": null,
+      "dev": [
+        "हस्तयोर्दण्डिनी रक्षेदम्बिका चाङ्गुलीषु च।",
+        "नखाञ्छूलेश्वरी रक्षेत्कुक्षौ रक्षेत्कुलेश्वरी ॥ 28 ॥"
+      ],
+      "eng": [
+        "hastayordaṇḍinī rakṣedambikā cāṅgulīṣu ca।",
+        "nakhāñchūleśvarī rakṣetkukṣau rakṣetkuleśvarī ॥ 28 ॥"
+      ]
+    },
+    {
+      "number": 29,
+      "speaker": null,
+      "dev": [
+        "स्तनौ रक्षेन्महादेवी मनः शोकविनाशिनी ।",
+        "हृदये ललिता देवी उदरे शूलधारिणी ॥ 29 ॥"
+      ],
+      "eng": [
+        "stanau rakṣenmahādevī manaḥ śokavināśinī ।",
+        "hṛdaye lalitā devī udare śūladhāriṇī ॥ 29 ॥"
+      ]
+    },
+    {
+      "number": 30,
+      "speaker": null,
+      "dev": [
+        "नाभौ च कामिनी रक्षेद् गुह्यं गुह्येश्वरी तथा ।",
+        "पूतना कामिका मेढ्रं गुदे महिषवाहिनी ॥ 30 ॥"
+      ],
+      "eng": [
+        "nābhau ca kāminī rakṣed guhyaṃ guhyeśvarī tathā ।",
+        "pūtanā kāmikā meḍhraṃ gude mahiṣavāhinī ॥ 30 ॥"
+      ]
+    },
+    {
+      "number": 31,
+      "speaker": null,
+      "dev": [
+        "कट्यां भगवती रक्षेज्जानुनी विन्ध्यवासिनी ।",
+        "जङ्घे महाबला रक्षेत्सर्वकामप्रदायिनी ॥ 31 ॥"
+      ],
+      "eng": [
+        "kaṭyāṃ bhagavatī rakṣejjānunī vindhyavāsinī ।",
+        "jaṅghe mahābalā rakṣetsarvakāmapradāyinī ॥ 31 ॥"
+      ]
+    },
+    {
+      "number": 32,
+      "speaker": null,
+      "dev": [
+        "गुल्फयोर्नारसिंही च पादपृष्ठे तु तैजसी ।",
+        "पादाङ्गुलीषु श्री रक्षेत्पादाधस्तलवासिनी ॥ 32॥"
+      ],
+      "eng": [
+        "gulphayornārasiṃhī ca pādapṛṣṭhe tu taijasī ।",
+        "pādāṅgulīṣu śrī rakṣetpādādhastalavāsinī ॥ 32॥"
+      ]
+    },
+    {
+      "number": 33,
+      "speaker": null,
+      "dev": [
+        "नखान् दंष्ट्राकराली च केशांश्चैवोर्ध्वकेशिनी ।",
+        "रोमकूपेषु कौबेरी त्वचं वागीश्वरी तथा ॥ 33॥"
+      ],
+      "eng": [
+        "nakhān daṃṣṭrākarālī ca keśāṃścaivordhvakeśinī ।",
+        "romakūpeṣu kauberī tvacaṃ vāgīśvarī tathā ॥ 33॥"
+      ]
+    },
+    {
+      "number": 34,
+      "speaker": null,
+      "dev": [
+        "रक्तमज्जावसामांसान्यस्थिमेदांसि पार्वती ।",
+        "अन्त्राणि कालरात्रिश्च पित्तं च मुकुटेश्वरी ॥ 34 ॥"
+      ],
+      "eng": [
+        "raktamajjāvasāmāṃsānyasthimedāṃsi pārvatī ।",
+        "antrāṇi kālarātriśca pittaṃ ca mukuṭeśvarī ॥ 34 ॥"
+      ]
+    },
+    {
+      "number": 35,
+      "speaker": null,
+      "dev": [
+        "पद्मावती पद्मकोशे कफे चूडामणिस्तथा ।",
+        "ज्वालामुखी नखज्वालामभेद्या सर्वसंधिषु ॥ 35 ॥"
+      ],
+      "eng": [
+        "padmāvatī padmakośe kaphe cūḍāmaṇistathā ।",
+        "jvālāmukhī nakhajvālāmabhedyā sarvasaṃdhiṣu ॥ 35 ॥"
+      ]
+    },
+    {
+      "number": 36,
+      "speaker": null,
+      "dev": [
+        "शुक्रं ब्रह्माणि मे रक्षेच्छायां छत्रेश्वरी तथा ।",
+        "अहंकारं मनो बुद्धिं रक्षेन्मे धर्मधारिणी ॥ 36 ॥"
+      ],
+      "eng": [
+        "śukraṃ brahmāṇi me rakṣecchāyāṃ chatreśvarī tathā ।",
+        "ahaṃkāraṃ mano buddhiṃ rakṣenme dharmadhāriṇī ॥ 36 ॥"
+      ]
+    },
+    {
+      "number": 37,
+      "speaker": null,
+      "dev": [
+        "प्राणापानौ तथा व्यानमुदानं च समानकम् ।",
+        "वज्रहस्ता च मे रक्षेत्प्राणं कल्याणशोभना ॥ 37 ॥"
+      ],
+      "eng": [
+        "prāṇāpānau tathā vyānamudānaṃ ca samānakam ।",
+        "vajrahastā ca me rakṣetprāṇaṃ kalyāṇaśobhanā ॥ 37 ॥"
+      ]
+    },
+    {
+      "number": 38,
+      "speaker": null,
+      "dev": [
+        "रसे रूपे च गन्धे च शब्दे स्पर्शे च योगिनी ।",
+        "सत्त्वं रजस्तमश्चैव रक्षेन्नारायणी सदा ॥ 38 ॥"
+      ],
+      "eng": [
+        "rase rūpe ca gandhe ca śabde sparśe ca yoginī ।",
+        "sattvaṃ rajastamaścaiva rakṣennārāyaṇī sadā ॥ 38 ॥"
+      ]
+    },
+    {
+      "number": 39,
+      "speaker": null,
+      "dev": [
+        "आयू रक्षतु वाराही धर्मं रक्षतु वैष्णवी ।",
+        "यशः कीर्तिं च लक्ष्मीं च धनं विद्यां च चक्रिणी ॥ 39 ॥"
+      ],
+      "eng": [
+        "āyū rakṣatu vārāhī dharmaṃ rakṣatu vaiṣṇavī ।",
+        "yaśaḥ kīrtiṃ ca lakṣmīṃ ca dhanaṃ vidyāṃ ca cakriṇī ॥ 39 ॥"
+      ]
+    },
+    {
+      "number": 40,
+      "speaker": null,
+      "dev": [
+        "गोत्रमिन्द्राणि मे रक्षेत्पशून्मे रक्ष चण्डिके ।",
+        "पुत्रान् रक्षेन्महालक्ष्मीर्भार्यां रक्षतु भैरवी ॥ 40 ॥"
+      ],
+      "eng": [
+        "gotramindrāṇi me rakṣetpaśūnme rakṣa caṇḍike ।",
+        "putrān rakṣenmahālakṣmīrbhāryāṃ rakṣatu bhairavī ॥ 40 ॥"
+      ]
+    },
+    {
+      "number": 41,
+      "speaker": null,
+      "dev": [
+        "पन्थानं सुपथा रक्षेन्मार्गं क्षेमकरी तथा ।",
+        "राजद्वारे महालक्ष्मीर्विजया सर्वतः स्थिता ॥ 41 ॥"
+      ],
+      "eng": [
+        "panthānaṃ supathā rakṣenmārgaṃ kṣemakarī tathā ।",
+        "rājadvāre mahālakṣmīrvijayā sarvataḥ sthitā ॥ 41 ॥"
+      ]
+    },
+    {
+      "number": 42,
+      "speaker": null,
+      "dev": [
+        "रक्षाहीनं तु यत्स्थानं वर्जितं कवचेन तु ।",
+        "तत्सर्वं रक्ष मे देवि जयन्ती पापनाशिनी ॥ 42 ॥"
+      ],
+      "eng": [
+        "rakṣāhīnaṃ tu yatsthānaṃ varjitaṃ kavacena tu ।",
+        "tatsarvaṃ rakṣa me devi jayantī pāpanāśinī ॥ 42 ॥"
+      ]
+    },
+    {
+      "number": 43,
+      "speaker": null,
+      "dev": [
+        "पदमेकं न गच्छेत्तु यदीच्छे च्छुभमात् मनः ।",
+        "कवचेनावृतो नित्यं यत्र यत्रैव गच्छति॥ 43 ॥"
+      ],
+      "eng": [
+        "padamekaṃ na gacchettu yadīcche cchubhamāt manaḥ ।",
+        "kavacenāvṛto nityaṃ yatra yatraiva gacchati॥ 43 ॥"
+      ]
+    },
+    {
+      "number": 44,
+      "speaker": null,
+      "dev": [
+        "तत्र तत्रार्थ लाभश्च विजयः सार्वकामिकः ।",
+        "यं यं चिन्तयते कामं तं तं प्राप्नोति निश्चितम् ।",
+        "परमैश्वर्य मतुलं प्राप्स्यते भूतले पुमान् ॥ 44 ॥"
+      ],
+      "eng": [
+        "tatra tatrārtha lābhaśca vijayaḥ sārvakāmikaḥ ।",
+        "yaṃ yaṃ cintayate kāmaṃ taṃ taṃ prāpnoti niścitam ।",
+        "Paramaiśvarya matulaṃ prāpsyate bhūtale pumān ॥ 44 ॥"
+      ]
+    },
+    {
+      "number": 45,
+      "speaker": null,
+      "dev": [
+        "निर्भयो जायते मर्त्यः संग्रामेष्वपराजितः ।",
+        "त्रैलोक्ये तु भवेत्पूज्यः कवचेनावृतः पुमान् ॥ 45 ॥"
+      ],
+      "eng": [
+        "nirbhayo jāyate martyaḥ saṃgrāmeṣvaparājitaḥ ।",
+        "trailokye tu bhavetpūjyaḥ kavacenāvṛtaḥ pumān ॥ 45 ॥"
+      ]
+    },
+    {
+      "number": 46,
+      "speaker": null,
+      "dev": [
+        "इदं तु देव्याः कवचं देवानामपि दुर्लभम् ।",
+        "यः पठेत् प्रयतो नित्यं त्रिसन्ध्यं श्रद्धयान्वितः ॥ 46 ॥"
+      ],
+      "eng": [
+        "idaṃ tu devyāḥ kavacaṃ devānāmapi durlabham ।",
+        "yaḥ paṭhet prayato nityaṃ trisandhyaṃ śraddhayānvitaḥ ॥ 46 ॥"
+      ]
+    },
+    {
+      "number": 47,
+      "speaker": null,
+      "dev": [
+        "दैवी कला भवेत्तस्य त्रैलोक्येष्वपराजितः ।",
+        "जीवेद् वर्षशतं साग्रमपमृत्युविवर्जितः ॥ 47 ॥"
+      ],
+      "eng": [
+        "daivī kalā bhavettasya trailokyeṣvaparājitaḥ ।",
+        "jīved varṣaśataṃ sāgramapamṛtyuvivarjitaḥ ॥ 47 ॥"
+      ]
+    },
+    {
+      "number": 48,
+      "speaker": null,
+      "dev": [
+        "नश्यन्ति व्याधयः सर्वे लूताविस्फोटकादयः ।",
+        "स्थावरं जङ्गमं चैव कृत्रिमं चापि यद्विषम् ॥ 48 ॥"
+      ],
+      "eng": [
+        "| naśyanti vyādhayaḥ sarve lūtāvisphoṭakādayaḥ ।",
+        "sthāvaraṃ jaṅgamaṃ caiva kṛtrimaṃ cāpi yadviṣam ॥ 48 ॥"
+      ]
+    },
+    {
+      "number": 49,
+      "speaker": null,
+      "dev": [
+        "अभिचाराणि सर्वाणि मन्त्रयन्त्राणि भूतले ।",
+        "भूचराः खेचराश्चैव जलजाश्चोपदेशिकाः ॥ 49 ॥"
+      ],
+      "eng": [
+        "abhicārāṇi sarvāṇi mantrayantrāṇi bhūtale ।",
+        "bhūcarāḥ khecarāścaiva jalajāścopadeśikāḥ ॥ 49 ॥"
+      ]
+    },
+    {
+      "number": 50,
+      "speaker": null,
+      "dev": [
+        "सहजा कुलजा माला डाकिनी शाकिनी तथा ।",
+        "अन्तरिक्षचरा घोरा डाकिन्यश्च महाबलाः ॥ 50 ॥"
+      ],
+      "eng": [
+        "sahajā kulajā mālā ḍākinī śākinī tathā ।",
+        "antarikṣacarā ghorā ḍākinyaśca mahābalāḥ ॥ 50 7॥"
+      ]
+    },
+    {
+      "number": 51,
+      "speaker": null,
+      "dev": [
+        "ग्रहभूतपिशाचाश्च यक्षगन्धर्वराक्षसाः ।",
+        "ब्रह्मराक्षसवेतालाः कूष्माण्डा भैरवादयः ॥ 51 ॥"
+      ],
+      "eng": [
+        "grahabhūtapiśācāśca yakṣagandharvarākṣasāḥ ।",
+        "brahmarākṣasavetālāḥ kūṣmāṇḍā bhairavādayaḥ ॥ 51 ॥"
+      ]
+    },
+    {
+      "number": 52,
+      "speaker": null,
+      "dev": [
+        "नश्यन्ति दर्शनात्तस्य कवचे हृदि संस्थिते ।",
+        "मानोन्नतिर् भवेद्राज्ञस् तेजोवृद्धिकरं परम् ॥ 52 ॥"
+      ],
+      "eng": [
+        "naśyanti darśanāttasya kavace hṛdi saṃsthite ।",
+        "Mānonnatir bhavedrājñas tejovṛddhikaraṃ param ॥ 52 ॥"
+      ]
+    },
+    {
+      "number": 53,
+      "speaker": null,
+      "dev": [
+        "यशसा वर्धते सोऽपि कीर्तिमण्डितभूतले ।",
+        "जपेत्सप्तशतीं चण्डीं कृत्वा तु कवचं पुरा ॥ 53 ॥"
+      ],
+      "eng": [
+        "yaśasā vardhate so'pi kīrtimaṇḍitabhūtale ।",
+        "japetsaptaśatīṃ caṇḍīṃ kṛtvā tu kavacaṃ purā ॥ 53 ॥"
+      ]
+    },
+    {
+      "number": 54,
+      "speaker": null,
+      "dev": [
+        "यावद्भूमण्डलं धत्ते सशैलवनकाननम् ।",
+        "तावत्तिष्ठति मेदिन्यां संततिः पुत्रपौत्रिकी ॥ 54 ॥"
+      ],
+      "eng": [
+        "yāvadbhūmaṇḍalaṃ dhatte saśailavanakānanam ।",
+        "tāvattiṣṭhati medinyāṃ saṃtatiḥ putrapautrikī ॥ 54 ॥"
+      ]
+    },
+    {
+      "number": 55,
+      "speaker": null,
+      "dev": [
+        "देहान्ते परमं स्थानं यत्सुरैरपि दुर्लभम् ।",
+        "प्राप्नोति पुरुषो नित्यं महामायाप्रसादतः ॥ 55 ॥"
+      ],
+      "eng": [
+        "dehānte paramaṃ sthānaṃ yatsurairapi durlabham ।",
+        "prāpnoti puruṣo nityaṃ mahāmāyāprasādataḥ ॥ 55 ॥"
+      ]
+    },
+    {
+      "number": 56,
+      "speaker": null,
+      "dev": [
+        "लभते परमं रूपं शिवेन सह मोदते ॥ ॐ ॥ 56 ॥"
+      ],
+      "eng": [
+        "labhate paramaṃ rūpaṃ śivena saha modate ॥ oṃ ॥ 56 ॥"
+      ]
+    }
+  ]
+}

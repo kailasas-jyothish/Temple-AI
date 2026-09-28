@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mantra Tutorials</title>
+<style>
+  :root{--bg:#1a1410;--card:#241c15;--line:#3a2e22;--ink:#f2e6d2;--muted:#b9a689;--accent:#cE9a4a;--accent2:#8f6b2f;}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:22px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#2a2016,#1a1410)}
+  header h1{margin:0;font-size:22px;letter-spacing:.3px}
+  header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+  main{max-width:940px;margin:0 auto;padding:20px;display:grid;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card h2{margin:0 0 14px;font-size:15px;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 5px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+  select,input[type=text],input[type=number]{width:100%;padding:9px 10px;background:#1c1610;border:1px solid var(--line);
+    border-radius:8px;color:var(--ink);font-size:15px}
+  input[type=range]{width:100%}
+  .row{display:flex;align-items:center;gap:10px}
+  .row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+  .swatch{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);flex:0 0 auto}
+  button{appearance:none;border:0;border-radius:9px;padding:12px 20px;font-size:15px;font-weight:600;cursor:pointer;
+    background:var(--accent);color:#1a1410}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  #stages{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+  #stages li{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#1c1610;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#5a4a36;flex:0 0 auto}
+  .dot.run{background:var(--accent);animation:pulse 1s infinite}
+  .dot.ok{background:#5fae63}
+  .dot.err{background:#c9584a}
+  @keyframes pulse{50%{opacity:.35}}
+  video{width:100%;border-radius:10px;border:1px solid var(--line);background:#000}
+  .err{color:#e79a8f;font-size:14px;white-space:pre-wrap}
+  .muted{color:var(--muted)}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mantra Tutorials</h1>
+  <p>Turn a mantra bundle into a 1080p video with the transliteration underlined word-by-word, in sync with the chant.</p>
+</header>
+<main>
+  <div class="card">
+    <h2>Mantra</h2>
+    <label for="mantra">Bundle</label>
+    <select id="mantra"></select>
+    <p class="hint" id="mantraInfo"></p>
+  </div>
+
+  <div class="card">
+    <h2>Underline</h2>
+    <div class="grid">
+      <div>
+        <label for="color">Colour</label>
+        <div class="row"><input type="text" id="color" placeholder="auto or #cE7A1F"><span class="swatch" id="swatch"></span></div>
+        <p class="hint">“auto” fits the background theme.</p>
+      </div>
+      <div>
+        <label for="target">Underlines which line</label>
+        <select id="target"><option value="translit">Transliteration</option><option value="dev">Devanagari</option></select>
+      </div>
+      <div>
+        <label for="motion">Motion</label>
+        <select id="motion"><option value="glide">Glide</option><option value="step">Step</option></select>
+      </div>
+      <div>
+        <label>Thickness — <span id="thVal"></span> px</label>
+        <input type="range" id="thickness" min="1" max="10" step="1">
+      </div>
+      <div>
+        <label>Opacity — <span id="opVal"></span></label>
+        <input type="range" id="opacity" min="0.2" max="1" step="0.05">
+      </div>
+      <div>
+        <label>Options</label>
+        <div class="row"><input type="checkbox" id="halo"><span>Halo (softer, thicker)</span></div>
+        <div class="row" style="margin-top:8px"><input type="checkbox" id="meaning"><span>Show meaning block</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div><button id="build">Build video</button> <span class="muted" id="status"></span></div>
+    </div>
+    <ul id="stages" style="margin-top:16px"></ul>
+    <p class="err" id="error"></p>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>Result</h2>
+    <video id="video" controls preload="metadata"></video>
+    <p class="hint" id="resultInfo"></p>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const STAGE_LABELS = { extract:'Extract text', transcribe:'Transcribe chant', align:'Align words', theme:'Derive theme', slides:'Render slides', render:'Assemble video' };
+let mantras = [];
+
+function applyDefaults(m){
+  const u = m.underline || {};
+  $('color').value = u.color ?? 'auto';
+  $('target').value = u.target ?? 'translit';
+  $('motion').value = u.motion ?? 'glide';
+  $('thickness').value = u.thicknessPx ?? 3;
+  $('opacity').value = u.opacity ?? 0.9;
+  $('halo').checked = !!u.halo;
+  $('meaning').checked = !!m.showMeaning;
+  $('mantraInfo').textContent = (m.title ? m.title.replace(/\n/g,' — ') : m.id) + (m.section ? '  ·  ' + m.section : '');
+  syncLabels();
+}
+function syncLabels(){
+  $('thVal').textContent = $('thickness').value;
+  $('opVal').textContent = (+$('opacity').value).toFixed(2);
+  const c = $('color').value.trim();
+  $('swatch').style.background = /^#?[0-9a-fA-F]{6}$/.test(c) ? (c[0]==='#'?c:'#'+c) : 'transparent';
+}
+function overrides(){
+  return {
+    color: $('color').value.trim() || 'auto',
+    target: $('target').value,
+    motion: $('motion').value,
+    thicknessPx: +$('thickness').value,
+    opacity: +$('opacity').value,
+    halo: $('halo').checked,
+    showMeaning: $('meaning').checked,
+  };
+}
+function renderStages(job){
+  const done = new Set((job.stages||[]).filter(s=>s.done).map(s=>s.name));
+  const active = (job.stages||[]).find(s=>!s.done);
+  const order = ['extract','transcribe','align','theme','slides','render'];
+  $('stages').innerHTML = order.map(name=>{
+    let cls='dot';
+    if(job.status==='error' && active && active.name===name) cls='dot err';
+    else if(done.has(name)) cls='dot ok';
+    else if(active && active.name===name && job.status==='running') cls='dot run';
+    return `<li><span class="${cls}"></span>${STAGE_LABELS[name]}</li>`;
+  }).join('');
+}
+async function poll(jobId){
+  const r = await fetch('api/jobs/'+jobId); const job = await r.json();
+  renderStages(job);
+  if(job.status==='running'){ $('status').textContent='building…'; setTimeout(()=>poll(jobId),1000); return; }
+  $('build').disabled=false;
+  if(job.status==='error'){ $('status').textContent='failed'; $('error').textContent=job.error||'unknown error'; return; }
+  $('status').textContent='done'+(job.bytes?` (${(job.bytes/1e6).toFixed(1)} MB)`:'');
+  $('resultCard').style.display='block';
+  $('video').src = job.output + '?t=' + Date.now();
+  $('resultInfo').textContent = 'Saved to the mantra bundle. Direct link: ' + job.output;
+}
+async function build(){
+  $('error').textContent=''; $('build').disabled=true; $('status').textContent='starting…';
+  const res = await fetch('api/build',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id:$('mantra').value, overrides:overrides()})});
+  const data = await res.json();
+  if(!res.ok){ $('build').disabled=false; $('status').textContent=''; $('error').textContent=data.error||('HTTP '+res.status); return; }
+  poll(data.jobId);
+}
+async function load(){
+  const r = await fetch('api/mantras'); const d = await r.json();
+  mantras = d.mantras||[];
+  const sel = $('mantra');
+  sel.innerHTML = mantras.map(m=>`<option value="${m.id}">${m.id}</option>`).join('') || '<option>(no bundles)</option>';
+  if(mantras.length) applyDefaults(mantras[0]);
+  sel.onchange=()=>{ const m=mantras.find(x=>x.id===sel.value); if(m) applyDefaults(m); };
+}
+['thickness','opacity','color'].forEach(id=>$(id).addEventListener('input',syncLabels));
+$('build').onclick=build;
+load();
+</script>
+</body>
+</html>

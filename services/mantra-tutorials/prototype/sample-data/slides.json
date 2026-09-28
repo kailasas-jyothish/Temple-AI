@@ -1,0 +1,760 @@
+{
+  "duration": 644.4408,
+  "slides": [
+    {
+      "index": 0,
+      "name": "slide000",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide000.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide000.png",
+      "start": 0,
+      "end": 35.91,
+      "kind": "preamble",
+      "verses": [],
+      "lines": [],
+      "plines": [
+        {
+          "p": 0,
+          "x": 829,
+          "y": 422,
+          "w": 262,
+          "h": 59
+        },
+        {
+          "p": 1,
+          "x": 473,
+          "y": 495,
+          "w": 974,
+          "h": 59
+        },
+        {
+          "p": 2,
+          "x": 226,
+          "y": 568,
+          "w": 1468,
+          "h": 59
+        },
+        {
+          "p": 3,
+          "x": 804,
+          "y": 641,
+          "w": 312,
+          "h": 59
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "name": "slide001",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide001.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide001.png",
+      "start": 35.91,
+      "end": 67.9,
+      "kind": "verses",
+      "verses": [
+        1,
+        2,
+        3
+      ],
+      "lines": [
+        {
+          "v": 1,
+          "x": 215,
+          "y": 357,
+          "w": 1491,
+          "h": 71
+        },
+        {
+          "v": 2,
+          "x": 255,
+          "y": 497,
+          "w": 1411,
+          "h": 71
+        },
+        {
+          "v": 3,
+          "x": 248,
+          "y": 580,
+          "w": 1423,
+          "h": 71
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 2,
+      "name": "slide002",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide002.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide002.png",
+      "start": 67.9,
+      "end": 98.42,
+      "kind": "verses",
+      "verses": [
+        4,
+        5,
+        6
+      ],
+      "lines": [
+        {
+          "v": 4,
+          "x": 149,
+          "y": 358,
+          "w": 1621,
+          "h": 81
+        },
+        {
+          "v": 5,
+          "x": 135,
+          "y": 453,
+          "w": 1650,
+          "h": 81
+        },
+        {
+          "v": 6,
+          "x": 185,
+          "y": 548,
+          "w": 1549,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 3,
+      "name": "slide003",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide003.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide003.png",
+      "start": 98.42,
+      "end": 131.18,
+      "kind": "verses",
+      "verses": [
+        7,
+        8,
+        9
+      ],
+      "lines": [
+        {
+          "v": 7,
+          "x": 161,
+          "y": 358,
+          "w": 1598,
+          "h": 81
+        },
+        {
+          "v": 8,
+          "x": 116,
+          "y": 453,
+          "w": 1688,
+          "h": 81
+        },
+        {
+          "v": 9,
+          "x": 140,
+          "y": 548,
+          "w": 1640,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 4,
+      "name": "slide004",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide004.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide004.png",
+      "start": 131.18,
+      "end": 171.252,
+      "kind": "verses",
+      "verses": [
+        10,
+        11,
+        12
+      ],
+      "lines": [
+        {
+          "v": 10,
+          "x": 113,
+          "y": 358,
+          "w": 1695,
+          "h": 81
+        },
+        {
+          "v": 11,
+          "x": 203,
+          "y": 453,
+          "w": 1514,
+          "h": 81
+        },
+        {
+          "v": 12,
+          "x": 130,
+          "y": 548,
+          "w": 1660,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 5,
+      "name": "slide005",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide005.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide005.png",
+      "start": 171.252,
+      "end": 192.13,
+      "kind": "verses",
+      "verses": [
+        13,
+        14,
+        15
+      ],
+      "lines": [
+        {
+          "v": 13,
+          "x": 79,
+          "y": 358,
+          "w": 1762,
+          "h": 81
+        },
+        {
+          "v": 14,
+          "x": 165,
+          "y": 453,
+          "w": 1589,
+          "h": 81
+        },
+        {
+          "v": 15,
+          "x": 145,
+          "y": 548,
+          "w": 1629,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 6,
+      "name": "slide006",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide006.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide006.png",
+      "start": 192.13,
+      "end": 224.38,
+      "kind": "verses",
+      "verses": [
+        16,
+        17,
+        18
+      ],
+      "lines": [
+        {
+          "v": 16,
+          "x": 171,
+          "y": 358,
+          "w": 1577,
+          "h": 81
+        },
+        {
+          "v": 17,
+          "x": 128,
+          "y": 453,
+          "w": 1664,
+          "h": 81
+        },
+        {
+          "v": 18,
+          "x": 89,
+          "y": 548,
+          "w": 1743,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 7,
+      "name": "slide007",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide007.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide007.png",
+      "start": 224.38,
+      "end": 255.58,
+      "kind": "verses",
+      "verses": [
+        19,
+        20,
+        21
+      ],
+      "lines": [
+        {
+          "v": 19,
+          "x": 79,
+          "y": 358,
+          "w": 1762,
+          "h": 81
+        },
+        {
+          "v": 20,
+          "x": 143,
+          "y": 453,
+          "w": 1635,
+          "h": 81
+        },
+        {
+          "v": 21,
+          "x": 123,
+          "y": 548,
+          "w": 1674,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 8,
+      "name": "slide008",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide008.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide008.png",
+      "start": 255.58,
+      "end": 285.9,
+      "kind": "verses",
+      "verses": [
+        22,
+        23,
+        24
+      ],
+      "lines": [
+        {
+          "v": 22,
+          "x": 117,
+          "y": 358,
+          "w": 1686,
+          "h": 81
+        },
+        {
+          "v": 23,
+          "x": 101,
+          "y": 453,
+          "w": 1719,
+          "h": 81
+        },
+        {
+          "v": 24,
+          "x": 129,
+          "y": 548,
+          "w": 1662,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 9,
+      "name": "slide009",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide009.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide009.png",
+      "start": 285.9,
+      "end": 317.52,
+      "kind": "verses",
+      "verses": [
+        25,
+        26,
+        27
+      ],
+      "lines": [
+        {
+          "v": 25,
+          "x": 83,
+          "y": 365,
+          "w": 1754,
+          "h": 79
+        },
+        {
+          "v": 26,
+          "x": 160,
+          "y": 457,
+          "w": 1600,
+          "h": 79
+        },
+        {
+          "v": 27,
+          "x": 92,
+          "y": 550,
+          "w": 1735,
+          "h": 79
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 10,
+      "name": "slide010",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide010.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide010.png",
+      "start": 317.52,
+      "end": 348.34,
+      "kind": "verses",
+      "verses": [
+        28,
+        29,
+        30
+      ],
+      "lines": [
+        {
+          "v": 28,
+          "x": 123,
+          "y": 358,
+          "w": 1674,
+          "h": 81
+        },
+        {
+          "v": 29,
+          "x": 153,
+          "y": 453,
+          "w": 1614,
+          "h": 81
+        },
+        {
+          "v": 30,
+          "x": 128,
+          "y": 548,
+          "w": 1665,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 11,
+      "name": "slide011",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide011.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide011.png",
+      "start": 348.34,
+      "end": 383.89,
+      "kind": "verses",
+      "verses": [
+        31,
+        32,
+        33
+      ],
+      "lines": [
+        {
+          "v": 31,
+          "x": 142,
+          "y": 358,
+          "w": 1636,
+          "h": 81
+        },
+        {
+          "v": 32,
+          "x": 139,
+          "y": 453,
+          "w": 1642,
+          "h": 81
+        },
+        {
+          "v": 33,
+          "x": 133,
+          "y": 548,
+          "w": 1654,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 12,
+      "name": "slide012",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide012.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide012.png",
+      "start": 383.89,
+      "end": 413.12,
+      "kind": "verses",
+      "verses": [
+        34,
+        35,
+        36
+      ],
+      "lines": [
+        {
+          "v": 34,
+          "x": 121,
+          "y": 358,
+          "w": 1677,
+          "h": 81
+        },
+        {
+          "v": 35,
+          "x": 119,
+          "y": 453,
+          "w": 1683,
+          "h": 81
+        },
+        {
+          "v": 36,
+          "x": 145,
+          "y": 548,
+          "w": 1631,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 13,
+      "name": "slide013",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide013.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide013.png",
+      "start": 413.12,
+      "end": 445.76,
+      "kind": "verses",
+      "verses": [
+        37,
+        38,
+        39
+      ],
+      "lines": [
+        {
+          "v": 37,
+          "x": 108,
+          "y": 358,
+          "w": 1705,
+          "h": 81
+        },
+        {
+          "v": 38,
+          "x": 148,
+          "y": 453,
+          "w": 1623,
+          "h": 81
+        },
+        {
+          "v": 39,
+          "x": 117,
+          "y": 548,
+          "w": 1686,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 14,
+      "name": "slide014",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide014.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide014.png",
+      "start": 445.76,
+      "end": 479.2,
+      "kind": "verses",
+      "verses": [
+        40,
+        41,
+        42
+      ],
+      "lines": [
+        {
+          "v": 40,
+          "x": 133,
+          "y": 358,
+          "w": 1655,
+          "h": 81
+        },
+        {
+          "v": 41,
+          "x": 149,
+          "y": 453,
+          "w": 1622,
+          "h": 81
+        },
+        {
+          "v": 42,
+          "x": 163,
+          "y": 548,
+          "w": 1593,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 15,
+      "name": "slide015",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide015.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide015.png",
+      "start": 479.2,
+      "end": 505.6,
+      "kind": "verses",
+      "verses": [
+        43,
+        44
+      ],
+      "lines": [
+        {
+          "v": 43,
+          "x": 378,
+          "y": 496,
+          "w": 1165,
+          "h": 58
+        },
+        {
+          "v": 44,
+          "x": 89,
+          "y": 564,
+          "w": 1742,
+          "h": 58
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 16,
+      "name": "slide016",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide016.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide016.png",
+      "start": 505.6,
+      "end": 539.45,
+      "kind": "verses",
+      "verses": [
+        45,
+        46,
+        47
+      ],
+      "lines": [
+        {
+          "v": 45,
+          "x": 124,
+          "y": 358,
+          "w": 1672,
+          "h": 81
+        },
+        {
+          "v": 46,
+          "x": 104,
+          "y": 453,
+          "w": 1711,
+          "h": 81
+        },
+        {
+          "v": 47,
+          "x": 154,
+          "y": 548,
+          "w": 1611,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 17,
+      "name": "slide017",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide017.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide017.png",
+      "start": 539.45,
+      "end": 575.414,
+      "kind": "verses",
+      "verses": [
+        48,
+        49,
+        50
+      ],
+      "lines": [
+        {
+          "v": 48,
+          "x": 101,
+          "y": 358,
+          "w": 1719,
+          "h": 81
+        },
+        {
+          "v": 49,
+          "x": 136,
+          "y": 453,
+          "w": 1648,
+          "h": 81
+        },
+        {
+          "v": 50,
+          "x": 86,
+          "y": 548,
+          "w": 1749,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 18,
+      "name": "slide018",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide018.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide018.png",
+      "start": 575.414,
+      "end": 611.52,
+      "kind": "verses",
+      "verses": [
+        51,
+        52,
+        53
+      ],
+      "lines": [
+        {
+          "v": 51,
+          "x": 172,
+          "y": 358,
+          "w": 1576,
+          "h": 81
+        },
+        {
+          "v": 52,
+          "x": 110,
+          "y": 453,
+          "w": 1699,
+          "h": 81
+        },
+        {
+          "v": 53,
+          "x": 116,
+          "y": 548,
+          "w": 1688,
+          "h": 81
+        }
+      ],
+      "plines": []
+    },
+    {
+      "index": 19,
+      "name": "slide019",
+      "html": "C:\\Users\\GD\\AppData\\Local\\Temp\\claude\\C--Users-GD-Desktop-GD-Temple-AI\\b59c9d39-eb61-4c17-b13f-e09daca89330\\scratchpad\\render\\slide019.html",
+      "png": "C:\\Users\\GD\\Downloads\\Durga Saptashati\\Durga Kavacham Video\\slides\\slide019.png",
+      "start": 611.52,
+      "end": 644.4408,
+      "kind": "verses",
+      "verses": [
+        54,
+        55,
+        56
+      ],
+      "lines": [
+        {
+          "v": 54,
+          "x": 143,
+          "y": 384,
+          "w": 1633,
+          "h": 81
+        },
+        {
+          "v": 55,
+          "x": 158,
+          "y": 479,
+          "w": 1605,
+          "h": 81
+        },
+        {
+          "v": 56,
+          "x": 503,
+          "y": 573,
+          "w": 914,
+          "h": 81
+        }
+      ],
+      "plines": []
+    }
+  ]
+}

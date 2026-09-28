@@ -1,0 +1,20 @@
+{
+  "name": "temple-mantra-tutorials",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn a mantra bundle (background + Devanagari/transliteration text + chant audio) into a 1080p tutorial video with the transliteration underlined word-by-word in sync with the chant.",
+  "engines": { "node": ">=22" },
+  "bin": { "mantra": "src/cli.js" },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:local": "node src/index.js",
+    "cli": "node src/cli.js",
+    "build": "node src/cli.js build",
+    "list": "node src/cli.js list",
+    "test": "node --test",
+    "check": "node --test"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

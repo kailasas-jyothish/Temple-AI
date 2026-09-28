@@ -70,6 +70,16 @@ const SERVICES = {
     defaultPort: 3100,
     publishedPort: 8480,
   },
+  // Not created on Dokploy yet. Needs a /data volume: rendered MP4s + per-mantra
+  // caches (Deepgram JSON, slide PNGs) live there so a redeploy doesn't re-fetch.
+  'mantra-tutorials': {
+    dir: 'services/mantra-tutorials',
+    appName: env.DOKPLOY_MANTRA_APP_NAME || 'Temple-mantra-tutorials',
+    dockerfile: 'services/mantra-tutorials/Dockerfile',
+    volumeName: 'temple-mantra-data',
+    defaultPort: 3200,
+    publishedPort: 8481,
+  },
 };
 
 const argv = process.argv.slice(2);

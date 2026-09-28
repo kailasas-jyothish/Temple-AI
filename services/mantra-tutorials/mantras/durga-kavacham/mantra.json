@@ -1,0 +1,26 @@
+{
+  "id": "durga-kavacham",
+  "title": "Devi Kavacham\n#DurgaSaptashati Series",
+  "section": "Kavacha Stotram",
+  "expectedVerses": 56,
+
+  "background": "background.png",
+  "devMarkdown": "devanagari.md",
+  "engMarkdown": "english.md",
+  "audio": "audio.mp3",
+
+  "deepgramCache": "deepgram.json",
+  "deepgramLanguage": "sa",
+
+  "fontsDir": "assets",
+  "fonts": { "devanagari": "deva.otf" },
+
+  "output": "durga-kavacham.mp4",
+
+  "showMeaning": false,
+  "underline": {
+    "color": "auto",
+    "thicknessPx": 3,
+    "motion": "glide"
+  }
+}
