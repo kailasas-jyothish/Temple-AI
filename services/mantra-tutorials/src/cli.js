@@ -7,6 +7,7 @@
 // user never has to remember a flag. `build <id> --flags` skips the questions
 // for scripting. Nothing here decides anything the engine doesn't; it only
 // gathers overrides and prints progress.
+import './env.js'; // must be first: loads .env before config.js reads process.env
 import readline from 'node:readline/promises';
 import { pathToFileURL } from 'node:url';
 import { stdin, stdout } from 'node:process';
@@ -35,6 +36,7 @@ export function parseFlags(argv) {
 /** Turn CLI flags into a pipeline overrides object (only set keys). */
 export function overridesFromFlags(f) {
   const o = {};
+  if (f.underline !== undefined) o.enabled = typeof f.underline === 'boolean' ? f.underline : !!BOOLS[String(f.underline).toLowerCase()];
   if (f.color !== undefined) o.color = String(f.color);
   if (f.thickness !== undefined) o.thicknessPx = Number(f.thickness);
   if (f.opacity !== undefined) o.opacity = Number(f.opacity);
@@ -54,8 +56,9 @@ const stagePrinter = () => (s) => {
 
 async function build(idOrPath, overrides, force) {
   const mantra = loadMantra(idOrPath);
-  console.log(`\nBuilding "${mantra.id}" — underline ${overrides.color || mantra.underline.color}/${overrides.motion || mantra.underline.motion}` +
-    `, target ${overrides.target || mantra.underline.target}, meaning ${overrides.showMeaning ?? mantra.showMeaning}`);
+  const on = overrides.enabled ?? mantra.underline.enabled;
+  console.log(`\nBuilding "${mantra.id}" — underline ${on ? `${overrides.color || mantra.underline.color}/${overrides.motion || mantra.underline.motion}, target ${overrides.target || mantra.underline.target}` : 'off'}` +
+    `, meaning ${overrides.showMeaning ?? mantra.showMeaning}`);
   const t0 = Date.now();
   const r = await runPipeline(idOrPath, { overrides, force, onStage: stagePrinter() });
   console.log(`\nOK ${(((Date.now() - t0) / 1000) | 0)}s — ${(r.bytes / 1e6).toFixed(1)} MB\n  ${r.output}`);
@@ -74,16 +77,19 @@ async function interactive() {
     const u = m.underline;
 
     const ask = async (q, dflt) => ((await rl.question(`${q} [${dflt}] `)).trim() || String(dflt));
-    console.log(`\nUnderline settings for "${id}" (Enter keeps the shown default):`);
+    console.log(`\nSettings for "${id}" (Enter keeps the shown default):`);
     const o = {};
-    o.color = await ask('  colour ("auto" or #hex)', u.color);
-    o.thicknessPx = Number(await ask('  thickness px', u.thicknessPx));
-    o.opacity = Number(await ask('  opacity 0-1', u.opacity));
-    o.halo = !!BOOLS[(await ask('  halo (softer/thicker) yes/no', u.halo ? 'yes' : 'no')).toLowerCase()];
-    o.motion = (await ask('  motion glide/step', u.motion)) === 'step' ? 'step' : 'glide';
-    o.target = (await ask('  underline which line: translit/dev', u.target)) === 'dev' ? 'dev' : 'translit';
+    o.enabled = !!BOOLS[(await ask('  underline the words (experimental) yes/no', u.enabled ? 'yes' : 'no')).toLowerCase()];
+    if (o.enabled) {
+      o.color = await ask('  colour ("auto" or #hex)', u.color);
+      o.thicknessPx = Number(await ask('  thickness px', u.thicknessPx));
+      o.opacity = Number(await ask('  opacity 0-1', u.opacity));
+      o.halo = !!BOOLS[(await ask('  halo (soft glow) yes/no', u.halo ? 'yes' : 'no')).toLowerCase()];
+      o.motion = (await ask('  motion glide/step', u.motion)) === 'step' ? 'step' : 'glide';
+      o.target = (await ask('  underline which line: translit/dev', u.target)) === 'dev' ? 'dev' : 'translit';
+    }
     o.showMeaning = !!BOOLS[(await ask('  show meaning block yes/no', m.showMeaning ? 'yes' : 'no')).toLowerCase()];
-    const force = !!BOOLS[(await ask('  re-run Deepgram (ignore cache) yes/no', 'no')).toLowerCase()];
+    const force = !!BOOLS[(await ask('  re-time the words (ignore cache) yes/no', 'no')).toLowerCase()];
     rl.close();
     await build(id, o, force);
   } finally {
@@ -102,7 +108,7 @@ async function main() {
   if (cmd === 'build') {
     const rest = argv.slice(1);
     const id = rest.find((a) => !a.startsWith('--'));
-    if (!id) { console.error('usage: mantra build <id> [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion glide|step] [--target translit|dev] [--meaning] [--force]'); process.exit(2); }
+    if (!id) { console.error('usage: mantra build <id> [--underline|--no-underline] [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion glide|step] [--target translit|dev] [--meaning] [--force]'); process.exit(2); }
     const f = parseFlags(rest);
     await build(id, overridesFromFlags(f), !!f.force);
     return;

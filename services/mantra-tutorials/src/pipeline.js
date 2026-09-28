@@ -1,18 +1,20 @@
 // @ts-check
 // The one engine both front ends drive (handover §7): extract -> transcribe ->
-// align -> theme -> slides -> render, five deterministic stages plus one ASR
-// step. Each stage writes its artefact into the mantra's work dir, so a run can
+// align -> theme -> slides -> render. "transcribe" is forced alignment of the
+// known text by default (Deepgram ASR only as a fallback). Each stage writes its artefact into the mantra's work dir, so a run can
 // be inspected (verses.json, timings.json, theme.json, slides.json) and a stage
 // can be re-run from a cache. `onStage` lets the web UI stream progress; the CLI
 // passes a printer.
 import { loadMantra, workDir } from './mantra.js';
 import { extract } from './extract.js';
 import { transcribe } from './transcribe.js';
-import { align } from './align.js';
+import { align, alignForced } from './align.js';
+import { forcedAlign, alignerPython } from './forced.js';
+import { config } from './config.js';
 import { deriveTheme } from './color.js';
 import { buildSlides } from './slides.js';
 import { render } from './render.js';
-import { log } from './log.js';
+import { log, warn } from './log.js';
 
 const STAGES = ['extract', 'transcribe', 'align', 'theme', 'slides', 'render'];
 
@@ -42,12 +44,18 @@ export async function runPipeline(idOrPath, opts = {}) {
   const extracted = extract(mantra, out);
   at(0, 'done', { verses: extracted.verses.length });
 
+  // Stage 1 places the words on the audio. Forced alignment of the known text
+  // is the default; Deepgram ASR is the fallback when the aligner is not set up.
   at(1, 'start');
-  const transcript = await transcribe(mantra, out, { force: opts.force });
-  at(1, 'done', { seconds: transcript.metadata?.duration });
+  const useForced = config.aligner === 'ctc' || (config.aligner === 'auto' && alignerPython());
+  if (config.aligner === 'auto' && !useForced) warn('pipeline', 'forced aligner not installed (npm run setup); falling back to Deepgram timing, which is less accurate');
+  const placed = useForced
+    ? { forced: forcedAlign(mantra, extracted, out, { force: opts.force }) }
+    : { transcript: await transcribe(mantra, out, { force: opts.force }) };
+  at(1, 'done', { source: useForced ? 'forced' : 'deepgram' });
 
   at(2, 'start');
-  const timings = align(extracted, transcript, out);
+  const timings = placed.forced ? alignForced(extracted, placed.forced, out) : align(extracted, placed.transcript, out);
   at(2, 'done', { mode: timings.mode, words: timings.words.length });
 
   at(3, 'start');

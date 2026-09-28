@@ -1438,3 +1438,36 @@ to a sheet and Slack. The code is in `services/notifier/src/presence/`, CLI
   Dokploy app. The Groq model default is `qwen/qwen3.6-27b`, following
   reels' code default. Reels' `.env.example` says `qwen3.8`, and that
   disagreement needs checking against `/v1/models`.
+
+---
+
+## 16. Mantra tutorials (`services/mantra-tutorials`, 2026-09-27/28)
+
+Background slide + Devanagari/IAST text + chant audio -> 1080p video with the
+transliteration underlined word by word. Full design is in the service README
+and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
+
+- **Underline = ASS/libass overlay** (`src/ass.js`, ffmpeg `ass` filter), not
+  drawbox+sendcmd. In this ffmpeg build sendcmd drives only the *first* drawbox,
+  `drawbox@label` is ignored, and `w 0` draws full width. That dead end is why
+  the old line "ran around".
+- **Devanagari font was Mart, not Sanskrit 2003.** The bundle's `deva.otf` is the
+  reels caption face (625 glyphs). The bundle now points at `sanskrit2003.ttf`.
+- **Timing = forced alignment**, not Deepgram + fuzzy match (that path is only a
+  fallback now). The aligner is ctc-forced-aligner (BSD-2) with Vakyansh Sanskrit
+  wav2vec2 (MIT). The user said the videos are "possibly commercial", so the
+  library's MMS default (CC-BY-NC) must not be used. `ai4bharat/indicwav2vec-hindi`
+  (Apache-2.0) is gated on HF and needs a login. Three traps: the CTC blank for
+  fairseq-converted models is `<s>` (id 0), not pad; a star token between every
+  word swallows the chant (stars go at line breaks only); an 80ms onset shift
+  was measured with `aligner/verify.py`.
+- Python lives in `aligner/.venv` (`npm run setup`), gitignored. The Docker image
+  installs CPU torch; its build has **not** been run.
+- **2026-09-28: underline parked.** It is off by default (`UNDERLINE`); videos
+  ship as plain slides. Text is grown to fill each slide (binary search on
+  `--scale`, all lines nowrap), and `VERSES_PER_SLIDE=2` is what makes it large.
+  The user's view, recorded in `MANTRA-TUTORIALS-HANDOVER.md` §2: stop
+  positioning an overlay on recovered boxes of a flat slide image, and highlight
+  the text in the same engine that draws it.
+- The host env is `services/mantra-tutorials/.env.deploy` (gitignored), not
+  `.env`. `dokploy.mjs` prefers it, and gained a `create` command.

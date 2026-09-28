@@ -4,6 +4,7 @@
  *
  *   node scripts/dokploy.mjs probe                    # discover the API surface + auth
  *   node scripts/dokploy.mjs show    [--app notifier] # dump the app's current config
+ *   node scripts/dokploy.mjs create    [--app reels]  # create the application if missing
  *   node scripts/dokploy.mjs configure [--app reels]  # git source + Dockerfile + domain + volume + swarm
  *   node scripts/dokploy.mjs source    [--app reels]  # re-point the git source only (after a repo rename)
  *   node scripts/dokploy.mjs push-env  [--app reels]  # upload services/<app>/.env to the app
@@ -70,8 +71,8 @@ const SERVICES = {
     defaultPort: 3100,
     publishedPort: 8480,
   },
-  // Not created on Dokploy yet. Needs a /data volume: rendered MP4s + per-mantra
-  // caches (Deepgram JSON, slide PNGs) live there so a redeploy doesn't re-fetch.
+  // Needs a /data volume: rendered MP4s, per-mantra caches (forced.json, slide
+  // PNGs) and the Hugging Face model cache live there, so a redeploy re-fetches nothing.
   'mantra-tutorials': {
     dir: 'services/mantra-tutorials',
     appName: env.DOKPLOY_MANTRA_APP_NAME || 'Temple-mantra-tutorials',
@@ -94,7 +95,11 @@ if (!service) {
 }
 
 // Each service's runtime env is its own file; DOKPLOY_* never ships to a container.
-const serviceEnv = readEnvFile(path.join(root, service.dir, '.env'));
+// A service may keep a separate, gitignored `.env.deploy` for the host when its
+// local `.env` holds machine paths (a Windows FFMPEG_PATH) that would break the
+// container; that file wins when present.
+const deployEnvPath = path.join(root, service.dir, '.env.deploy');
+const serviceEnv = readEnvFile(fs.existsSync(deployEnvPath) ? deployEnvPath : path.join(root, service.dir, '.env'));
 const RUNTIME_KEYS = Object.keys(serviceEnv).filter((k) => !k.startsWith('DOKPLOY_'));
 const APP_NAME = service.appName;
 
@@ -255,6 +260,27 @@ async function source() {
   await setSource(app);
 }
 
+/**
+ * Create the application if it does not exist yet, in the same Dokploy
+ * environment as the notifier (every service here shares one project).
+ */
+async function create() {
+  const projects = await listProjects();
+  let home = null;
+  for (const project of projects) {
+    for (const environment of project.environments || []) {
+      const names = (environment.applications || []).map((a) => String(a.name || a.appName).toLowerCase());
+      if (names.includes(APP_NAME.toLowerCase())) { console.log(`exists      ${APP_NAME} (${project.name} / ${environment.name})`); return; }
+      if (names.includes(SERVICES.notifier.appName.toLowerCase())) home = { project, environment };
+    }
+  }
+  if (!home) throw new Error(`cannot find the environment holding ${SERVICES.notifier.appName}`);
+  const slug = APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const r = await POST('application.create', { name: APP_NAME, appName: slug, description: `Temple-AI ${appKey}`, environmentId: home.environment.environmentId });
+  if (!r.ok) throw new Error(`application.create failed: ${r.status} ${JSON.stringify(r.body)}`);
+  console.log(`created     ${APP_NAME} in ${home.project.name} / ${home.environment.name}`);
+}
+
 async function configure() {
   const { app } = await findApp();
   const applicationId = app.applicationId;
@@ -359,7 +385,7 @@ async function pushEnv() {
     ['POST', 'application.update', { applicationId, env: envBlock() }],
   ]);
   if (!r.ok) throw new Error(`could not save env: ${JSON.stringify(r.attempts)}`);
-  console.log(`env pushed (${RUNTIME_KEYS.length} vars from ${service.dir}/.env) via ${r.route}`);
+  console.log(`env pushed (${RUNTIME_KEYS.length} vars from ${service.dir}/${fs.existsSync(deployEnvPath) ? '.env.deploy' : '.env'}) via ${r.route}`);
 }
 
 async function deploy() {
@@ -398,6 +424,7 @@ const commands = {
   probe,
   find: show,
   show,
+  create,
   configure,
   source,
   'push-env': pushEnv,

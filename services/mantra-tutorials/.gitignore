@@ -6,6 +6,8 @@
 node_modules/
 data/
 .env
+aligner/.venv/
+__pycache__/
 
 # Bundle inputs that are large and/or non-redistributable: the chant audio and
 # any rendered tutorial. Committed per bundle instead: mantra.json, the
@@ -17,3 +19,4 @@ mantras/**/*.mp4
 
 # Scratch renders dropped next to the code.
 *.mp4
+.env.deploy

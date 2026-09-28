@@ -15,13 +15,17 @@ const bool = (v, dflt) => (v === undefined || v === '' ? dflt : /^(1|true|on|yes
 
 /** House-style underline defaults (§5b). Every one is overridable per mantra. */
 export const underlineDefaults = {
+  // Off by default (2026-09-28): the word timing is not good enough to ship yet,
+  // so videos are plain slides unless a build asks for the line. See the
+  // handover doc for the open work.
+  enabled: bool(env.UNDERLINE, false),
   // 'auto' derives the colour from the background PNG; or a hex like '#CE7A1F'.
   color: env.UNDERLINE_COLOR || 'auto',
   thicknessPx: Math.max(1, Number(env.UNDERLINE_THICKNESS_PX) || 3),
   opacity: clamp01(Number(env.UNDERLINE_OPACITY), 0.9),
-  // Default off: the reference is a thin crisp line. This ffmpeg build can drive
-  // only one drawbox (a second, blurred halo box can't be animated), so halo=true
-  // renders as a softer, thicker single underline rather than a separate glow.
+  // Default off: the reference is a thin crisp line. With the ASS/libass overlay
+  // (src/ass.js) halo=true adds a real second glow layer — taller, blurrier and
+  // more transparent behind the core bar — not just a thicker single line.
   halo: bool(env.UNDERLINE_HALO, false),
   // 'glide' eases x/width between words on a line; 'step' jumps.
   motion: env.UNDERLINE_MOTION === 'step' ? 'step' : 'glide',
@@ -39,12 +43,25 @@ export const config = {
   uiPassword: env.UI_PASSWORD || '',
   dataDir: env.DATA_DIR || path.join(serviceRoot, 'data'),
   mantrasDir: env.MANTRAS_DIR || path.join(serviceRoot, 'mantras'),
+  // Word timing. 'ctc' = forced alignment of the exact text (aligner/align.py);
+  // 'deepgram' = the older ASR + fuzzy-match path; 'auto' = ctc when the Python
+  // aligner is installed (npm run setup), else deepgram.
+  aligner: ['ctc', 'deepgram'].includes(env.ALIGNER || '') ? /** @type {string} */ (env.ALIGNER) : 'auto',
+  // Must have a Devanagari CTC vocabulary and a licence you can ship under.
+  // Vakyansh Sanskrit is MIT; ctc-forced-aligner's MMS default is CC-BY-NC.
+  alignModel: env.ALIGN_MODEL || 'Harveenchadha/vakyansh-wav2vec2-sanskrit-sam-60',
+  alignPython: env.ALIGN_PYTHON || '',
   deepgramKey: env.DEEPGRAM_API_KEY || '',
   deepgramLanguage: env.DEEPGRAM_LANGUAGE || 'sa',
   deepgramModel: env.DEEPGRAM_MODEL || 'whisper-large',
   // Tool binaries. Discovered lazily (src/paths.js) if left unset.
   ffmpegPath: env.FFMPEG_PATH || '',
   browserPath: env.BROWSER_PATH || '',
+  // Fewer verses per slide = bigger text (slides grow the type to fill the page).
+  versesPerSlide: Math.max(1, Math.round(Number(env.VERSES_PER_SLIDE) || 2)),
+  // Devanagari verse layout: 'source' keeps the markdown's own line breaks
+  // (half-lines), 'joined' puts the whole verse on one line.
+  devLayout: env.DEV_LAYOUT === 'joined' ? 'joined' : 'source',
   // Video encode settings (proven in the prototype).
   fps: Number(env.FPS || 30),
   crossfadeSeconds: numOr(env.CROSSFADE_SECONDS, 0.7),
@@ -72,8 +89,8 @@ function numOr(v, dflt) {
  */
 export function configProblems() {
   const problems = [];
-  if (!config.deepgramKey) {
-    problems.push('DEEPGRAM_API_KEY unset: transcription cannot run (a cached Deepgram JSON per mantra still works).');
+  if (config.aligner === 'deepgram' && !config.deepgramKey) {
+    problems.push('ALIGNER=deepgram but DEEPGRAM_API_KEY is unset: only a cached Deepgram JSON per mantra will work.');
   }
   if (config.crossfadeSeconds <= 0) {
     problems.push('CROSSFADE_SECONDS must be > 0; slides would hard-cut.');

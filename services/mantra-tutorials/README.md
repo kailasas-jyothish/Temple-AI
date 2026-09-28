@@ -5,6 +5,13 @@ text, and the chant audio — into a 1080p tutorial MP4 where the transliteratio
 is **underlined word-by-word in sync with the chant**, styled like the reference
 "Argala Stotram – #DurgaSaptashati" video but on your own background template.
 
+> **The underline is optional and off by default (2026-09-28).** Videos are
+> plain slides that change with the chant, with the text as large as the slide
+> allows (`VERSES_PER_SLIDE`, default 2; `DEV_LAYOUT=source` keeps the
+> Devanagari on its source half-lines, which is what lets it grow). Turn the experimental underline on with
+> `--underline`, `UNDERLINE=true`, the first CLI question or the web-UI checkbox.
+> Open work is in `MANTRA-TUTORIALS-HANDOVER.md` at the repo root.
+
 Nothing about Durga or the Kavacham is baked into the engine; every mantra is
 just another bundle. One shared engine (`src/pipeline.js`) drives both a local
 CLI and a hosted web UI, so a build from either is identical.
@@ -16,31 +23,85 @@ Six stages, run in order by `runPipeline(idOrPath, { onStage, overrides, force }
 | Stage | Does |
 |---|---|
 | `extract` | parse the Devanagari/transliteration markdown into verses + a preamble |
-| `transcribe` | Deepgram ASR over the chant → word timings (cached per bundle as `deepgram.json`) |
-| `align` | phonetic-key + Needleman–Wunsch match of ASR words to the written words; each word gets a `start`/`end` |
+| `transcribe` | **forced alignment**: place every written word on the audio with a Sanskrit acoustic model (`src/forced.js` → `aligner/align.py`, cached as `forced.json`). Falls back to Deepgram ASR only if the aligner isn't installed |
+| `align` | turn those placements into the per-word timeline (`timings.json`): each word holds until the next, slides switch when a verse's speaker line starts |
 | `theme` | derive a legible text colour and an accent (the `auto` underline colour) from the background PNG |
-| `slides` | group verses into slides, render each to a 1920×1080 PNG in headless Chromium (for correct Devanagari shaping), and **measure the on-screen box of every word** |
-| `render` | crossfade the slides on the audio timeline and drive a single ffmpeg `drawbox` under the current word |
+| `slides` | group verses into slides (`VERSES_PER_SLIDE`), grow the text to the largest size that fits without re-wrapping any line, render each to a 1920×1080 PNG in headless Chromium (for correct Devanagari shaping), and measure the on-screen box of every word |
+| `render` | crossfade the slides on the audio timeline; if the underline is on, glide an ASS/libass underline (`src/ass.js`) under the current word |
 
 **No LLM is in this pipeline, and no manual one-off ffmpeg exists** — everything
-is a script. The only ASR is Deepgram; the alignment and timing are deterministic.
+is a script. The acoustic model only *places* the known words; it never decides
+what they are, and the animation is deterministic.
 
-## The underline is one ffmpeg drawbox
+## Word timing is forced alignment
 
-This is the load-bearing implementation fact for the render (verified against
-this ffmpeg build, N-107417 — see the header of `src/render.js`):
+We already have the exact text, so the timing problem is *"when is each known
+word chanted?"*, not *"what is being said?"*. That is forced alignment, a
+solved problem, and we use existing tools for it rather than our own matcher:
 
-- `sendcmd` drives only the **first** `drawbox` instance; `drawbox@label`
-  targeting is silently ignored, and a second box (a halo layer) can't be
-  independently animated. So the underline is a **single box**.
-- `drawbox w 0` means *extend to the frame width*, not *hide*. The box is hidden
-  before the first word by parking it **off-screen on y** (y=1130, below 1080).
-- drawbox reads `x`, `y`, `w` commands in arrival order at a timestamp, so each
-  keyframe emits x → y → w.
+- **[ctc-forced-aligner](https://github.com/MahmoudAshraf97/ctc-forced-aligner)**
+  (BSD-2) does the alignment.
+- The acoustic model is **Vakyansh's Sanskrit wav2vec2**
+  (`Harveenchadha/vakyansh-wav2vec2-sanskrit-sam-60`, from Open-Speech-EkStep's
+  MIT-licensed vakyansh-models; 60h of Sanskrit). Its vocabulary is Devanagari,
+  so the written words are aligned as written, with no romanisation.
+- The library's own default model (MMS) is **CC-BY-NC**, so it is deliberately
+  not used. These videos may be used commercially.
 
-Because there's only one box, `halo=true` renders as a **softer, thicker single
-line** rather than a separate glow. The default is `halo=false` — the thin crisp
-reference line.
+It replaced Deepgram ASR + fuzzy matching, which guessed at a romanised
+transcript. On the Kavacham, that squeezed verse 2 into 1.6s, smeared verse 1
+over 21s, and gave single words anywhere from 0.05s to 10s. Those were the
+"too fast / too slow" jumps. With forced alignment every verse takes 9–11s
+and words take 0.2–4s.
+
+Three details that matter, all in `aligner/align.py` / `src/align.js`:
+
+- **The CTC blank is detected, not assumed.** Models converted from fairseq
+  (Vakyansh included) use `<s>` as the blank, not the pad token the library
+  assumes. The wrong blank silently yields garbage (mean log-prob −10 per frame
+  instead of −0.06).
+- **Silence is only allowed between lines.** A free "star" token between every
+  word lets it swallow the chanting, and each word shrinks to a few frames.
+- **An 80ms onset correction** (`ONSET_SHIFT`). CTC fires slightly after a sound
+  starts. This was measured with `aligner/verify.py`, which cuts out each word's
+  assigned audio and blind-decodes it. At −80ms, 20 of 24 sampled words read
+  back as themselves.
+
+To check a new mantra's timing without watching the whole video:
+
+```powershell
+aligner\.venv\Scripts\python aligner\verify.py data\<id>\timings.json mantras\<id>\audio.mp3 <ffmpeg> Harveenchadha/vakyansh-wav2vec2-sanskrit-sam-60 24
+```
+
+It prints each sampled word next to what the model hears in its slot.
+`aligner/probe.py` greedy-decodes any slice. Use it to check that a model can
+hear a new recording at all before trusting it.
+
+## The underline is an ASS/libass overlay
+
+The underline is a subtitle overlay (`src/ass.js`) rendered by ffmpeg's `ass`
+filter over the crossfaded slides. libass is the karaoke/subtitle renderer
+already inside ffmpeg, so instead of nudging a rectangle by hand it does the
+per-frame tweening, softening and glow for us. This replaced an earlier
+single-`drawbox`+`sendcmd` hack that could only move one hard box in a few coarse
+steps and could not glow — which is what made the line "run around" harshly.
+
+- The bar is a `\p1` **vector drawing** (`m 0 0 l 100 0 …`), 100 units wide;
+  `\fscx=<px>` scales that width to the measured word box, so there is no glyph
+  shaping in the underline — the Devanagari/serif text stays in the Chromium
+  slide PNGs underneath.
+- Coordinates are 1:1 with the video: `PlayResX/Y` = the frame size, so a word's
+  measured pixel box maps straight onto `\pos`/`\move`/drawing units.
+- A word that starts a line is a static `\pos` with a fade in; a following word
+  on the same line **glides** (`\move`) and **resizes** (`\t(\fscx…)`) from the
+  previous word, with no fade between — so the line flows rather than blinks.
+- `halo=true` adds a **real second glow layer** (layer 0): taller, `\blur5`,
+  and more transparent behind the core bar — the thing one drawbox never could.
+  Default is `halo=false`, the thin crisp reference line.
+
+Colour is libass `&HBBGGRR&` (reversed) with inverse alpha (`00` opaque … `FF`
+clear); timestamps are centiseconds. `src/ass.js` is pure and unit-tested
+(`test/ass.test.js`) so these encodings can't drift silently.
 
 ## Bundle format
 
@@ -56,9 +117,9 @@ A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
   "devMarkdown": "devanagari.md",
   "engMarkdown": "english.md",      // the transliteration / IAST — this is what gets underlined
   "audio": "audio.mp3",             // the chant
-  "deepgramCache": "deepgram.json", // optional pre-fetched ASR; lets a build run with no Deepgram key
+  "deepgramCache": "deepgram.json", // optional; only used by the Deepgram fallback
   "fontsDir": "assets",
-  "fonts": { "devanagari": "deva.otf" },  // serif faces fall back to prototype/assets
+  "fonts": { "devanagari": "sanskrit2003.ttf" },  // serif faces fall back to prototype/assets
   "output": "durga-kavacham.mp4",
   "showMeaning": false,             // optional non-underlined meaning block, off by default
   "underline": { "color": "auto", "thicknessPx": 3, "motion": "glide" }
@@ -81,25 +142,52 @@ all defaulting to the bundle's own settings (which default to house style):
 | `color` | `auto` \| `#hex` | `auto` | `auto` derives an accent from the background; or force a hex |
 | `thicknessPx` | integer | `3` | line thickness (thin, 2–3px, like the reference) |
 | `opacity` | 0–1 | `0.9` | line opacity (subtle) |
-| `halo` | bool | `false` | softer/thicker single line (one-drawbox constraint above) |
+| `halo` | bool | `false` | adds a real second glow layer behind the core line (see above) |
 | `motion` | `glide` \| `step` | `glide` | glide eases x/width between words on a line; step jumps |
 | `target` | `translit` \| `dev` | `translit` | underline the transliteration (reference) or the Devanagari |
 
 Plus `gapPx` (vertical gap below the word), `glideMs` (glide duration), and the
 `showMeaning` toggle.
 
-## CLI
+## CLI (run it locally)
 
-```
-node src/cli.js                 # interactive: pick a bundle, then set each control
-node src/cli.js list            # list bundle ids
-node src/cli.js build durga-kavacham
-node src/cli.js build durga-kavacham --target dev --thickness 2 --no-halo
-node src/cli.js build durga-kavacham --color '#CE7A1F' --motion step --force
+The CLI is the simplest way to use this — no server, no login. It renders the
+sample in **two commands**, and the interactive mode never makes you remember a
+flag: it lists the mantras, you pick a number, then press Enter through the
+settings (each shows a sensible default). Open a terminal in this folder:
+
+```powershell
+npm run setup        # once: installs the word-timing aligner (needs Python 3; ~5 min)
+npm run cli          # pick a mantra by number, press Enter through the settings
 ```
 
-`--force` re-runs Deepgram, ignoring the cache. The bin is also `mantra` (see
-`package.json`), so `npm run build -- durga-kavacham` works.
+That's it. It finds ffmpeg and the browser it needs on its own, reads everything
+else from `.env` automatically, and needs no API key. The first build downloads
+the Sanskrit model once (~400 MB) and spends ~2 minutes timing a 10-minute chant.
+After that the timing is cached, and rebuilding with a different look only
+re-renders. When it's done it prints the path of the finished `.mp4`.
+
+Prefer typing one line? Every setting is also a flag, and any flag you leave off
+keeps the mantra's own default:
+
+```powershell
+npm run build durga-kavacham
+npm run build durga-kavacham -- --target dev --thickness 2 --no-halo
+npm run build durga-kavacham -- --color "#CE7A1F" --motion step
+```
+
+Flags: `--underline` / `--no-underline` (off unless given), `--color`, `--thickness`, `--opacity`, `--halo` / `--no-halo`, `--motion`,
+`--target`, `--gap`, `--glide-ms`, `--meaning` / `--no-meaning`, and `--force`
+(re-time the words, ignore the cache). `npm run list` prints the mantra ids.
+
+**Two things a first-time user needs to know:**
+
+- The chant `.mp3` is not in the repo (too large to commit), so a fresh clone of
+  the sample needs it dropped back in as `mantras/durga-kavacham/audio.mp3`
+  before it can render. Existing bundles on your machine already have theirs.
+- To add your own mantra, copy the `mantras/durga-kavacham/` folder, swap in your
+  background, text and audio, edit `mantra.json`, and it shows up in `npm run
+  list`. Nothing is hard-coded to the sample.
 
 ## Web UI
 
@@ -112,15 +200,63 @@ the stage dots, then play the result in-page. Protect it with `UI_PASSWORD`
 (basic auth; empty means open — fine on localhost, set it in production).
 `/healthz` is unauthenticated for the container healthcheck.
 
+## On the host (the deployed service)
+
+Deployed to Dokploy, the web UI above is served on the published port —
+`http://157.180.15.165:8481` — behind `UI_PASSWORD` basic auth. It is the same
+UI, driving the same engine, so everything under **Web UI** applies; these are
+the differences that only matter on the server:
+
+- **Reaching it.** The edge here is Caddy, which serves only hostnames written
+  into its own config, so there is no `https://…` name for this app yet — it is
+  the bare IP and port (CLAUDE.md §12, "The edge, settled"). If your own machine
+  blocks bare IPs (Cold Turkey does), you won't be able to open that URL; run the
+  **CLI locally** instead, which walks the same menus and produces the same MP4.
+  A public hostname needs a Caddy vhost added on the host — the Dokploy Domains
+  tab cannot do it.
+- **Bundles must be in the image.** The server only sees bundles baked into the
+  container at build time (the Dockerfile `COPY mantras`) or written into the
+  `/data` volume. To add a mantra to the host, commit its bundle and redeploy, or
+  place it under `DATA_DIR`. The chant mp3 is gitignored, so a committed bundle
+  reaches the host **without** its audio — ship the audio through the volume or
+  add it to the build separately; a build with no audio fails at `render`.
+- **Word timing runs in the container.** The image installs the aligner (CPU
+  torch). The Sanskrit model is downloaded on the first build and cached in
+  `/data/hf`, so it survives redeploys. No API key is needed.
+- **Where output lands.** Rendered MP4s and per-mantra caches (`forced.json`,
+  slide PNGs) are written under `/data` (the `temple-mantra-data` volume), so a
+  redeploy doesn't re-time or re-render. The finished file is playable
+  in-page and served from `/out/<id>.mp4`.
+- **Host env is `.env.deploy`, not `.env`.** The local `.env` holds a Windows
+  `FFMPEG_PATH` and an empty `DATA_DIR`, which would break the container.
+  `scripts/dokploy.mjs` pushes the gitignored `.env.deploy` instead when it
+  exists (`PORT`, `DATA_DIR=/data`, `UI_PASSWORD`, …).
+- **Deploy / verify.** `node scripts/dokploy.mjs create --app mantra-tutorials`
+  (once), `configure`, `push-env`, then `deploy --app mantra-tutorials` from the repo root; confirm the container
+  actually rolled with `verify --app mantra-tutorials` (container age — `deployment.all`
+  says `done` regardless, CLAUDE.md §10).
+
+> **Not yet run on the host.** As of this writing the Docker image (ffmpeg +
+> headless Chromium + Devanagari fonts) has not been built or deployed on Dokploy,
+> and no Dokploy application exists for it yet — only the `scripts/dokploy.mjs`
+> registry entry. The instructions above describe the intended host workflow, not
+> a proven one; see **Proven vs. not**.
+
 ## Configuration
 
-Copy `.env.example` to `.env`. Machine-level and house-style settings live there
-(`FFMPEG_PATH`, `BROWSER_PATH`, encode settings, the `UNDERLINE_*` defaults);
-everything *per mantra* lives in the bundle. `src/config.js` is the source of
-truth — keep `.env.example` in sync with it.
+**You don't have to configure anything to render the sample** beyond
+`npm run setup`. ffmpeg and the browser are found automatically.
 
-Transcription needs `DEEPGRAM_API_KEY`, but a bundle that ships a `deepgram.json`
-cache (the sample does) renders without one.
+When you *do* want to change a default, put it in a `.env` file in this folder and
+it's picked up automatically the next time you run — no flag, no `export`, nothing
+to source. Everything *per mantra* lives in the bundle's `mantra.json`, not here;
+`.env` is only machine-level and house-style: encode settings, `UI_PASSWORD`, the
+`UNDERLINE_*` defaults, and the timing source (`ALIGNER=auto|ctc|deepgram`,
+`ALIGN_MODEL`). `DEEPGRAM_API_KEY` is only for the old fallback. `.env.example` lists every variable with its default;
+`src/config.js` is the source of truth (keep the two in sync).
+
+`FFMPEG_PATH` / `BROWSER_PATH` are only needed if auto-discovery misses them
+(ffmpeg not on `PATH`, or Edge/Chrome installed somewhere unusual).
 
 ## Deployment
 
@@ -135,15 +271,24 @@ repo root (CLAUDE.md §11).
 
 **Proven** (built, then looked at — frames extracted and inspected):
 
-- The single-drawbox underline renders and tracks the current word. Verified at
-  t=40/120/200s on the transliteration and t=25s on the preamble.
+- Forced-alignment timing on the Kavacham (2026-09-28): 572 words aligned in
+  111s on CPU, median frame score −0.06, 4 weak words. A blind decode of each
+  word's slot (`aligner/verify.py`) read the word back for 20 of 24 samples. A
+  frame at t=249.4s shows the line under `cāparājitā`, the word being chanted.
+
+- The ASS/libass underline renders and tracks the current word — a soft golden
+  line that glides between words. Verified at t=40/120s on the transliteration
+  (real extracted frames), plus synthetic frames at rest / mid-glide / with the
+  halo glow. libass HarfBuzz shaping confirmed present on the dev ffmpeg.
 - `target=dev` underlines the Devanagari: dev words measured 1:1 with translit
   (29/29 per slide), frame at t=120s shows the line under `देवेशि`.
 - The default translit build of `durga-kavacham` renders end to end (20 slides,
   ~644s = the audio duration).
 - Both front ends drive the one engine; all server endpoints smoke-tested.
-- The 16 unit tests (`npm test`): tokenizer parallelism (§3 invariant), flag
-  parsing, override selection, config defaults, and `colorArg` alpha encoding.
+- The 27 unit tests (`npm test`): tokenizer parallelism (§3 invariant), flag
+  parsing, override selection, config defaults, the ASS encodings, and the
+  forced-alignment timeline (sequence order, hand-over, line tail, onset shift,
+  speaker-led slide start, non-parallel spread).
 
 **Not yet proven:**
 
@@ -151,7 +296,9 @@ repo root (CLAUDE.md §11).
   `durga-kavacham` has been run.
 - A build inside the Docker container. Everything above was on the dev machine;
   the image (ffmpeg + Chromium + fonts) has not been built or run on Dokploy.
-- Deepgram transcription from a cold start — the sample uses its cached
-  `deepgram.json`, so the live ASR path hasn't been exercised here.
+- The aligner on a recording with heavy instrumentation or a different chanter.
+  The Kavacham is a clear voice. Run `aligner/probe.py` on a new recording first.
+- `npm run setup` from a clean machine. The venv here was built by hand with the
+  same commands.
 - `step` motion, non-`auto` colours, and the `showMeaning` block against a real
   bundle (unit-covered and code-complete, not visually verified).

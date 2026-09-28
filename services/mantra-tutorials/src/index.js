@@ -2,6 +2,7 @@
 // Boot the web UI. Prints configProblems() at startup (repo convention: warn
 // loudly, never die silently) and serves until killed. The CLI (src/cli.js) is
 // the other front end over the same engine; neither is privileged.
+import './env.js'; // must be first: loads .env before config.js reads process.env
 import { createServer } from './server.js';
 import { config, configProblems } from './config.js';
 import { listMantras } from './mantra.js';

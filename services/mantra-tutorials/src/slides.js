@@ -9,9 +9,13 @@ import path from 'node:path';
 import { segmentLine } from './tokens.js';
 import { writeHtml, screenshot, dumpData } from './browser.js';
 import { log } from './log.js';
+import { config } from './config.js';
 
-const MAX_VERSES = 3;
-const MAX_ENG_LINES = 6;
+// Verses per slide decides the type size: the fit search below grows the text
+// until the slide is full, so fewer verses means bigger letters. At 3 the
+// Kavacham page was already full at ~1x; 2 is the house default (2026-09-28).
+const MAX_VERSES = config.versesPerSlide;
+const MAX_ENG_LINES = 2 * MAX_VERSES;
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -41,12 +45,19 @@ function preambleLineHtml(line, p, cls) {
  *  the underline can then track the Devanagari word when target='dev'. */
 function devLineHtml(devLines, verse) {
   let gi = 0;
-  const parts = [];
-  for (const seg of segmentLine(devLines.join(' '))) {
-    if (seg.word) { parts.push(`<span class="dw" data-v="${verse}" data-gi="${gi}">${esc(seg.text)}</span>`); gi++; }
-    else parts.push(esc(seg.text));
-  }
-  return parts.join(' ');
+  const line = (text) => {
+    const parts = [];
+    for (const seg of segmentLine(text)) {
+      if (seg.word) { parts.push(`<span class="dw" data-v="${verse}" data-gi="${gi}">${esc(seg.text)}</span>`); gi++; }
+      else parts.push(esc(seg.text));
+    }
+    return parts.join(' ');
+  };
+  // 'source': one on-screen line per source line (the half-lines as written),
+  // which halves the widest line and lets the text grow. 'joined': the whole
+  // verse on one line, the original layout.
+  if (config.devLayout === 'source') return devLines.map((l) => `<div class="dsub">${line(l)}</div>`).join('');
+  return line(devLines.join(' '));
 }
 
 function fontFace(family, file, weight, style) {
@@ -101,11 +112,12 @@ body{background:url('file:///${bg.replace(/\\/g, '/')}') no-repeat center/cover;
 .iline{font-family:'Serif';color:var(--iast);font-size:calc(33px*var(--scale));line-height:1.36;white-space:nowrap;}
 .iline .w{display:inline-block;}
 .dline .dw{display:inline-block;}
-.speaker{font-family:'Deva';color:var(--accent);font-size:calc(33px*var(--scale));margin-top:calc(8px*var(--scale));}
+.dline .dsub{white-space:nowrap;text-align:center;}
+.speaker{font-family:'Deva';color:var(--accent);font-size:calc(33px*var(--scale));margin-top:calc(8px*var(--scale));white-space:nowrap;}
 .speaker.eng{font-family:'Serif';font-style:italic;font-size:calc(26px*var(--scale));}
 .meaning{margin-top:calc(26px*var(--scale));display:flex;flex-direction:column;align-items:center;gap:2px;}
 .mline{font-family:'Serif';color:var(--iast);opacity:.92;font-size:calc(28px*var(--scale));line-height:1.34;text-align:center;}
-.preamble .pline{font-family:'Deva';color:var(--deva);font-size:calc(38px*var(--scale));line-height:1.55;white-space:normal;text-align:center;max-width:1720px;}
+.preamble .pline{font-family:'Deva';color:var(--deva);font-size:calc(38px*var(--scale));line-height:1.55;white-space:nowrap;text-align:center;}
 .preamble.iast .pline{font-family:'Serif';color:var(--iast);font-size:calc(26px*var(--scale));line-height:1.4;}
 .preamble .pw{display:inline-block;}
 .preamble .pdw{display:inline-block;}
@@ -115,14 +127,23 @@ ${titleHtml}
 <script>
 (function(){
   var c=document.querySelector('.content');
+  var cr=c.getBoundingClientRect();
   function overflow(){
     if(c.scrollHeight>c.clientHeight+1||c.scrollWidth>c.clientWidth+1)return true;
-    var el=c.querySelectorAll('.dline,.iline,.pline');
-    for(var i=0;i<el.length;i++){if(el[i].scrollWidth>el[i].clientWidth+1)return true;}
+    // centred flex content overflows upwards too, which scrollHeight misses
+    var kids=c.children;
+    for(var k=0;k<kids.length;k++){var r=kids[k].getBoundingClientRect();if(r.top<cr.top-1||r.bottom>cr.bottom+1)return true;}
+    var el=c.querySelectorAll('.dline,.iline,.pline,.speaker');
+    for(var i=0;i<el.length;i++){var b=el[i].getBoundingClientRect();if(el[i].scrollWidth>el[i].clientWidth+1||b.left<cr.left-1||b.right>cr.right+1)return true;}
     return false;
   }
-  var s=1,n=0;
-  while(overflow()&&s>0.5&&n<70){s-=0.02;document.documentElement.style.setProperty('--scale',s.toFixed(3));n++;}
+  // Text as large as the slide allows: binary-search the biggest scale at which
+  // nothing overflows. Every line is nowrap, so growing the type never re-wraps
+  // a verse; the source line breaks are kept exactly.
+  function setS(v){document.documentElement.style.setProperty('--scale',v.toFixed(3));}
+  var lo=0.3,hi=3;
+  for(var n=0;n<22;n++){var mid=(lo+hi)/2;setS(mid);if(overflow())hi=mid;else lo=mid;}
+  var s=Math.floor(lo*1000)/1000;setS(s);
   document.documentElement.setAttribute('data-scale',s.toFixed(3));
   function boxesOf(sel,attrs){
     var out=[];

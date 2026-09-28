@@ -54,7 +54,8 @@
 
   <div class="card">
     <h2>Underline</h2>
-    <div class="grid">
+    <div class="row"><input type="checkbox" id="ulOn"><span>Underline the words as they are chanted (experimental — off by default)</span></div>
+    <div class="grid" id="ulGrid" style="margin-top:12px">
       <div>
         <label for="color">Colour</label>
         <div class="row"><input type="text" id="color" placeholder="auto or #cE7A1F"><span class="swatch" id="swatch"></span></div>
@@ -100,7 +101,7 @@
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
-const STAGE_LABELS = { extract:'Extract text', transcribe:'Transcribe chant', align:'Align words', theme:'Derive theme', slides:'Render slides', render:'Assemble video' };
+const STAGE_LABELS = { extract:'Extract text', transcribe:'Time words to chant', align:'Build timeline', theme:'Derive theme', slides:'Render slides', render:'Assemble video' };
 let mantras = [];
 
 function applyDefaults(m){
@@ -111,11 +112,13 @@ function applyDefaults(m){
   $('thickness').value = u.thicknessPx ?? 3;
   $('opacity').value = u.opacity ?? 0.9;
   $('halo').checked = !!u.halo;
+  $('ulOn').checked = !!u.enabled;
   $('meaning').checked = !!m.showMeaning;
   $('mantraInfo').textContent = (m.title ? m.title.replace(/\n/g,' — ') : m.id) + (m.section ? '  ·  ' + m.section : '');
   syncLabels();
 }
 function syncLabels(){
+  $('ulGrid').style.opacity = $('ulOn').checked ? '1' : '.45';
   $('thVal').textContent = $('thickness').value;
   $('opVal').textContent = (+$('opacity').value).toFixed(2);
   const c = $('color').value.trim();
@@ -123,6 +126,7 @@ function syncLabels(){
 }
 function overrides(){
   return {
+    enabled: $('ulOn').checked,
     color: $('color').value.trim() || 'auto',
     target: $('target').value,
     motion: $('motion').value,
@@ -171,7 +175,7 @@ async function load(){
   if(mantras.length) applyDefaults(mantras[0]);
   sel.onchange=()=>{ const m=mantras.find(x=>x.id===sel.value); if(m) applyDefaults(m); };
 }
-['thickness','opacity','color'].forEach(id=>$(id).addEventListener('input',syncLabels));
+['thickness','opacity','color','ulOn'].forEach(id=>$(id).addEventListener('input',syncLabels));
 $('build').onclick=build;
 load();
 </script>

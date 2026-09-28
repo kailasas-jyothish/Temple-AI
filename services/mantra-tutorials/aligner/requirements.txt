@@ -1,0 +1,5 @@
+# Forced aligner (aligner/align.py). Installed into aligner/.venv by `npm run setup`.
+# torch comes from the CPU wheel index (see scripts/setup-aligner.mjs); no GPU needed.
+torch
+torchaudio
+ctc-forced-aligner @ git+https://github.com/MahmoudAshraf97/ctc-forced-aligner.git

@@ -1,6 +1,7 @@
 // @ts-check
-// Stage 3 — align the written words to the heard words and emit a per-word
-// timeline (handover §3). Deepgram's Sanskrit output is an approximate roman
+// Stage 3 — turn word placements into the per-word timeline slides and render
+// consume. alignForced() is the primary path (forced alignment, src/forced.js).
+// align() below is the older fallback: Deepgram's Sanskrit output is an approximate roman
 // transcription, so matching is on a phonetic key (Devanagari consonant skeleton
 // ↔ roman consonant skeleton) via Needleman–Wunsch, exactly as the prototype
 // proved. The prototype then collapsed to one start per verse; here we keep every
@@ -52,7 +53,133 @@ function similarity(left, right) {
   return 1 - previous[right.length] / Math.max(left.length, right.length);
 }
 
+// A line's last word has no next word to hand over to, and CTC marks a word's
+// end at its last character spike, so hold the underline a little past it.
+const LINE_TAIL = 0.35;
+// Switch a slide this far before its first chanted word (never into the previous
+// verse's last word), so the crossfade has finished when the chanting starts.
+const SLIDE_LEAD = 0.4;
+// CTC models fire a little after a sound begins. Measured with aligner/verify.py
+// on the Kavacham: blind-decoding each word's slice read the word best at -80ms
+// (20/24 exact); at 0 the first consonant was cut off, at -160ms the previous
+// word's tail crept in.
+const ONSET_SHIFT = 0.08;
+// Mean per-frame log-probability below which a word's placement is doubtful.
+const WEAK_SCORE = -2;
+
+/** Split [a,b] across tokens in proportion to their length. */
+function spread(a, b, texts) {
+  const total = texts.reduce((s, t) => s + Math.max(1, t.length), 0);
+  let cur = a;
+  return texts.map((t) => {
+    const d = (b - a) * (Math.max(1, t.length) / total);
+    const r = { start: cur, end: cur + d };
+    cur += d;
+    return r;
+  });
+}
+
 /**
+ * Timings from forced alignment (src/forced.js). Produces the same shape as the
+ * Deepgram path below, so slides and render do not care which one ran.
+ * @param {ReturnType<import('./extract.js').extract>} extracted
+ * @param {ReturnType<import('./forced.js').forcedAlign>} forced
+ * @param {string} outDir
+ */
+export function alignForced(extracted, forced, outDir) {
+  const duration = Number(forced.duration);
+  const placed = forced.words.map((w) => ({ ...w, start: Math.max(0, w.start - ONSET_SHIFT), end: Math.max(0, w.end - ONSET_SHIFT) }));
+  const at = (i) => placed[i];
+  const verseIdx = new Map();   // `${verse}:${gi}` -> seq index
+  const preIdx = new Map();     // `${p}:${gi}` -> seq index
+  const speakerIdx = new Map(); // verse -> first speaker seq index
+  forced.seq.forEach((s, i) => {
+    if (s.part === 'verse') verseIdx.set(`${s.verse}:${s.gi}`, i);
+    else if (s.part === 'pre') preIdx.set(`${s.p}:${s.gi}`, i);
+    else if (s.part === 'speaker' && !speakerIdx.has(s.verse)) speakerIdx.set(s.verse, i);
+  });
+
+  /** underline words in reading order: {group, text, start, rawEnd, score, ...ids} */
+  const list = [];
+  let weak = 0, spreadWords = 0;
+  const take = (i) => { const w = at(i); if (w.score !== null && w.score < WEAK_SCORE) weak++; return w; };
+
+  (extracted.preamble?.eng || []).forEach((engLine, p) => {
+    const zip = verseWords([extracted.preamble.dev?.[p] || ''], [engLine]);
+    const idx = zip.words.map((w) => preIdx.get(`${p}:${w.gi}`));
+    let times;
+    if (zip.parallel && idx.every((i) => i !== undefined)) times = idx.map((i) => take(i));
+    else {
+      // Dev and IAST disagree on word count: time the line as a whole, then share it out.
+      const all = [...preIdx.entries()].filter(([k]) => k.startsWith(`${p}:`)).map(([, i]) => at(i));
+      if (!all.length) return;
+      times = spread(all[0].start, all.at(-1).end, zip.words.map((w) => w.iast));
+      spreadWords += zip.words.length;
+    }
+    zip.words.forEach((w, k) => list.push({ kind: 'pre', p, wi: w.wi, text: w.iast, group: `p${p}`, start: times[k].start, rawEnd: times[k].end, score: times[k].score ?? null }));
+  });
+
+  const verseStart = new Map();
+  for (const v of extracted.verses) {
+    const zip = verseWords(v.dev, v.eng);
+    const idx = zip.words.map((w) => verseIdx.get(`${v.number}:${w.gi}`));
+    let times;
+    if (zip.parallel && idx.every((i) => i !== undefined)) times = idx.map((i) => take(i));
+    else {
+      warn('align', `verse ${v.number}: dev(${zip.devCount}) vs translit(${zip.iastCount}) word count differ; its words share the verse's aligned span`);
+      const all = [...verseIdx.entries()].filter(([k]) => k.startsWith(`${v.number}:`)).map(([, i]) => at(i));
+      if (!all.length) continue;
+      times = spread(all[0].start, all.at(-1).end, zip.words.map((w) => w.iast));
+      spreadWords += zip.words.length;
+    }
+    zip.words.forEach((w, k) => list.push({ kind: 'verse', verse: v.number, li: w.li, wi: w.wi, gi: w.gi, text: w.iast, group: `v${v.number}:${w.li}`, start: times[k].start, rawEnd: times[k].end, score: times[k].score ?? null }));
+    const sp = speakerIdx.get(v.number);
+    const first = sp !== undefined ? at(sp).start : times[0]?.start;
+    if (first !== undefined) verseStart.set(v.number, { spoken: first, seqFirst: sp ?? idx[0] });
+  }
+
+  // Monotonic in reading order, then each word holds until the next one starts
+  // (within a line), or a short tail past its own end (at a line's end).
+  let prev = 0;
+  for (const w of list) { w.start = Math.min(duration, Math.max(prev, w.start)); prev = w.start; }
+  list.forEach((w, k) => {
+    const next = list[k + 1];
+    const nextStart = next ? next.start : duration;
+    w.end = next && next.group === w.group ? nextStart : Math.min(nextStart, Math.max(w.rawEnd, w.start) + LINE_TAIL);
+    if (w.end <= w.start) w.end = Math.min(duration, w.start + 0.05);
+  });
+
+  const verseSummary = extracted.verses.filter((v) => verseStart.has(v.number)).map((v) => {
+    const { spoken, seqFirst } = verseStart.get(v.number);
+    const prevEnd = seqFirst > 0 ? at(seqFirst - 1).end : 0;
+    const start = Math.max(prevEnd + 0.05, spoken - SLIDE_LEAD, 0);
+    return { number: v.number, start: Number(Math.min(start, spoken).toFixed(3)), quality: 'aligned' };
+  });
+
+  const r3 = (n) => Number(n.toFixed(3));
+  const verseWordsOut = list.filter((w) => w.kind === 'verse');
+  const mode = spreadWords ? 'forced+spread' : 'forced';
+  const timings = {
+    duration,
+    source: `forced:${forced.model}`,
+    wordCount: forced.seq.length,
+    mode,
+    firstVerseStart: verseSummary[0]?.start ?? duration,
+    verses: verseSummary,
+    words: verseWordsOut.map((w) => ({
+      verse: w.verse, li: w.li, wi: w.wi, gi: w.gi, text: w.text,
+      start: r3(w.start), end: r3(w.end), quality: w.score !== null && w.score < WEAK_SCORE ? 'weak' : 'aligned',
+    })),
+    preamble: { words: list.filter((w) => w.kind === 'pre').map((w) => ({ p: w.p, wi: w.wi, text: w.text, start: r3(w.start), end: r3(w.end) })) },
+  };
+  fs.writeFileSync(path.join(outDir, 'timings.json'), JSON.stringify(timings, null, 2), 'utf8');
+  log('align', `mode=${mode} words=${list.length} weak=${weak} spread=${spreadWords} firstVerse=${timings.firstVerseStart.toFixed(1)}s dur=${duration.toFixed(1)}s`);
+  return timings;
+}
+
+/**
+ * The older timing path: Deepgram ASR words fuzzy-matched to the text. Used
+ * only when the forced aligner is not installed (ALIGNER=auto) or on request.
  * @param {ReturnType<import('./extract.js').extract>} extracted
  * @param {any} transcript  Deepgram JSON
  * @param {string} outDir

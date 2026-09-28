@@ -1,27 +1,23 @@
 // @ts-check
 // Stage 5 — assemble the video. Slides crossfade on the audio timeline (the
-// prototype's proven xfade algebra), and a thin underline tracks the current
+// prototype's proven xfade algebra), and a soft underline tracks the current
 // transliteration word (handover §2/§5b).
 //
-// The underline is ONE drawbox driven by a sendcmd file. Three facts about this
-// ffmpeg build (N-107417), each verified against it before trusting it, shape the
-// code:
-//   1. sendcmd drives only the FIRST drawbox instance; a second box (e.g. a halo
-//      layer) cannot be animated, and `drawbox@label` targeting is ignored. So
-//      the underline is a single box, and "halo" is expressed as a softer, taller
-//      single line rather than a separate glow.
-//   2. drawbox `w 0` means "extend to the input width", not "hide". To hide the
-//      box (before the first word) we park it off-screen on y instead.
-//   3. drawbox reads x,y,w commands in the order they arrive at a timestamp, so
-//      each keyframe emits x, then y, then w (matching the working prototype).
+// The underline is an ASS/libass overlay (src/ass.js), rendered by ffmpeg's
+// `ass` filter over the crossfaded slides. This replaced a single drawbox driven
+// by sendcmd, which could only nudge one hard rectangle and could not glow or
+// glide smoothly. libass does the tweening, softening and haloing for us; here
+// we only turn the measured word boxes + timings into the overlay and stitch the
+// slides. The text (Devanagari + serif transliteration) still comes from the
+// Chromium slide PNGs underneath — the overlay is a vector line only.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ffmpegPath } from './paths.js';
 import { config } from './config.js';
+import { buildAssUnderline } from './ass.js';
 import { log, warn } from './log.js';
 
-const HIDDEN_Y = 1130; // just below the 1080 frame — parks the box out of sight
 const toHex2 = (n) => ('0' + Math.max(0, Math.min(255, Math.round(n))).toString(16)).slice(-2);
 // ffmpeg drawbox colour: 0xRRGGBBAA. Exported so a test can pin the alpha byte.
 export function colorArg(hex6, opacity) {
@@ -44,14 +40,8 @@ export function render(slidesData, timings, theme, mantra, outDir) {
 
   const u = mantra.underline;
   const gap = u.gapPx;
-  // "halo" has no second box available, so it reads as a softer, slightly taller
-  // single underline; the crisp default is the thin reference line.
-  const th = u.halo ? u.thicknessPx + 4 : u.thicknessPx;
-  const opacity = u.halo ? Math.min(u.opacity, 0.55) : u.opacity;
+  const opacity = u.opacity;
   const lineHex = u.color === 'auto' ? theme.accent : (u.color.startsWith('#') ? u.color : '#' + u.color);
-  const lineColor = colorArg(lineHex, opacity);
-  const glide = u.motion === 'glide';
-  const glideS = u.glideMs / 1000;
 
   // Which line the underline follows. The reference (and the default) is the
   // transliteration; 'dev' underlines the Devanagari, which is measured too. A
@@ -78,7 +68,7 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   const targets = [];
   for (const pw of timings.preamble?.words || []) {
     const b = preBox.get(`${pw.p}:${pw.wi}`);
-    if (b) targets.push({ t: pw.start, x: b.x, y: b.y + b.h + gap, w: b.w, slide: b.slide, li: -1 - pw.p });
+    if (b) targets.push({ t: pw.start, end: pw.end, x: b.x, y: b.y + b.h + gap, w: b.w, slide: b.slide, li: -1 - pw.p });
   }
   for (const w of timings.words) {
     const si = slideOfVerse.get(w.verse);
@@ -86,43 +76,28 @@ export function render(slidesData, timings, theme, mantra, outDir) {
     if (si === undefined || !b) continue;
     // Glide group: a translit line is (verse,li); a dev verse is one line, so (verse).
     const li = onDev ? 1000 + w.verse : w.li;
-    targets.push({ t: w.start, x: b.x, y: b.y + b.h + gap, w: b.w, slide: si, li });
+    targets.push({ t: w.start, end: w.end, x: b.x, y: b.y + b.h + gap, w: b.w, slide: si, li });
   }
   targets.sort((a, b) => a.t - b.t);
+  // A glide takes glideMs; start it that much early so the line *arrives* under
+  // a word as the word is sung, rather than trailing the voice by the glide.
+  if (u.motion === 'glide') {
+    const lead = u.glideMs / 1000;
+    for (let i = targets.length - 1; i > 0; i--) {
+      const cur = targets[i], prev = targets[i - 1];
+      if (cur.slide === prev.slide && cur.li === prev.li) cur.t = Math.max(prev.t + 0.05, cur.t - lead);
+    }
+  }
   if (!targets.length) warn('render', 'no underline targets matched a measured box; the video will have no underline');
 
-  // ---- sendcmd command file (single drawbox, x -> y -> w per keyframe) ----
-  const cmds = [];
-  const push = (t, param, val) => cmds.push({ t, o: cmds.length, s: `${t.toFixed(3)} drawbox ${param} ${Math.round(val)}` });
-  cmds.push({ t: 0, o: -3, s: `0 drawbox color ${lineColor}` });
-  cmds.push({ t: 0, o: -2, s: `0 drawbox w 8` });        // any non-zero; w 0 would span the frame
-  cmds.push({ t: 0, o: -1, s: `0 drawbox y ${HIDDEN_Y}` }); // parked until the first word
-
-  let prev = null;
-  for (const cur of targets) {
-    const t = cur.t;
-    const sameLine = prev && glide && prev.slide === cur.slide && prev.li === cur.li;
-    if (!sameLine) {
-      push(t, 'x', cur.x);
-      push(t, 'y', cur.y);
-      push(t, 'w', cur.w);
-    } else {
-      push(t, 'y', cur.y); // vertical never glides
-      const K = 4;
-      for (let s = 1; s <= K; s++) {
-        const tt = t + (glideS * s) / K;
-        push(tt, 'x', prev.x + (cur.x - prev.x) * (s / K));
-        push(tt, 'w', prev.w + (cur.w - prev.w) * (s / K));
-      }
-    }
-    prev = cur;
-  }
-  // Stable sort: by time, then original emission order (keeps x->y->w at a tie).
-  cmds.sort((a, b) => a.t - b.t || a.o - b.o);
-
-  const cmdPath = path.join(outDir, 'underline.cmd');
-  fs.writeFileSync(cmdPath, cmds.map((c) => c.s + ';').join('\n') + '\n', 'utf8');
-  const cmdEsc = cmdPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+  // ---- the underline overlay (.ass) ----
+  const assStr = buildAssUnderline(targets, {
+    colorHex: lineHex, opacity, thicknessPx: u.thicknessPx, halo: u.halo,
+    motion: u.motion, glideMs: u.glideMs, playW: 1920, playH: 1080, duration: D,
+  });
+  const assPath = path.join(outDir, 'underline.ass');
+  fs.writeFileSync(assPath, assStr, 'utf8');
+  const assEsc = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
 
   // ---- per-segment scale/format + xfade chain -> [vbase] ----
   const parts = [];
@@ -136,8 +111,11 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   }
   if (n === 1) parts.push(`[s0]copy[vbase]`);
 
-  const filter = parts.join(';')
-    + `;[vbase]sendcmd=f='${cmdEsc}',drawbox=x=0:y=${HIDDEN_Y}:w=8:h=${th}:color=${lineColor}:t=fill[vout]`;
+  // libass tweens the underline over the crossfaded slides. The overlay is a
+  // vector line only (no text), so this layer needs no font shaping. With the
+  // underline off (the default) the slides go out untouched; underline.ass is
+  // still written, so the timing can be inspected without a render.
+  const filter = parts.join(';') + (u.enabled ? `;[vbase]ass='${assEsc}'[vout]` : ';[vbase]null[vout]');
   fs.writeFileSync(path.join(outDir, 'filter.txt'), filter, 'utf8');
 
   // ---- feed durations (audio-synced xfade): ends overlap once, interiors twice ----
@@ -154,7 +132,7 @@ export function render(slidesData, timings, theme, mantra, outDir) {
     '-c:a', 'aac', '-b:a', config.audioBitrate, '-movflags', '+faststart', '-shortest', mantra.output);
 
   fs.mkdirSync(path.dirname(mantra.output), { recursive: true });
-  log('render', `n=${n} T=${T}s D=${D.toFixed(1)}s targets=${targets.length} cmds=${cmds.length} color=${lineHex}@${opacity} th=${th}px motion=${u.motion} halo=${u.halo}`);
+  log('render', `n=${n} T=${T}s D=${D.toFixed(1)}s underline=${u.enabled ? 'on' : 'off'} targets=${targets.length} color=${lineHex}@${opacity} thickness=${u.thicknessPx}px motion=${u.motion} halo=${u.halo}`);
   log('render', `feed durations sum ${feedSum.toFixed(2)}s -> after xfade ${afterXfade.toFixed(2)}s (audio ${D.toFixed(2)}s)`);
   const t0 = Date.now();
   const r = spawnSync(ffmpegPath(), args, { stdio: 'inherit', windowsHide: true, timeout: 30 * 60 * 1000 });

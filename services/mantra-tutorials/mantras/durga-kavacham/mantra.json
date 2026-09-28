@@ -13,7 +13,7 @@
   "deepgramLanguage": "sa",
 
   "fontsDir": "assets",
-  "fonts": { "devanagari": "deva.otf" },
+  "fonts": { "devanagari": "sanskrit2003.ttf" },
 
   "output": "durga-kavacham.mp4",
 
