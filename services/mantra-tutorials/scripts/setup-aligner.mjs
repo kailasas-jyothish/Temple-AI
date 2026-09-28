@@ -29,6 +29,6 @@ if (!fs.existsSync(venvPy)) {
   run(python, ['-m', 'venv', path.join(dir, '.venv')]);
 }
 run(venvPy, ['-m', 'pip', 'install', '--upgrade', 'pip']);
-run(venvPy, ['-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cpu']);
+run(venvPy, ['-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cpu', '--extra-index-url', 'https://pypi.org/simple']);
 run(venvPy, ['-m', 'pip', 'install', '-r', path.join(dir, 'requirements.txt')]);
 console.log('\nForced aligner ready. The first build downloads the Sanskrit model (~400 MB) once.');

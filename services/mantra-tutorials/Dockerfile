@@ -18,14 +18,19 @@ RUN apt-get update \
       chromium \
       fonts-deva fonts-lohit-deva fonts-noto-core fonts-dejavu-core \
       fontconfig \
-      python3 python3-venv git ca-certificates \
+      python3 python3-venv python3-dev build-essential git ca-certificates \
  && fc-cache -f \
  && rm -rf /var/lib/apt/lists/*
 
 # CPU-only torch keeps the image ~1 GB smaller than the default CUDA wheels.
+# Debian's pip (23.0) resolves every dependency against --index-url alone and
+# fails on the PyTorch index's typing_extensions, so upgrade pip first and let
+# everything but torch come from PyPI. build-essential/python3-dev: the aligner
+# compiles a small C++ extension on Linux.
 COPY aligner/requirements.txt ./aligner/requirements.txt
 RUN python3 -m venv /app/aligner/.venv \
- && /app/aligner/.venv/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+ && /app/aligner/.venv/bin/pip install --no-cache-dir --upgrade pip \
+ && /app/aligner/.venv/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple \
  && /app/aligner/.venv/bin/pip install --no-cache-dir -r aligner/requirements.txt
 
 # Zero Node runtime deps (node:http + stdlib), so there is nothing to npm install.
