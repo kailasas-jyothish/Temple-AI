@@ -236,11 +236,10 @@ the differences that only matter on the server:
   actually rolled with `verify --app mantra-tutorials` (container age — `deployment.all`
   says `done` regardless, CLAUDE.md §10).
 
-> **Not yet run on the host.** As of this writing the Docker image (ffmpeg +
-> headless Chromium + Devanagari fonts) has not been built or deployed on Dokploy,
-> and no Dokploy application exists for it yet — only the `scripts/dokploy.mjs`
-> registry entry. The instructions above describe the intended host workflow, not
-> a proven one; see **Proven vs. not**.
+> **Deployed 2026-09-28.** The image builds on Dokploy and the container is healthy:
+> `/healthz` answers 200 and the UI answers 401 without the password. No render
+> has run in the container yet. The bundle's chant audio is gitignored, so there
+> is nothing to render there until audio is put on the `/data` volume.
 
 ## Configuration
 

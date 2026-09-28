@@ -181,7 +181,9 @@ Inputs that live only on the user's machine: the audio
 
 ## 7. Deployment
 
-Dokploy app `Temple-mantra-tutorials`, port **8481 → 3200**, volume
+**Deployed and healthy since 2026-09-28** (commit `531fea1`). No render has run in
+the container yet, and container-side Devanagari shaping and aligner imports are
+unverified. Dokploy app `Temple-mantra-tutorials`, port **8481 → 3200**, volume
 `temple-mantra-data` at `/data` (holds the HF model cache too). Its host env
 comes from the gitignored `services/mantra-tutorials/.env.deploy`, not `.env`,
 because the local `.env` has a Windows `FFMPEG_PATH`. The UI password is in that
