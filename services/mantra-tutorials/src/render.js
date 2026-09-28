@@ -27,7 +27,7 @@ export function colorArg(hex6, opacity) {
 /**
  * @param {ReturnType<import('./slides.js').buildSlides>} slidesData
  * @param {ReturnType<import('./align.js').align>} timings
- * @param {{accent:string,text:string}} theme
+ * @param {{accent:string,text:string,underline?:string,bandLuminance?:number}} theme
  * @param {import('./mantra.js').Mantra} mantra
  * @param {string} outDir
  */
@@ -41,7 +41,14 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   const u = mantra.underline;
   const gap = u.gapPx;
   const opacity = u.opacity;
-  const lineHex = u.color === 'auto' ? theme.accent : (u.color.startsWith('#') ? u.color : '#' + u.color);
+  // 'auto' uses the theme's dedicated underline colour (a luminous line colour,
+  // distinct from the speaker-text accent — see color.js). A forced hex still wins.
+  const lineHex = u.color === 'auto' ? (theme.underline || theme.accent) : (u.color.startsWith('#') ? u.color : '#' + u.color);
+  // A soft outline in the opposite tone gives the hairline an edge on any
+  // background (dark edge on a light slide, light edge on a dark one), so the
+  // line reads even where its colour is close to the slide behind it.
+  const bandLum = typeof theme.bandLuminance === 'number' ? theme.bandLuminance : 0.5;
+  const outlineHex = bandLum > 0.5 ? '#1a1206' : '#fbf3e0';
 
   // Which line the underline follows. The reference (and the default) is the
   // transliteration; 'dev' underlines the Devanagari, which is measured too. A
@@ -92,7 +99,7 @@ export function render(slidesData, timings, theme, mantra, outDir) {
 
   // ---- the underline overlay (.ass) ----
   const assStr = buildAssUnderline(targets, {
-    colorHex: lineHex, opacity, thicknessPx: u.thicknessPx, halo: u.halo,
+    colorHex: lineHex, outlineHex, opacity, thicknessPx: u.thicknessPx, halo: u.halo,
     motion: u.motion, glideMs: u.glideMs, playW: 1920, playH: 1080, duration: D,
   });
   const assPath = path.join(outDir, 'underline.ass');

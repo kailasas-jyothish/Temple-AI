@@ -5,12 +5,15 @@ text, and the chant audio — into a 1080p tutorial MP4 where the transliteratio
 is **underlined word-by-word in sync with the chant**, styled like the reference
 "Argala Stotram – #DurgaSaptashati" video but on your own background template.
 
-> **The underline is optional and off by default (2026-09-28).** Videos are
+> **The underline is on by default (2026-09-28).** A warm accent line glides
+> under the transliteration word being chanted — placed from the word's exact
+> laid-out box (not OCR) and timed by forced alignment, so it stays under the
+> right word (verified frame by frame). It is drawn with a contrasting soft edge
+> so it reads on any background. Turn it off per build with `--no-underline`,
+> `UNDERLINE=false`, the first CLI question or the web-UI checkbox — you then get
 > plain slides that change with the chant, with the text as large as the slide
-> allows (`VERSES_PER_SLIDE`, default 2; `DEV_LAYOUT=source` keeps the
-> Devanagari on its source half-lines, which is what lets it grow). Turn the experimental underline on with
-> `--underline`, `UNDERLINE=true`, the first CLI question or the web-UI checkbox.
-> Open work is in `MANTRA-TUTORIALS-HANDOVER.md` at the repo root.
+> allows (`VERSES_PER_SLIDE`, default 2; `DEV_LAYOUT=source` keeps the Devanagari
+> on its source half-lines, which is what lets it grow).
 
 Nothing about Durga or the Kavacham is baked into the engine; every mantra is
 just another bundle. One shared engine (`src/pipeline.js`) drives both a local
@@ -95,6 +98,12 @@ steps and could not glow — which is what made the line "run around" harshly.
 - A word that starts a line is a static `\pos` with a fade in; a following word
   on the same line **glides** (`\move`) and **resizes** (`\t(\fscx…)`) from the
   previous word, with no fade between — so the line flows rather than blinks.
+- The core bar carries a **contrasting soft outline** (`\bord` + `\3c` in the
+  opposite tone — a dark edge on a light slide, a light edge on a dark one). A
+  thin coloured line can otherwise sit too close to the slide behind it (a gold
+  line on a gold slide vanished); the outline gives it an edge on any background
+  while keeping the reference's light feel. The line colour itself is a dedicated,
+  higher-contrast `theme.underline` (color.js), not the softer speaker-text accent.
 - `halo=true` adds a **real second glow layer** (layer 0): taller, `\blur5`,
   and more transparent behind the core bar — the thing one drawbox never could.
   Default is `halo=false`, the thin crisp reference line.
@@ -139,7 +148,7 @@ all defaulting to the bundle's own settings (which default to house style):
 
 | Control | Values | Default | Meaning |
 |---|---|---|---|
-| `color` | `auto` \| `#hex` | `auto` | `auto` derives an accent from the background; or force a hex |
+| `color` | `auto` \| `#hex` | `auto` | `auto` derives a visible warm line colour (with a contrasting outline) from the background; or force a hex |
 | `thicknessPx` | integer | `3` | line thickness (thin, 2–3px, like the reference) |
 | `opacity` | 0–1 | `0.9` | line opacity (subtle) |
 | `halo` | bool | `false` | adds a real second glow layer behind the core line (see above) |
@@ -176,7 +185,7 @@ npm run build durga-kavacham -- --target dev --thickness 2 --no-halo
 npm run build durga-kavacham -- --color "#CE7A1F" --motion step
 ```
 
-Flags: `--underline` / `--no-underline` (off unless given), `--color`, `--thickness`, `--opacity`, `--halo` / `--no-halo`, `--motion`,
+Flags: `--underline` / `--no-underline` (on unless `--no-underline`), `--color`, `--thickness`, `--opacity`, `--halo` / `--no-halo`, `--motion`,
 `--target`, `--gap`, `--glide-ms`, `--meaning` / `--no-meaning`, and `--force`
 (re-time the words, ignore the cache). `npm run list` prints the mantra ids.
 
@@ -275,10 +284,15 @@ repo root (CLAUDE.md §11).
   word's slot (`aligner/verify.py`) read the word back for 20 of 24 samples. A
   frame at t=249.4s shows the line under `cāparājitā`, the word being chanted.
 
-- The ASS/libass underline renders and tracks the current word — a soft golden
-  line that glides between words. Verified at t=40/120s on the transliteration
-  (real extracted frames), plus synthetic frames at rest / mid-glide / with the
-  halo glow. libass HarfBuzz shaping confirmed present on the dev ffmpeg.
+- The ASS/libass underline renders, is clearly visible, and tracks the current
+  word — a warm amber line (dedicated `theme.underline` colour with a contrasting
+  soft outline) that glides between words. Verified frame by frame against each
+  word's exact measured box: at t=123.85s the line sits between markers drawn at
+  vārāhī's box edges (dead-on); the preamble line sits under `śrīcaṇḍīkavacasya`
+  and verse 1 under `paramaṃ`. A static box-placement check landed each bar
+  precisely under its word, so the placement is exact, not approximate. This is
+  what let the underline be turned **on by default** (2026-09-28). libass
+  HarfBuzz shaping confirmed present on the dev ffmpeg.
 - `target=dev` underlines the Devanagari: dev words measured 1:1 with translit
   (29/29 per slide), frame at t=120s shows the line under `देवेशि`.
 - The default translit build of `durga-kavacham` renders end to end (20 slides,

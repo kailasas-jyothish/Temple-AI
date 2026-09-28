@@ -15,10 +15,11 @@ const bool = (v, dflt) => (v === undefined || v === '' ? dflt : /^(1|true|on|yes
 
 /** House-style underline defaults (§5b). Every one is overridable per mantra. */
 export const underlineDefaults = {
-  // Off by default (2026-09-28): the word timing is not good enough to ship yet,
-  // so videos are plain slides unless a build asks for the line. See the
-  // handover doc for the open work.
-  enabled: bool(env.UNDERLINE, false),
+  // On by default (2026-09-28, later the same day): the word timing is forced
+  // alignment (proven under the correct word, frame by frame) and the line is now
+  // a clearly-visible warm accent with a contrasting soft edge (color.js/ass.js),
+  // so the underline ships. Turn it off per build with --no-underline / UNDERLINE=false.
+  enabled: bool(env.UNDERLINE, true),
   // 'auto' derives the colour from the background PNG; or a hex like '#CE7A1F'.
   color: env.UNDERLINE_COLOR || 'auto',
   thicknessPx: Math.max(1, Number(env.UNDERLINE_THICKNESS_PX) || 3),

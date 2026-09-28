@@ -43,7 +43,7 @@ export function assAlpha(opacity) {
  * Each target is a word's placed underline: x/y are the top-left of the bar
  * (y already sits gap-below the word), w is its width.
  * @param {{t:number,end:number,x:number,y:number,w:number,slide:number,li:number}[]} targets
- * @param {{colorHex:string,opacity:number,thicknessPx:number,halo:boolean,motion:string,glideMs:number,playW?:number,playH?:number,duration:number}} opts
+ * @param {{colorHex:string,outlineHex?:string,opacity:number,thicknessPx:number,halo:boolean,motion:string,glideMs:number,playW?:number,playH?:number,duration:number}} opts
  * @returns {string}
  */
 export function buildAssUnderline(targets, opts) {
@@ -53,6 +53,15 @@ export function buildAssUnderline(targets, opts) {
   const g = Math.max(0, Math.round(opts.glideMs));            // glide ms
   const fade = Math.max(60, Math.min(140, Math.round(opts.glideMs * 0.7)));
   const H = Math.max(1, Math.round(opts.thicknessPx));        // core bar height
+  // A soft outline in a contrasting tone (dark on a light slide, light on a
+  // dark one) gives the hairline a defined edge on any background — the core
+  // colour alone can sit too close to the slide behind it (a gold line on a
+  // gold slide vanished). The border is blurred with the bar, so it reads as a
+  // gentle halo-edge, not a hard keyline, keeping the reference's light feel.
+  const bord = opts.outlineHex ? Math.max(1.2, opts.thicknessPx * 0.55) : 0;
+  const outline = opts.outlineHex
+    ? `\\bord${bord}\\3c${assBGR(opts.outlineHex)}\\3a${assAlpha(opts.opacity * 0.55)}\\shad0`
+    : '\\bord0\\shad0';
   const fill = `\\1c${assBGR(opts.colorHex)}\\1a${assAlpha(opts.opacity)}`;
   const drawing = (h) => `m 0 0 l ${NATIVE_W} 0 l ${NATIVE_W} ${h} l 0 ${h}`;
 
@@ -89,7 +98,7 @@ export function buildAssUnderline(targets, opts) {
     } else {
       pos = `\\pos(${x},${y})\\fscx${w}`;
     }
-    const ov = `\\an7${pos}${fill}\\blur1.4\\fad(${fadeIn},${fadeOut})\\p1`;
+    const ov = `\\an7${pos}${fill}${outline}\\blur1\\fad(${fadeIn},${fadeOut})\\p1`;
     events.push(`Dialogue: 1,${assTime(start)},${assTime(end)},U,,0,0,0,,{${ov}}${drawing(H)}`);
 
     if (opts.halo) {

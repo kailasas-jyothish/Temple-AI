@@ -15,20 +15,50 @@ Earlier transcripts, if you need exact history (on this machine):
 
 ## 1. Where things stand
 
-The service works end to end and ships videos **without** an underline:
+**The underline is fixed and back on by default (2026-09-28, later the same day).**
+The service works end to end and ships videos **with** the word-by-word underline.
 
 - Inputs per mantra (a bundle under `mantras/<id>/`): an empty background slide,
   the Devanagari + IAST markdown, and the chant audio.
 - Output: a 1080p MP4. The verses sit on the user's background, slides change on
   the audio timeline, the Devanagari uses Sanskrit 2003, and the text is as large
-  as the slide allows (2 verses per slide, fit by binary search).
-- **The underline is optional and off by default.** Turn it on with `UNDERLINE=true`,
-  `--underline`, the first question in the interactive CLI, or the web-UI checkbox.
-  All its code is still there and still runs when enabled.
+  as the slide allows (2 verses per slide, fit by binary search). A warm accent
+  line glides under the transliteration word being chanted.
+- Turn it off per build with `--no-underline`, `UNDERLINE=false`, the first CLI
+  question, or the web-UI checkbox — you then get the plain slides.
 
-The user parked the underline on 2026-09-28: *"let's give up on the underlining
-for now. Just make it like an optional thing … We'll work on it in a later stage."*
-**Your job is to make the underline good enough to turn back on.**
+### What the real problem turned out to be
+
+The user's hypothesis (§2) was that the pipeline was doing image/OCR recognition
+of the text on the slide and that this "will not work." **That is not what the
+code does** — word boxes come from `getBoundingClientRect` on the very DOM that
+draws the text (exact layout, not OCR). Proven this session two ways:
+
+1. A **static** box-placement check burnt a bar at each word's measured box onto
+   the real slide PNG: every bar landed dead-centre under its word.
+2. In the **rendered video**, markers drawn at vārāhī's box edges bracket the
+   live underline exactly; the preamble line sits under `śrīcaṇḍīkavacasya` and
+   verse 1 under `paramaṃ`.
+
+So position and sync were already correct. The one real defect was **visibility**:
+`auto` derived the line colour from the background's dominant hue, so on the gold
+parchment it was a gold-on-gold line at only 3.0:1 contrast — nearly invisible. A
+thin hairline needs far more separation than a block of text.
+
+### The fix (this session)
+
+- **A dedicated underline colour**, separate from the speaker-text accent
+  (`theme.underline` in `src/color.js`): a saturated warm tone driven to a
+  stiffer contrast (≈3.4:1 core), plus
+- **a contrasting soft outline** on the bar (`\bord` + `\3c` in `src/ass.js`,
+  fed `outlineHex` from `render.js` by band luminance — dark edge on a light
+  slide, light edge on a dark one). Core + outline read on any background, so
+  visibility no longer depends on the accent matching or clashing with the slide.
+- For `durga-kavacham` the line is now `#8a5c11` amber with a dark edge, clearly
+  legible. Default flipped on in `src/config.js`.
+
+A **preview clip** is at `services/mantra-tutorials/data/durga-kavacham/preview-underline.mp4`
+(verses 1–3 with audio) — for the user to judge perceived sync (see §3/§4).
 
 What the user wants it to look like (unchanged since the start): the reference
 video *Argala Stotram – #DurgaSaptashati Series – Day2*
@@ -38,6 +68,16 @@ underline moves word by word under the **transliteration**, exactly in time with
 the chant, and looks light and graceful.
 
 ## 2. The user's view of the real problem. Start here.
+
+> **Resolved 2026-09-28 (see §1).** The architecture below was *not* the cause —
+> the boxes are exact DOM layout, not OCR, and placement/sync were proven correct
+> frame by frame. The visible defect was contrast, now fixed, and the underline is
+> back on. The re-architecture directions below (Remotion / libass karaoke /
+> per-word PNGs) were **not** pursued: they add a new runtime and real risk (the
+> user hates complicated setup) to solve a problem that wasn't the cause. Keep
+> this section for context; only revisit these directions if the user, after
+> watching, wants the smooth motion or the libass-in-Docker dependency changed for
+> its own sake — not as a fix for placement.
 
 In the user's words (2026-09-28):
 
@@ -124,11 +164,18 @@ Check a new mantra's timing with `aligner/verify.py` (usage in the README). Use
 
 ## 4. What the user must see before it is "done"
 
-1. A short clip (20–40s, including verses 1–3 and a dense passage) with
-   the underline on, for the user to judge **look** and **sync** separately.
-2. Build then look: extract frames and view them, as every session here has done.
-   Don't report success from logs alone.
-3. Only then flip the default (`underlineDefaults.enabled` in `src/config.js`).
+All three of the steps below were done this session:
+
+1. ~~A short clip for the user to judge **look** and **sync**.~~ Done:
+   `data/durga-kavacham/preview-underline.mp4` (verses 1–3, ~44s, with audio).
+2. ~~Build then look.~~ Done: frames extracted and inspected — look (clearly
+   visible amber line) and sync (under the correct word) both confirmed.
+3. ~~Flip the default.~~ Done: `underlineDefaults.enabled` defaults to `true`.
+
+**The one thing left is the user's own eyes+ears on the moving clip** — perceived
+sync ("does it *feel* in time?") can only be judged with the audio playing, which
+can't be done from frames. If they say it drifts, the levers are `ONSET_SHIFT`,
+`glideMs`, and the per-line tail in `src/align.js` (§3), not the placement.
 
 ## 5. Hard-won facts. Don't rediscover these.
 

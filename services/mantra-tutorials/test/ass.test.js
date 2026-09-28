@@ -76,6 +76,20 @@ test('halo adds a second, softer layer-0 event per word', () => {
   assert.match(halo, /m 0 0 l 100 0 l 100 10 l 0 10$/); // taller (4+6)
 });
 
+test('an outlineHex adds a contrasting border (\\bord + \\3c + \\3a) to the core bar', () => {
+  const withOutline = buildAssUnderline(
+    [{ t: 1, end: 2, x: 400, y: 616, w: 120, slide: 0, li: 0 }],
+    { ...opts, outlineHex: '#1a1206' },
+  );
+  const core = (withOutline.match(/^Dialogue: 1,.*$/gm) || [])[0];
+  assert.match(core, /\\bord[1-9]/);           // a real border, not \bord0
+  assert.match(core, /\\3c&H06121A&/);         // outline colour, BGR-reversed
+  assert.match(core, /\\3a&H[0-9A-F]{2}&/);    // outline alpha
+  // absent outlineHex -> no border drawn
+  const none = buildAssUnderline([{ t: 1, end: 2, x: 400, y: 616, w: 120, slide: 0, li: 0 }], opts);
+  assert.match((none.match(/^Dialogue: 1,.*$/gm) || [])[0], /\\bord0/);
+});
+
 test('a line\'s last word ends at its own end, not the next line\'s start', () => {
   const targets = [
     { t: 0, end: 0.5, x: 400, y: 616, w: 120, slide: 0, li: 0 }, // line 0, last word

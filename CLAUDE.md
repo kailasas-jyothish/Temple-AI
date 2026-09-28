@@ -1463,11 +1463,24 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
   was measured with `aligner/verify.py`.
 - Python lives in `aligner/.venv` (`npm run setup`), gitignored. The Docker image
   installs CPU torch; its build has **not** been run.
-- **2026-09-28: underline parked.** It is off by default (`UNDERLINE`); videos
-  ship as plain slides. Text is grown to fill each slide (binary search on
-  `--scale`, all lines nowrap), and `VERSES_PER_SLIDE=2` is what makes it large.
-  The user's view, recorded in `MANTRA-TUTORIALS-HANDOVER.md` §2: stop
-  positioning an overlay on recovered boxes of a flat slide image, and highlight
-  the text in the same engine that draws it.
+- **2026-09-28: underline parked, then fixed and un-parked the same day.** Text is
+  grown to fill each slide (binary search on `--scale`, all lines nowrap), and
+  `VERSES_PER_SLIDE=2` is what makes it large. The user's hypothesis (recorded in
+  `MANTRA-TUTORIALS-HANDOVER.md` §2) was that the pipeline does OCR/image
+  recognition of the slide text and so "will not work." It does not: word boxes
+  come from `getBoundingClientRect` on the same DOM that draws the text, and
+  placement/sync were proven correct frame by frame (static box check dead-on;
+  markers at a word's box edges bracket the live line). The real defect was
+  **contrast** — `auto` derived the line colour from the background's own hue, so
+  on the gold parchment it was gold-on-gold at 3.0:1, nearly invisible. Fix: a
+  dedicated higher-contrast `theme.underline` colour (`src/color.js`) plus a
+  contrasting soft outline on the bar (`\bord`+`\3c` in `src/ass.js`, `outlineHex`
+  by band luminance in `src/render.js`). Now a clearly-legible warm amber line;
+  **default flipped back on** (`underlineDefaults.enabled`). The re-architecture
+  directions (Remotion / libass karaoke / per-word PNGs) were deliberately not
+  taken — they solve a problem that wasn't the cause. Open: the user's own
+  ears-on-the-clip sign-off that it *feels* synced (frames can't judge that);
+  preview at `data/durga-kavacham/preview-underline.mp4`. Container-side libass
+  shaping + aligner still unverified (deploy note §7 of the handover).
 - The host env is `services/mantra-tutorials/.env.deploy` (gitignored), not
   `.env`. `dokploy.mjs` prefers it, and gained a `create` command.

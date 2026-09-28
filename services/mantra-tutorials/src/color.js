@@ -15,7 +15,7 @@ import { log } from './log.js';
  * @param {string} bgPath
  * @param {string} outDir
  * @param {{ band?: {top:number,bottom:number,left:number,right:number} }} [opts]
- * @returns {{ accent:string, text:string, bandLuminance:number, contrast:number }}
+ * @returns {{ accent:string, underline:string, text:string, bandLuminance:number, contrast:number, underlineContrast?:number, error?:string }}
  */
 export function deriveTheme(bgPath, outDir, opts = {}) {
   const band = opts.band || { top: 300, bottom: 760, left: 70, right: 1850 };
@@ -81,18 +81,45 @@ export function deriveTheme(bgPath, outDir, opts = {}) {
         rgb=hsl2rgb(hsl[0],hsl[1],hsl[2]); guard++;
       }
       function hex(a){ return '#'+a.map(function(v){return ('0'+Math.max(0,Math.min(255,v)).toString(16)).slice(-2);}).join(''); }
-      done({ accent:hex(rgb), text: bandLum>0.5? '#20140a':'#f4ead6', bandLuminance:+bandLum.toFixed(3), contrast:+contrast(rgb[0],rgb[1],rgb[2]).toFixed(2) });
-    }catch(err){ done({ accent:'#c8791f', text:'#20140a', bandLuminance:0.5, contrast:0, error:String(err) }); }
+      // The underline needs its own colour, distinct from the speaker-text accent.
+      // A *thin* line washes out at the accent's 3:1 (fine for text), so we drive
+      // its core the reference way: a luminous warm tone in the accent's own hue
+      // (pale gold on a dark bg, a warm mid-gold on a light one), and pair it with
+      // a contrasting soft outline in ass.js. Core + outline together read on any
+      // background, so visibility no longer depends on the accent matching or
+      // clashing with the slide. We still nudge the core toward the band until it
+      // clears a stiffer 4.5:1, because a hairline needs more separation than text.
+      var uh=rgb2hsl(best.r,best.g,best.b);
+      // Strong saturation so it reads as a warm accent (saffron/amber on a gold
+      // slide), not a wash. On a light slide it settles a few shades below the
+      // band into a saffron; on a dark slide it stays a luminous pale line like
+      // the reference. The contrasting outline (ass.js) does the rest, so we
+      // aim for a gentle 3.4:1 core rather than forcing it dark and muddy.
+      uh[1]=Math.min(0.9,Math.max(0.78,uh[1]));
+      uh[2]= bandLum>0.5? 0.5 : 0.78;
+      var urgb=hsl2rgb(uh[0],uh[1],uh[2]);
+      var uguard=0;
+      while(contrast(urgb[0],urgb[1],urgb[2])<3.4 && uguard<80){
+        uh[2]+= bandLum>0.5? -0.015 : 0.015;
+        uh[2]=Math.min(0.96,Math.max(0.04,uh[2]));
+        urgb=hsl2rgb(uh[0],uh[1],uh[2]); uguard++;
+      }
+      done({ accent:hex(rgb), underline:hex(urgb),
+        text: bandLum>0.5? '#20140a':'#f4ead6', bandLuminance:+bandLum.toFixed(3),
+        contrast:+contrast(rgb[0],rgb[1],rgb[2]).toFixed(2),
+        underlineContrast:+contrast(urgb[0],urgb[1],urgb[2]).toFixed(2) });
+    }catch(err){ done({ accent:'#c8791f', underline:'#f0c874', text:'#20140a', bandLuminance:0.5, contrast:0, error:String(err) }); }
   };
-  img.onerror=function(){ done({ accent:'#c8791f', text:'#20140a', bandLuminance:0.5, contrast:0, error:'image load failed' }); };
+  img.onerror=function(){ done({ accent:'#c8791f', underline:'#f0c874', text:'#20140a', bandLuminance:0.5, contrast:0, error:'image load failed' }); };
   img.src=${JSON.stringify(url)};
 })();
 </script></body></html>`;
 
   const p = writeHtml(outDir, 'theme.html', html);
   const data = dumpData(p, ['data-theme'], ['--allow-file-access-from-files', '--disable-web-security', `--user-data-dir=${path.join(outDir, 'chrome-profile')}`]);
-  const theme = data['data-theme'] || { accent: '#c8791f', text: '#20140a', bandLuminance: 0.5, contrast: 0 };
+  const theme = data['data-theme'] || { accent: '#c8791f', underline: '#f0c874', text: '#20140a', bandLuminance: 0.5, contrast: 0 };
+  if (!theme.underline) theme.underline = theme.accent; // older cache / fallback
   fs.writeFileSync(path.join(outDir, 'theme.json'), JSON.stringify(theme, null, 2), 'utf8');
-  log('theme', `accent=${theme.accent} text=${theme.text} bandLum=${theme.bandLuminance} contrast=${theme.contrast}${theme.error ? ' (' + theme.error + ')' : ''}`);
+  log('theme', `accent=${theme.accent} underline=${theme.underline}(${theme.underlineContrast ?? '?'}) text=${theme.text} bandLum=${theme.bandLuminance} contrast=${theme.contrast}${theme.error ? ' (' + theme.error + ')' : ''}`);
   return theme;
 }
