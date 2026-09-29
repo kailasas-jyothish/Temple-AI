@@ -132,7 +132,82 @@ export function render(slidesData, timings, theme, mantra, outDir, opts = {}) {
   fs.writeFileSync(assPath, assStr, 'utf8');
   const assEsc = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-  // ---- per-segment scale/format + xfade chain -> [vbase] ----
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  log('render', `n=${n} T=${T}s D=${D.toFixed(1)}s underline=${u.enabled ? 'on' : 'off'} targets=${targets.length} color=${lineHex}@${opacity} thickness=${u.thicknessPx}px motion=${u.motion} halo=${u.halo}`);
+  const t0 = Date.now();
+
+  // ---- slides -> silent video, in chunks (config.renderChunkSlides) ----
+  // Each chunk is its own ffmpeg pass, because one pass holds a frame queue per
+  // slide and a long chapter exhausted a 16 GB machine. Chunks are cut in the
+  // middle of a slide, where the picture is still, so a seam cannot show. The
+  // underline is not drawn here; it is one overlay over the joined video below.
+  const cuts = chunkCuts(slides, D, T, config.fps, config.renderChunkSlides);
+  const chunkDir = path.join(outDir, 'chunks');
+  fs.rmSync(chunkDir, { recursive: true, force: true });
+  fs.mkdirSync(chunkDir, { recursive: true });
+  const files = [];
+  for (let c = 0; c + 1 < cuts.length; c++) {
+    const file = path.join(chunkDir, `chunk-${String(c).padStart(3, '0')}.mkv`);
+    renderChunk(slides, cuts[c], cuts[c + 1], T, file);
+    files.push(file);
+    log('render', `chunk ${c + 1}/${cuts.length - 1} ${cuts[c].toFixed(2)}–${cuts[c + 1].toFixed(2)}s`);
+  }
+  const list = path.join(chunkDir, 'chunks.txt');
+  fs.writeFileSync(list, files.map((f) => `file '${f.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n') + '\n', 'utf8');
+
+  // ---- joined video + underline + audio -> output ----
+  // libass tweens the underline over the crossfaded slides. The overlay is a
+  // vector line only (no text), so this layer needs no font shaping. With the
+  // underline off the slides go out untouched; underline.ass is still written,
+  // so the timing can be inspected without a render.
+  const filter = u.enabled ? `[0:v]ass='${assEsc}'[vout]` : '[0:v]null[vout]';
+  fs.writeFileSync(path.join(outDir, 'filter.txt'), `cuts ${cuts.map((c) => c.toFixed(3)).join(' ')}\n${filter}\n`, 'utf8');
+  const args = ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list];
+  if (win) args.push('-ss', win.from.toFixed(3), '-t', D.toFixed(3));
+  args.push('-i', mantra.audio);
+  args.push('-filter_complex', filter, '-map', '[vout]', '-map', '1:a:0',
+    '-c:v', 'libx264', '-preset', config.preset, '-crf', String(config.crf), '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', config.audioBitrate, '-movflags', '+faststart', '-shortest', output);
+  ffmpeg(args);
+  fs.rmSync(chunkDir, { recursive: true, force: true });
+
+  const sz = fs.statSync(output).size;
+  log('render', `OK ${((Date.now() - t0) / 1000).toFixed(0)}s (${(sz / 1e6).toFixed(1)} MB) -> ${output}`);
+  return { output, seconds: (Date.now() - t0) / 1000, bytes: sz };
+}
+
+function ffmpeg(args) {
+  const r = spawnSync(ffmpegPath(), args, { stdio: 'inherit', windowsHide: true, timeout: 30 * 60 * 1000 });
+  if (r.error) throw r.error;
+  if (r.status !== 0) throw new Error('ffmpeg exited ' + r.status);
+}
+
+/**
+ * Chunk boundaries on the output timeline: every `per` slides, at the middle of
+ * the first slide from there that holds still for longer than a crossfade,
+ * rounded to a frame so the chunks' frame counts add up to the whole.
+ * @param {{start:number,end:number}[]} slides
+ */
+export function chunkCuts(slides, D, T, fps, per) {
+  const cuts = [0];
+  let j = per;
+  while (j < slides.length - 1) {
+    while (j < slides.length - 1 && slides[j].end - slides[j].start < T + 4 / fps) j++;
+    if (j >= slides.length - 1) break;
+    const c = Math.round(((slides[j].start + slides[j].end) / 2) * fps) / fps;
+    if (c > cuts[cuts.length - 1]) cuts.push(c);
+    j += per;
+  }
+  cuts.push(D);
+  return cuts;
+}
+
+/** One stretch [from, to) of the crossfaded slides, video only, near-lossless. */
+function renderChunk(all, from, to, T, file) {
+  // Slides overlapping the stretch, clipped and shifted to start at 0.
+  const slides = all.filter((s) => s.end > from && s.start < to)
+    .map((s) => ({ ...s, start: Math.max(s.start, from) - from, end: Math.min(s.end, to) - from }));
+  const n = slides.length;
   const parts = [];
   for (let i = 0; i < n; i++) parts.push(`[${i}:v]scale=1920:1080,fps=${config.fps},format=yuv420p,setsar=1,settb=AVTB[s${i}]`);
   let prevLabel = 's0';
@@ -143,36 +218,16 @@ export function render(slidesData, timings, theme, mantra, outDir, opts = {}) {
     prevLabel = out;
   }
   if (n === 1) parts.push(`[s0]copy[vbase]`);
+  // Pad with the last frame and stop at an exact frame count, so rounding in
+  // the xfade chain can never make one chunk short and shift every later one.
+  parts.push('[vbase]tpad=stop_mode=clone:stop_duration=1[vout]');
 
-  // libass tweens the underline over the crossfaded slides. The overlay is a
-  // vector line only (no text), so this layer needs no font shaping. With the
-  // underline off (the default) the slides go out untouched; underline.ass is
-  // still written, so the timing can be inspected without a render.
-  const filter = parts.join(';') + (u.enabled ? `;[vbase]ass='${assEsc}'[vout]` : ';[vbase]null[vout]');
-  fs.writeFileSync(path.join(outDir, 'filter.txt'), filter, 'utf8');
-
-  // ---- feed durations (audio-synced xfade): ends overlap once, interiors twice ----
+  // Feed durations (audio-synced xfade): ends overlap once, interiors twice.
   const w = slides.map((s) => s.end - s.start);
   const d = w.map((wi, i) => (n === 1 ? wi : i === 0 || i === n - 1 ? wi + T / 2 : wi + T));
-  const feedSum = d.reduce((a, b) => a + b, 0);
-  const afterXfade = feedSum - (n - 1) * T;
-
   const args = ['-hide_banner', '-loglevel', 'error', '-y'];
   for (let i = 0; i < n; i++) args.push('-loop', '1', '-framerate', String(config.fps), '-t', d[i].toFixed(3), '-i', slides[i].png);
-  if (win) args.push('-ss', win.from.toFixed(3), '-t', D.toFixed(3));
-  args.push('-i', mantra.audio);
-  args.push('-filter_complex', filter, '-map', '[vout]', '-map', `${n}:a:0`,
-    '-c:v', 'libx264', '-preset', config.preset, '-crf', String(config.crf), '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', config.audioBitrate, '-movflags', '+faststart', '-shortest', output);
-
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  log('render', `n=${n} T=${T}s D=${D.toFixed(1)}s underline=${u.enabled ? 'on' : 'off'} targets=${targets.length} color=${lineHex}@${opacity} thickness=${u.thicknessPx}px motion=${u.motion} halo=${u.halo}`);
-  log('render', `feed durations sum ${feedSum.toFixed(2)}s -> after xfade ${afterXfade.toFixed(2)}s (audio ${D.toFixed(2)}s)`);
-  const t0 = Date.now();
-  const r = spawnSync(ffmpegPath(), args, { stdio: 'inherit', windowsHide: true, timeout: 30 * 60 * 1000 });
-  if (r.error) throw r.error;
-  if (r.status !== 0) throw new Error('ffmpeg exited ' + r.status);
-  const sz = fs.statSync(output).size;
-  log('render', `OK ${((Date.now() - t0) / 1000).toFixed(0)}s (${(sz / 1e6).toFixed(1)} MB) -> ${output}`);
-  return { output, seconds: (Date.now() - t0) / 1000, bytes: sz };
+  args.push('-filter_complex', parts.join(';'), '-map', '[vout]', '-frames:v', String(Math.round((to - from) * config.fps)),
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-qp', '0', '-pix_fmt', 'yuv420p', file);
+  ffmpeg(args);
 }

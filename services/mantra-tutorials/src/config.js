@@ -77,6 +77,10 @@ export const config = {
   crf: Number(env.CRF || 19),
   preset: env.X264_PRESET || 'medium',
   audioBitrate: env.AUDIO_BITRATE || '192k',
+  // Slides per ffmpeg pass. ffmpeg holds a frame queue per slide input, so one
+  // pass over a whole chapter grew to 5 GB at 40 slides and 6.6 GB at 80 (measured
+  // 2026-09-29), and a 16 GB laptop ran out. Chunks keep it flat at ~2 GB.
+  renderChunkSlides: Math.max(2, Math.round(numOr(env.RENDER_CHUNK_SLIDES, 10))),
   // Off by default (§9.1): show a non-underlined meaning block when a source exists.
   showMeaning: bool(env.SHOW_MEANING, false),
   underline: underlineDefaults,
