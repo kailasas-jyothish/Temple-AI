@@ -5,6 +5,7 @@
 // be inspected (verses.json, timings.json, theme.json, slides.json) and a stage
 // can be re-run from a cache. `onStage` lets the web UI stream progress; the CLI
 // passes a printer.
+import path from 'node:path';
 import { loadMantra, workDir } from './mantra.js';
 import { extract } from './extract.js';
 import { transcribe } from './transcribe.js';
@@ -23,7 +24,7 @@ const STAGES = ['extract', 'transcribe', 'align', 'theme', 'slides', 'render'];
  * @param {string} idOrPath  bundle id (folder under MANTRAS_DIR) or path to mantra.json
  * @param {{ onStage?: (s:{name:string,index:number,total:number,phase:'start'|'done',info?:any})=>void,
  *           overrides?: Partial<import('./mantra.js').Mantra['underline']> & { showMeaning?: boolean },
- *           force?: boolean }} [opts]
+ *           force?: boolean, sample?: {from:number,to:number} }} [opts]
  */
 export async function runPipeline(idOrPath, opts = {}) {
   const onStage = opts.onStage || (() => {});
@@ -65,12 +66,18 @@ export async function runPipeline(idOrPath, opts = {}) {
   const theme = deriveTheme(mantra.background, out, { band: { top: a.top + 236, bottom: 1080 - a.bottom, left: a.left, right: 1920 - a.right } });
   at(3, 'done', { accent: theme.accent, text: theme.text });
 
+  // A sample renders one stretch of the timeline to data/<id>/, never over the
+  // bundle's output, and only screenshots the slides that stretch shows.
+  const win = opts.sample;
   at(4, 'start');
-  const slides = buildSlides(extracted, timings, theme, mantra, out);
+  const slides = buildSlides(extracted, timings, theme, mantra, out,
+    win ? { only: (_i, s) => s.end > win.from && s.start < win.to } : {});
   at(4, 'done', { slides: slides.slides.length });
 
   at(5, 'start');
-  const result = render(slides, timings, theme, mantra, out);
+  const result = render(slides, timings, theme, mantra, out, win
+    ? { window: win, output: path.join(out, `sample-${Math.round(win.from)}-${Math.round(win.to)}.mp4`) }
+    : {});
   at(5, 'done', { output: result.output, mb: +(result.bytes / 1e6).toFixed(1) });
 
   return { mantra, out, theme, timings, slides, output: result.output, bytes: result.bytes };

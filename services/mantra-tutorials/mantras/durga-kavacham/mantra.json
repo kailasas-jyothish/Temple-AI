@@ -1,11 +1,12 @@
 {
   "id": "durga-kavacham",
-  "title": "Devi Kavacham\n#DurgaSaptashati Series",
+  "title": "Devi Kavacham",
   "section": "Kavacha Stotram",
   "expectedVerses": 56,
 
   "background": "background-devi-mahatmyam.png",
-  "textArea": { "left": 740, "right": 220, "top": 44, "bottom": 50 },
+  "textArea": { "left": 690, "right": 150, "top": 44, "bottom": 50 },
+  "versesPerSlide": 1,
   "devMarkdown": "devanagari.md",
   "engMarkdown": "english.md",
   "audio": "audio.mp3",

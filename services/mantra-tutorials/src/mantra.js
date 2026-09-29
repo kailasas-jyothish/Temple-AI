@@ -70,6 +70,8 @@ export function loadMantra(idOrPath) {
     // Where text may go, as px margins from the 1920x1080 frame's edges. A
     // background with a figure or logo on it keeps them clear by narrowing this.
     textArea: { ...DEFAULT_TEXT_AREA, ...(raw.textArea || {}) },
+    versesPerSlide: Math.max(0, Math.round(Number(raw.versesPerSlide) || 0)), // 0 = VERSES_PER_SLIDE
+    uniformScale: raw.uniformScale !== false, // one type size on every slide
   };
 
   const missing = [];

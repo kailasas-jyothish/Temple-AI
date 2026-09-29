@@ -135,7 +135,10 @@ function sweepEvents(targets, o, events) {
   let i = 0;
   while (i < targets.length) {
     let j = i;
-    while (j + 1 < targets.length && targets[j + 1].slide === targets[i].slide && targets[j + 1].li === targets[i].li) j++;
+    // A group is one visual row: same line, and same y (a wrapped line's second
+    // row must start its own sweep rather than slide diagonally up to it).
+    while (j + 1 < targets.length && targets[j + 1].slide === targets[i].slide && targets[j + 1].li === targets[i].li
+      && Math.abs(targets[j + 1].y - targets[i].y) < 4) j++;
     const line = targets.slice(i, j + 1);
     const left = Math.min(...line.map((t) => t.x));
     const right = Math.max(...line.map((t) => t.x + t.w));

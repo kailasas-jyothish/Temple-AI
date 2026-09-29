@@ -92,11 +92,11 @@ export function alignForced(extracted, forced, outDir) {
   const at = (i) => placed[i];
   const verseIdx = new Map();   // `${verse}:${gi}` -> seq index
   const preIdx = new Map();     // `${p}:${gi}` -> seq index
-  const speakerIdx = new Map(); // verse -> first speaker seq index
+  const speakerIdx = new Map(); // verse -> speaker seq indices, in order
   forced.seq.forEach((s, i) => {
     if (s.part === 'verse') verseIdx.set(`${s.verse}:${s.gi}`, i);
     else if (s.part === 'pre') preIdx.set(`${s.p}:${s.gi}`, i);
-    else if (s.part === 'speaker' && !speakerIdx.has(s.verse)) speakerIdx.set(s.verse, i);
+    else if (s.part === 'speaker') speakerIdx.set(s.verse, [...(speakerIdx.get(s.verse) || []), i]);
   });
 
   /** underline words in reading order: {group, text, start, rawEnd, score, ...ids} */
@@ -121,6 +121,16 @@ export function alignForced(extracted, forced, outDir) {
 
   const verseStart = new Map();
   for (const v of extracted.verses) {
+    // "mārkaṇḍeya uvāca": the speaker line is underlined like any other, ahead
+    // of its verse so reading order (and the monotonic pass below) holds.
+    const spIdx = speakerIdx.get(v.number) || [];
+    if (spIdx.length && v.speaker?.eng) {
+      const sz = verseWords([v.speaker.dev || ''], [v.speaker.eng]);
+      const times = sz.parallel && sz.words.length === spIdx.length
+        ? spIdx.map((i) => take(i))
+        : spread(at(spIdx[0]).start, at(spIdx.at(-1)).end, sz.words.map((w) => w.iast));
+      sz.words.forEach((w, k) => list.push({ kind: 'speaker', verse: v.number, wi: w.wi, text: w.iast, group: `s${v.number}`, start: times[k].start, rawEnd: times[k].end, score: times[k].score ?? null }));
+    }
     const zip = verseWords(v.dev, v.eng);
     const idx = zip.words.map((w) => verseIdx.get(`${v.number}:${w.gi}`));
     let times;
@@ -133,7 +143,7 @@ export function alignForced(extracted, forced, outDir) {
       spreadWords += zip.words.length;
     }
     zip.words.forEach((w, k) => list.push({ kind: 'verse', verse: v.number, li: w.li, wi: w.wi, gi: w.gi, text: w.iast, group: `v${v.number}:${w.li}`, start: times[k].start, rawEnd: times[k].end, score: times[k].score ?? null }));
-    const sp = speakerIdx.get(v.number);
+    const sp = spIdx[0];
     const first = sp !== undefined ? at(sp).start : times[0]?.start;
     if (first !== undefined) verseStart.set(v.number, { spoken: first, seqFirst: sp ?? idx[0] });
   }
@@ -171,6 +181,7 @@ export function alignForced(extracted, forced, outDir) {
       start: r3(w.start), end: r3(w.end), quality: w.score !== null && w.score < WEAK_SCORE ? 'weak' : 'aligned',
     })),
     preamble: { words: list.filter((w) => w.kind === 'pre').map((w) => ({ p: w.p, wi: w.wi, text: w.text, start: r3(w.start), end: r3(w.end) })) },
+    speakers: list.filter((w) => w.kind === 'speaker').map((w) => ({ verse: w.verse, wi: w.wi, text: w.text, start: r3(w.start), end: r3(w.end) })),
   };
   fs.writeFileSync(path.join(outDir, 'timings.json'), JSON.stringify(timings, null, 2), 'utf8');
   log('align', `mode=${mode} words=${list.length} weak=${weak} spread=${spreadWords} firstVerse=${timings.firstVerseStart.toFixed(1)}s dur=${duration.toFixed(1)}s`);

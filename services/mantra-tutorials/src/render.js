@@ -30,16 +30,30 @@ export function colorArg(hex6, opacity) {
  * @param {{accent:string,text:string,underline?:string,bandLuminance?:number}} theme
  * @param {import('./mantra.js').Mantra} mantra
  * @param {string} outDir
+ * @param {{ window?: {from:number,to:number}, output?: string }} [opts]
+ *   window: render only that stretch of the timeline (a sample), to `output`.
  */
-export function render(slidesData, timings, theme, mantra, outDir) {
-  const slides = slidesData.slides;
-  const D = slidesData.duration;
+export function render(slidesData, timings, theme, mantra, outDir, opts = {}) {
+  const win = opts.window;
+  const output = opts.output || mantra.output;
+  const all = slidesData.slides;
+  // A sample keeps the slides overlapping the window, clipped and shifted so
+  // the window starts at 0; the audio is seeked to match below.
+  const slides = win
+    ? all.filter((s) => s.end > win.from && s.start < win.to)
+      .map((s) => ({ ...s, start: Math.max(s.start, win.from) - win.from, end: Math.min(s.end, win.to) - win.from }))
+    : all;
+  const D = win ? win.to - win.from : slidesData.duration;
   const T = config.crossfadeSeconds;
   const n = slides.length;
+  if (!n) throw new Error('no slides in the requested window');
   for (const s of slides) if (!fs.existsSync(s.png)) throw new Error('missing slide png ' + s.png);
 
   const u = mantra.underline;
   const gap = u.gapPx;
+  // Under the glyph baseline when the slide measured it; older slides.json only
+  // has the box, whose bottom includes the line's leading.
+  const lineY = (b) => (typeof b.base === 'number' ? b.base + gap : b.y + b.h + gap);
   const opacity = u.opacity;
   // 'auto' uses the theme's dedicated underline colour (a luminous line colour,
   // distinct from the speaker-text accent — see color.js). A forced hex still wins.
@@ -59,8 +73,10 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   const slideOfVerse = new Map();
   const wordBox = new Map(); // translit: `${v}:${li}:${wi}` ; dev: `${v}:${gi}`
   const preBox = new Map();  // `${p}:${wi}` -> box (preamble is slide 0)
-  slides.forEach((s, si) => {
+  const spBox = new Map();   // speaker line: `${v}:${wi}` -> box (transliteration only)
+  all.forEach((s, si) => {
     for (const vn of s.verses) slideOfVerse.set(vn, si);
+    for (const b of s.swords || []) spBox.set(`${b.v}:${b.wi}`, { ...b, slide: si });
     if (onDev) {
       for (const b of s.dwords || []) wordBox.set(`${b.v}:${b.gi}`, { ...b, slide: si });
       for (const b of s.pdwords || []) preBox.set(`${b.p}:${b.wi}`, { ...b, slide: si });
@@ -75,7 +91,11 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   const targets = [];
   for (const pw of timings.preamble?.words || []) {
     const b = preBox.get(`${pw.p}:${pw.wi}`);
-    if (b) targets.push({ t: pw.start, end: pw.end, x: b.x, y: b.y + b.h + gap, w: b.w, slide: b.slide, li: -1 - pw.p });
+    if (b) targets.push({ t: pw.start, end: pw.end, x: b.x, y: lineY(b), w: b.w, slide: b.slide, li: -1 - pw.p });
+  }
+  for (const sw of timings.speakers || []) {
+    const b = spBox.get(`${sw.verse}:${sw.wi}`);
+    if (b) targets.push({ t: sw.start, end: sw.end, x: b.x, y: lineY(b), w: b.w, slide: b.slide, li: -1000 - sw.verse });
   }
   for (const w of timings.words) {
     const si = slideOfVerse.get(w.verse);
@@ -83,9 +103,15 @@ export function render(slidesData, timings, theme, mantra, outDir) {
     if (si === undefined || !b) continue;
     // Glide group: a translit line is (verse,li); a dev verse is one line, so (verse).
     const li = onDev ? 1000 + w.verse : w.li;
-    targets.push({ t: w.start, end: w.end, x: b.x, y: b.y + b.h + gap, w: b.w, slide: si, li });
+    targets.push({ t: w.start, end: w.end, x: b.x, y: lineY(b), w: b.w, slide: si, li });
   }
   targets.sort((a, b) => a.t - b.t);
+  if (win) {
+    const kept = targets.filter((x) => x.end > win.from && x.t < win.to)
+      .map((x) => ({ ...x, t: Math.max(0, x.t - win.from), end: Math.min(D, x.end - win.from) }));
+    targets.length = 0;
+    targets.push(...kept);
+  }
   // A glide takes glideMs; start it that much early so the line *arrives* under
   // a word as the word is sung, rather than trailing the voice by the glide.
   if (u.motion === 'glide') {
@@ -133,19 +159,20 @@ export function render(slidesData, timings, theme, mantra, outDir) {
 
   const args = ['-hide_banner', '-loglevel', 'error', '-y'];
   for (let i = 0; i < n; i++) args.push('-loop', '1', '-framerate', String(config.fps), '-t', d[i].toFixed(3), '-i', slides[i].png);
+  if (win) args.push('-ss', win.from.toFixed(3), '-t', D.toFixed(3));
   args.push('-i', mantra.audio);
   args.push('-filter_complex', filter, '-map', '[vout]', '-map', `${n}:a:0`,
     '-c:v', 'libx264', '-preset', config.preset, '-crf', String(config.crf), '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac', '-b:a', config.audioBitrate, '-movflags', '+faststart', '-shortest', mantra.output);
+    '-c:a', 'aac', '-b:a', config.audioBitrate, '-movflags', '+faststart', '-shortest', output);
 
-  fs.mkdirSync(path.dirname(mantra.output), { recursive: true });
+  fs.mkdirSync(path.dirname(output), { recursive: true });
   log('render', `n=${n} T=${T}s D=${D.toFixed(1)}s underline=${u.enabled ? 'on' : 'off'} targets=${targets.length} color=${lineHex}@${opacity} thickness=${u.thicknessPx}px motion=${u.motion} halo=${u.halo}`);
   log('render', `feed durations sum ${feedSum.toFixed(2)}s -> after xfade ${afterXfade.toFixed(2)}s (audio ${D.toFixed(2)}s)`);
   const t0 = Date.now();
   const r = spawnSync(ffmpegPath(), args, { stdio: 'inherit', windowsHide: true, timeout: 30 * 60 * 1000 });
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('ffmpeg exited ' + r.status);
-  const sz = fs.statSync(mantra.output).size;
-  log('render', `OK ${((Date.now() - t0) / 1000).toFixed(0)}s (${(sz / 1e6).toFixed(1)} MB) -> ${mantra.output}`);
-  return { output: mantra.output, seconds: (Date.now() - t0) / 1000, bytes: sz };
+  const sz = fs.statSync(output).size;
+  log('render', `OK ${((Date.now() - t0) / 1000).toFixed(0)}s (${(sz / 1e6).toFixed(1)} MB) -> ${output}`);
+  return { output, seconds: (Date.now() - t0) / 1000, bytes: sz };
 }

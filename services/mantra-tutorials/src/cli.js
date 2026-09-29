@@ -55,13 +55,22 @@ const stagePrinter = () => (s) => {
   else stdout.write(` done${s.info && s.info.mode ? ` (${s.info.mode})` : ''}\n`);
 };
 
-async function build(idOrPath, overrides, force) {
+/** "100-140" -> {from:100,to:140} seconds; anything else -> undefined. */
+export function parseSample(v) {
+  const m = typeof v === 'string' && v.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+  if (!m) return undefined;
+  const from = Number(m[1]), to = Number(m[2]);
+  return to > from ? { from, to } : undefined;
+}
+
+async function build(idOrPath, overrides, force, sample) {
   const mantra = loadMantra(idOrPath);
   const on = overrides.enabled ?? mantra.underline.enabled;
   console.log(`\nBuilding "${mantra.id}" — underline ${on ? `${overrides.color || mantra.underline.color}/${overrides.motion || mantra.underline.motion}, target ${overrides.target || mantra.underline.target}` : 'off'}` +
     `, meaning ${overrides.showMeaning ?? mantra.showMeaning}`);
   const t0 = Date.now();
-  const r = await runPipeline(idOrPath, { overrides, force, onStage: stagePrinter() });
+  if (sample) console.log(`  sample only: ${sample.from}s-${sample.to}s`);
+  const r = await runPipeline(idOrPath, { overrides, force, sample, onStage: stagePrinter() });
   console.log(`\nOK ${(((Date.now() - t0) / 1000) | 0)}s — ${(r.bytes / 1e6).toFixed(1)} MB\n  ${r.output}`);
 }
 
@@ -109,9 +118,11 @@ async function main() {
   if (cmd === 'build') {
     const rest = argv.slice(1);
     const id = rest.find((a) => !a.startsWith('--'));
-    if (!id) { console.error('usage: mantra build <id> [--underline|--no-underline] [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion sweep|glide|step] [--length 64] [--target translit|dev] [--meaning] [--force]'); process.exit(2); }
+    if (!id) { console.error('usage: mantra build <id> [--underline|--no-underline] [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion sweep|glide|step] [--length 64] [--target translit|dev] [--meaning] [--force] [--sample 100-140]'); process.exit(2); }
     const f = parseFlags(rest);
-    await build(id, overridesFromFlags(f), !!f.force);
+    const sample = f.sample === undefined ? undefined : parseSample(String(f.sample));
+    if (f.sample !== undefined && !sample) { console.error('--sample wants <from>-<to> in seconds, e.g. --sample 100-140'); process.exit(2); }
+    await build(id, overridesFromFlags(f), !!f.force, sample);
     return;
   }
   console.error(`unknown command "${cmd}". Commands: (no args) interactive, list, build <id>`);
