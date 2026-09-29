@@ -60,8 +60,9 @@ VOLUME ["/data"]
 
 EXPOSE 3200
 
-# node:slim ships wget; the healthcheck hits the unauthenticated /healthz.
+# bookworm-slim has no wget or curl, and a missing binary fails every check, so
+# Swarm replaced the container about once a minute. Node's own fetch is always there.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3200/healthz || exit 1
+  CMD ["node", "-e", "fetch('http://127.0.0.1:3200/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
 CMD ["node", "src/index.js"]
