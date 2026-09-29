@@ -15,6 +15,16 @@ venv/
 # Reels rendered by `reels --no-upload`, which land next to the code.
 *.mp4
 
+# No audio anywhere in git: songs, chants and recordings are content, uploaded
+# to the service that uses them, never committed.
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.flac
+*.ogg
+*.opus
+
 # Nothing belongs in a .json at the repo root. Google service-account keys land
 # here under the Cloud project's own name — "complete-energy-507909-r5-….json"
 # looks like nothing in particular, and `git add -A` took one on 2026-09-22

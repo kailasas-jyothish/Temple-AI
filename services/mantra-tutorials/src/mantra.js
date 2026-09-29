@@ -62,9 +62,9 @@ export function loadMantra(idOrPath, opts = {}) {
   const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
   const id = raw.id || path.basename(dir);
-  // The fonts directory: the bundle's own, else the prototype assets we ship.
+  // The fonts directory: the bundle's own, else the fonts shipped with the service.
   const fontsDir = resolveIn(dir, raw.fontsDir || 'assets') ;
-  const shippedAssets = path.join(config.serviceRoot, 'prototype', 'assets');
+  const shippedAssets = path.join(config.serviceRoot, 'assets', 'fonts');
   const fonts = {};
   for (const k of FONT_KEYS) {
     const wanted = (raw.fonts && raw.fonts[k]) || DEFAULT_FONTS[k];

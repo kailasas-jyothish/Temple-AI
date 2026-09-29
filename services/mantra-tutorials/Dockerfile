@@ -38,19 +38,15 @@ COPY package.json ./
 COPY src ./src
 COPY public ./public
 COPY aligner/*.py ./aligner/
-COPY prototype/assets ./prototype/assets
-# The shipped example bundles (text, background, fonts), seeded into
-# /data/mantras on first boot. Their chant audio (*.mp3) is gitignored, so it
-# is uploaded through the UI like any other input.
-COPY mantras ./mantras
+COPY assets ./assets
 
-# Bundles live on the volume so ones made in the UI survive a redeploy.
+# No bundles ship in the image: they are content, not code, and are made in the
+# UI. They live on the volume so they survive a redeploy.
 # HF_HOME on the volume: the Sanskrit model downloads once, not on every deploy.
 ENV NODE_ENV=production \
     PORT=3200 \
     DATA_DIR=/data \
     MANTRAS_DIR=/data/mantras \
-    MANTRAS_SEED_DIR=/app/mantras \
     HF_HOME=/data/hf \
     BROWSER_PATH=/usr/bin/chromium \
     FFMPEG_PATH=/usr/bin/ffmpeg

@@ -62,9 +62,9 @@ IAST, and `--out english.md` saves it for hand correction.
 
   In the UI they can be played, downloaded and deleted. `DATA_DIR` is
   `./data` locally and `/data` in the container.
-- The image seeds its shipped bundles into `/data/mantras` on first boot
-  (`MANTRAS_SEED_DIR`). It never overwrites a bundle that is already there, so
-  bundles made or edited in the UI survive redeploys.
+- No bundles are committed or shipped in the image: they are content, not
+  code. Make them in the UI or the CLI. They live in `MANTRAS_DIR`, which is on
+  the `/data` volume in the container, so they survive redeploys.
 
 The text box is stored in `mantra.json` as margins (`textArea`). The UI and
 `--box` use corners `x1,y1,x2,y2` of the 1920×1080 frame. Every slide, the title
@@ -205,11 +205,11 @@ clear); timestamps are centiseconds. `src/ass.js` is pure and unit-tested
 ## Bundle format
 
 A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
-`mantra.json`. The shipped example is `mantras/durga-kavacham/`:
+`mantra.json`. For example:
 
 ```jsonc
 {
-  "id": "durga-kavacham",
+  "id": "devi-kavacham",
   "title": "Devi Kavacham",          // "\n" for a second line
   "section": "Kavacha Stotram",     // which '# heading' of the markdown to use, or omit for the whole file
   "background": "background-devi-mahatmyam.png",   // 1920x1080 slide template
@@ -223,8 +223,8 @@ A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
   "audio": "audio.mp3",             // the chant
   "deepgramCache": "deepgram.json", // optional; only used by the Deepgram fallback
   "fontsDir": "assets",
-  "fonts": { "devanagari": "sanskrit2003.ttf" },  // serif faces fall back to prototype/assets
-  "output": "durga-kavacham.mp4",   // file name inside DATA_DIR/<id>/
+  "fonts": { "devanagari": "sanskrit2003.ttf" },  // missing faces fall back to assets/fonts
+  "output": "devi-kavacham.mp4",   // file name inside DATA_DIR/<id>/
   "showMeaning": false,             // optional non-underlined meaning block, off by default
   "underline": { "color": "auto", "thicknessPx": 3, "motion": "sweep" }
 }
@@ -275,9 +275,9 @@ Prefer typing one line? Every setting is also a flag, and any flag you leave off
 keeps the mantra's own default:
 
 ```powershell
-npm run build durga-kavacham
-npm run build durga-kavacham -- --target dev --thickness 2 --no-halo
-npm run build durga-kavacham -- --color "#CE7A1F" --motion step
+npm run build devi-kavacham
+npm run build devi-kavacham -- --target dev --thickness 2 --no-halo
+npm run build devi-kavacham -- --color "#CE7A1F" --motion step
 ```
 
 Flags: `--underline` / `--no-underline` (on unless `--no-underline`), `--color`, `--thickness`, `--opacity`, `--halo` / `--no-halo`, `--motion`,
@@ -286,12 +286,11 @@ Flags: `--underline` / `--no-underline` (on unless `--no-underline`), `--color`,
 
 **Two things a first-time user needs to know:**
 
-- The chant `.mp3` is not in the repo (too large to commit), so a fresh clone of
-  the sample needs it dropped back in as `mantras/durga-kavacham/audio.mp3`
-  before it can render. Existing bundles on your machine already have theirs.
+- The repo holds no bundles and no audio. A fresh clone starts with an empty
+  `mantras/` folder; bundles on your machine are yours alone and are gitignored.
 - To add your own mantra, use `node src/cli.js new …` or pick `n` in the
-  interactive menu (see **Making a new video**). Nothing is hard-coded to the
-  sample.
+  interactive menu (see **Making a new video**). Nothing is hard-coded to any
+  mantra.
 
 ## Web UI
 
@@ -329,9 +328,8 @@ the differences that only matter on the server:
   **CLI locally** instead, which walks the same menus and produces the same MP4.
   A public hostname needs a Caddy vhost added on the host — the Dokploy Domains
   tab cannot do it.
-- **Bundles live on the volume** (`/data/mantras`). Make new ones in the UI.
-  Shipped bundles are copied in on first boot, but without their chant audio,
-  which is gitignored. Upload that through the UI before rendering.
+- **Bundles live on the volume** (`/data/mantras`). Make new ones in the UI,
+  including uploading the chant audio. Nothing is seeded from the image.
 - **Word timing runs in the container.** The image installs the aligner (CPU
   torch). The Sanskrit model is downloaded on the first build and cached in
   `/data/hf`, so it survives redeploys. No API key is needed.

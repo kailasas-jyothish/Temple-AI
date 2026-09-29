@@ -1511,9 +1511,14 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
   - **The text box** is drawn on the background in the UI, or given as
     `--box x1,y1,x2,y2` in the CLI. It is stored as `textArea` margins.
   - **Outputs** now go to `DATA_DIR/<id>/`, no longer the bundle folder.
-  - **Bundles** live in `MANTRAS_DIR=/data/mantras` in the container. They are
-    seeded from `/app/mantras` and an existing one is never overwritten, so UI
+  - **Bundles** live in `MANTRAS_DIR=/data/mantras` in the container, so UI
     edits survive redeploys.
+- **2026-09-29: no content in git (user's rule).** Bundles, audio and the old
+  `prototype/` are gitignored. The Devi Mahatmyam videos are a *local* project:
+  their 22 bundles (durga-kavacham, argala, kilaka, chapters 1–13, …) live only
+  in `services/mantra-tutorials/mantras/` on the user's machine. The image ships
+  no bundles; the default fonts moved to `assets/fonts/`. Audio of any kind is
+  ignored at the repo root. Never commit a bundle or an audio file.
 - **Devanagari→IAST is sanscript.js, vendored** (`src/vendor/sanscript.cjs`,
   MIT). It is not an npm dep, because the service has zero runtime deps.
   `translit.js` must keep `।`/`॥` as they are: sanscript writes `|`/`||`, the

@@ -1,7 +1,7 @@
 # The root .gitignore already covers node_modules/, data/, .env, *.log and *.mp4.
-# This file spells out what stays out of git for a mantra *bundle* specifically,
-# so a bundle can hold big local inputs while the small text that defines it is
-# committed.
+# Only the service is committed. Mantra bundles (text, backgrounds, audio) are
+# content for a particular project and stay on the machine or the /data volume
+# that made them, as does the prototype they grew out of.
 
 node_modules/
 data/
@@ -9,13 +9,8 @@ data/
 aligner/.venv/
 __pycache__/
 
-# Bundle inputs that are large and/or non-redistributable: the chant audio and
-# any rendered tutorial. Committed per bundle instead: mantra.json, the
-# devanagari/english .md, the deepgram.json cache, background.png and fonts.
-mantras/**/*.mp3
-mantras/**/*.wav
-mantras/**/*.m4a
-mantras/**/*.mp4
+mantras/
+prototype/
 
 # Scratch renders dropped next to the code.
 *.mp4
