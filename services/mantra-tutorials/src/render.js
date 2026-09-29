@@ -100,7 +100,7 @@ export function render(slidesData, timings, theme, mantra, outDir) {
   // ---- the underline overlay (.ass) ----
   const assStr = buildAssUnderline(targets, {
     colorHex: lineHex, outlineHex, opacity, thicknessPx: u.thicknessPx, halo: u.halo,
-    motion: u.motion, glideMs: u.glideMs, playW: 1920, playH: 1080, duration: D,
+    motion: u.motion, glideMs: u.glideMs, lengthPx: u.lengthPx, playW: 1920, playH: 1080, duration: D,
   });
   const assPath = path.join(outDir, 'underline.ass');
   fs.writeFileSync(assPath, assStr, 'utf8');

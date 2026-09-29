@@ -28,8 +28,12 @@ export const underlineDefaults = {
   // (src/ass.js) halo=true adds a real second glow layer — taller, blurrier and
   // more transparent behind the core bar — not just a thicker single line.
   halo: bool(env.UNDERLINE_HALO, false),
-  // 'glide' eases x/width between words on a line; 'step' jumps.
-  motion: env.UNDERLINE_MOTION === 'step' ? 'step' : 'glide',
+  // 'sweep' (default): a short fixed-length bar moving continuously along the
+  // line, never stopping mid-line. 'glide' sizes the bar to each word and holds
+  // under it between glides, which read as the line "getting stuck". 'step' jumps.
+  motion: parseMotion(env.UNDERLINE_MOTION),
+  // The sweep bar's length. Short and the same everywhere, by request.
+  lengthPx: Math.max(8, Number(env.UNDERLINE_LENGTH_PX) || 64),
   // Which line the underline tracks. The reference underlines the transliteration.
   target: env.UNDERLINE_TARGET === 'dev' ? 'dev' : 'translit',
   // Vertical gap below the word's measured box, and glide duration.
@@ -75,6 +79,9 @@ export const config = {
   env: /** @type {Record<string, string | undefined>} */ (env),
 };
 
+export function parseMotion(v) {
+  return v === 'step' || v === 'glide' ? v : 'sweep';
+}
 function clamp01(v, dflt) {
   if (!Number.isFinite(v)) return dflt;
   return Math.min(1, Math.max(0, v));

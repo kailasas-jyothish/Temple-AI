@@ -43,7 +43,7 @@ export function assAlpha(opacity) {
  * Each target is a word's placed underline: x/y are the top-left of the bar
  * (y already sits gap-below the word), w is its width.
  * @param {{t:number,end:number,x:number,y:number,w:number,slide:number,li:number}[]} targets
- * @param {{colorHex:string,outlineHex?:string,opacity:number,thicknessPx:number,halo:boolean,motion:string,glideMs:number,playW?:number,playH?:number,duration:number}} opts
+ * @param {{colorHex:string,outlineHex?:string,opacity:number,thicknessPx:number,halo:boolean,motion:string,glideMs:number,lengthPx?:number,playW?:number,playH?:number,duration:number}} opts
  * @returns {string}
  */
 export function buildAssUnderline(targets, opts) {
@@ -65,11 +65,16 @@ export function buildAssUnderline(targets, opts) {
   const fill = `\\1c${assBGR(opts.colorHex)}\\1a${assAlpha(opts.opacity)}`;
   const drawing = (h) => `m 0 0 l ${NATIVE_W} 0 l ${NATIVE_W} ${h} l 0 ${h}`;
 
-  const sameGroup = (a, b) => glide && a && b && a.slide === b.slide && a.li === b.li;
   const dur = opts.duration;
   /** @type {string[]} */
   const events = [];
 
+  if (opts.motion === 'sweep') {
+    sweepEvents(targets, { ...opts, H, fade, fill, outline, drawing, dur }, events);
+    return header(playW, playH).concat(events).join('\n') + '\n';
+  }
+
+  const sameGroup = (a, b) => glide && a && b && a.slide === b.slide && a.li === b.li;
   for (let i = 0; i < targets.length; i++) {
     const cur = targets[i];
     const prev = targets[i - 1];
@@ -113,7 +118,49 @@ export function buildAssUnderline(targets, opts) {
     }
   }
 
-  const header = [
+  return header(playW, playH).concat(events).join('\n') + '\n';
+}
+
+/**
+ * 'sweep': one short bar of fixed length that moves at a steady pace within each
+ * word-to-word interval and never holds still mid-line. Its left edge sits at a
+ * word's left edge as the word is sung and travels straight to the next word's
+ * left edge by the next onset. A line's last word carries it to the end of that
+ * word, and it fades out there. The bar is clamped inside the line, so it never
+ * runs past the text. One \move per word interval, each ending where the next
+ * begins, so libass draws one unbroken motion.
+ */
+function sweepEvents(targets, o, events) {
+  const bar0 = Math.max(8, Math.round(o.lengthPx ?? 64));
+  let i = 0;
+  while (i < targets.length) {
+    let j = i;
+    while (j + 1 < targets.length && targets[j + 1].slide === targets[i].slide && targets[j + 1].li === targets[i].li) j++;
+    const line = targets.slice(i, j + 1);
+    const left = Math.min(...line.map((t) => t.x));
+    const right = Math.max(...line.map((t) => t.x + t.w));
+    const bar = Math.min(bar0, Math.max(8, right - left));
+    const clampX = (x) => Math.round(Math.min(right - bar, Math.max(left, x)));
+    for (let k = 0; k < line.length; k++) {
+      const cur = line[k];
+      const next = line[k + 1];
+      const last = !next;
+      const from = clampX(cur.x);
+      const to = last ? clampX(cur.x + cur.w - bar) : clampX(next.x);
+      const start = cur.t;
+      const end = Math.min(o.dur, Math.max(last ? cur.end : next.t, start + 0.08));
+      const y = Math.round(cur.y);
+      const fad = `\\fad(${k === 0 ? o.fade : 0},${last ? o.fade : 0})`;
+      const pos = from === to ? `\\pos(${from},${y})` : `\\move(${from},${y},${to},${y})`;
+      const ov = `\\an7${pos}\\fscx${bar}${o.fill}${o.outline}\\blur1${fad}\\p1`;
+      events.push(`Dialogue: 1,${assTime(start)},${assTime(end)},U,,0,0,0,,{${ov}}${o.drawing(o.H)}`);
+    }
+    i = j + 1;
+  }
+}
+
+function header(playW, playH) {
+  return [
     '[Script Info]',
     'ScriptType: v4.00+',
     `PlayResX: ${playW}`,
@@ -128,5 +175,4 @@ export function buildAssUnderline(targets, opts) {
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
   ];
-  return header.concat(events).join('\n') + '\n';
 }

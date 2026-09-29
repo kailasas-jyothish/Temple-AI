@@ -6,12 +6,13 @@ import assert from 'node:assert/strict';
 import { underlineDefaults, config, configProblems } from '../src/config.js';
 import { colorArg } from '../src/render.js';
 
-test('underline defaults match the thin-crisp reference (halo off, translit, glide)', () => {
+test('underline defaults match the thin-crisp reference (halo off, translit, sweep)', () => {
   assert.equal(underlineDefaults.color, 'auto');
   assert.equal(underlineDefaults.thicknessPx, 3);
   assert.equal(underlineDefaults.opacity, 0.9);
   assert.equal(underlineDefaults.halo, false);
-  assert.equal(underlineDefaults.motion, 'glide');
+  assert.equal(underlineDefaults.motion, 'sweep');
+  assert.equal(underlineDefaults.lengthPx, 64);
   assert.equal(underlineDefaults.target, 'translit');
 });
 

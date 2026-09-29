@@ -59,7 +59,10 @@ export async function runPipeline(idOrPath, opts = {}) {
   at(2, 'done', { mode: timings.mode, words: timings.words.length });
 
   at(3, 'start');
-  const theme = deriveTheme(mantra.background, out);
+  // Judge contrast against where the text actually sits, not the whole frame: a
+  // figure on one side of the background would otherwise darken the average.
+  const a = mantra.textArea;
+  const theme = deriveTheme(mantra.background, out, { band: { top: a.top + 236, bottom: 1080 - a.bottom, left: a.left, right: 1920 - a.right } });
   at(3, 'done', { accent: theme.accent, text: theme.text });
 
   at(4, 'start');

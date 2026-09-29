@@ -1488,5 +1488,17 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
   ±250ms random error gives 8.9%. WhisperX's aligner is the same CTC method as
   ours. Details and untried levers are in the handover §3. The Vakyansh HF repo
   carries no licence tag, so confirm MIT before commercial release.
+- **2026-09-28 evening: underline simplified to `sweep`** (default). The user
+  asked for a short bar of the same length everywhere that moves smoothly and
+  doesn't keep "getting stuck". The old `glide` sized the bar to each word and
+  then held it still until the next glide, which read as stalling. `sweep` uses
+  one `\move` per word interval, from word start to next word start, with the
+  bar clamped inside the line and a fade only at line ends. It was checked in a
+  0.2s frame strip.
+- **Backgrounds with a figure: `textArea` in `mantra.json`.** The new
+  `background-devi-mahatmyam.png` has Swamiji on the left, so the text sits in
+  x 740–1700 (clear of the logo and lamp too). The theme must sample the same
+  area (`pipeline.js` passes it as `band`). Sampling the whole frame, Swamiji
+  darkened the average, and the text came out cream on parchment (1.8:1).
 - The host env is `services/mantra-tutorials/.env.deploy` (gitignored), not
   `.env`. `dokploy.mjs` prefers it, and gained a `create` command.

@@ -148,7 +148,10 @@ A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
   "id": "durga-kavacham",
   "title": "Devi Kavacham\n#DurgaSaptashati Series",
   "section": "Kavacha Stotram",     // which '# heading' of the markdown to use, or omit for the whole file
-  "background": "background.png",   // 1920x1080 slide template
+  "background": "background-devi-mahatmyam.png",   // 1920x1080 slide template
+  // px margins from the frame edges where text may go; keeps a figure/logo clear.
+  // The theme also judges contrast inside this area only. Default 70/70/64/56.
+  "textArea": { "left": 740, "right": 220, "top": 44, "bottom": 50 },
   "devMarkdown": "devanagari.md",
   "engMarkdown": "english.md",      // the transliteration / IAST — this is what gets underlined
   "audio": "audio.mp3",             // the chant
@@ -157,7 +160,7 @@ A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
   "fonts": { "devanagari": "sanskrit2003.ttf" },  // serif faces fall back to prototype/assets
   "output": "durga-kavacham.mp4",
   "showMeaning": false,             // optional non-underlined meaning block, off by default
-  "underline": { "color": "auto", "thicknessPx": 3, "motion": "glide" }
+  "underline": { "color": "auto", "thicknessPx": 3, "motion": "sweep" }
 }
 ```
 
@@ -178,10 +181,10 @@ all defaulting to the bundle's own settings (which default to house style):
 | `thicknessPx` | integer | `3` | line thickness (thin, 2–3px, like the reference) |
 | `opacity` | 0–1 | `0.9` | line opacity (subtle) |
 | `halo` | bool | `false` | adds a real second glow layer behind the core line (see above) |
-| `motion` | `glide` \| `step` | `glide` | glide eases x/width between words on a line; step jumps |
+| `motion` | `sweep` \| `glide` \| `step` | `sweep` | sweep: a short fixed-length bar (`lengthPx`, 64) moving steadily along the line from each word's start to the next, never holding mid-line. glide: word-width bar that glides then holds (read as "getting stuck"). step: jumps |
 | `target` | `translit` \| `dev` | `translit` | underline the transliteration (reference) or the Devanagari |
 
-Plus `gapPx` (vertical gap below the word), `glideMs` (glide duration), and the
+Plus `lengthPx` (sweep bar length, `--length`), `gapPx` (vertical gap below the word), `glideMs` (glide duration), and the
 `showMeaning` toggle.
 
 ## CLI (run it locally)

@@ -68,6 +68,7 @@ function fontFace(family, file, weight, style) {
 
 function htmlFor(slide, ctx) {
   const { title, fonts, theme, bg, showMeaning } = ctx;
+  const area = ctx.textArea || { left: 70, right: 70, top: 64, bottom: 56 };
   let body = '';
   if (slide.kind === 'preamble') {
     const dev = slide.preamble.dev.map((l, idx) => `<div class="pline" data-pline="${idx}">${preambleLineHtml(l, idx, 'pdw')}</div>`).join('');
@@ -91,7 +92,7 @@ function htmlFor(slide, ctx) {
     body = `<div class="dev">${dev}</div><div class="iast">${iast}</div>${meaning}`;
   }
   const titleHtml = title ? `<div class="title">${title.split(/\n/).map(esc).join('<br>')}</div>` : '';
-  const contentTop = title ? 300 : 160;
+  const contentTop = area.top + (title ? 236 : 96);
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 ${fontFace('Deva', fonts.devanagari)}
 ${fontFace('Serif', fonts.serif, 'normal')}
@@ -102,9 +103,9 @@ html,body{width:1920px;height:1080px;overflow:hidden;}
 body{background:url('file:///${bg.replace(/\\/g, '/')}') no-repeat center/cover;position:relative;
   --deva:${theme.text};--iast:${theme.text};--accent:${theme.accent};}
 :root{--scale:1;}
-.title{position:absolute;top:64px;left:0;right:0;text-align:center;font-family:'Serif';font-weight:bold;
+.title{position:absolute;top:${area.top}px;left:${area.left}px;right:${area.right}px;text-align:center;font-family:'Serif';font-weight:bold;
   color:var(--deva);font-size:58px;line-height:1.28;letter-spacing:.5px;}
-.content{position:absolute;top:${contentTop}px;left:70px;right:70px;bottom:56px;display:flex;flex-direction:column;
+.content{position:absolute;top:${contentTop}px;left:${area.left}px;right:${area.right}px;bottom:${area.bottom}px;display:flex;flex-direction:column;
   justify-content:center;align-items:center;gap:calc(38px*var(--scale));}
 .dev{display:flex;flex-direction:column;align-items:center;gap:calc(14px*var(--scale));width:100%;}
 .iast{display:flex;flex-direction:column;align-items:center;gap:calc(6px*var(--scale));width:100%;}
@@ -196,7 +197,7 @@ export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}
   const renderDir = path.join(outDir, 'render');
   const slidesDir = path.join(outDir, 'slides');
   fs.mkdirSync(slidesDir, { recursive: true });
-  const ctx = { title: extracted.title, fonts: mantra.fonts, theme, bg: mantra.background, showMeaning: mantra.showMeaning };
+  const ctx = { title: extracted.title, fonts: mantra.fonts, theme, bg: mantra.background, showMeaning: mantra.showMeaning, textArea: mantra.textArea };
 
   const manifest = [];
   for (let i = 0; i < slides.length; i++) {

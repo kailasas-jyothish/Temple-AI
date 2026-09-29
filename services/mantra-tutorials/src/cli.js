@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { stdin, stdout } from 'node:process';
 import { runPipeline } from './pipeline.js';
 import { listMantras, loadMantra } from './mantra.js';
-import { configProblems, underlineDefaults } from './config.js';
+import { configProblems, underlineDefaults, parseMotion } from './config.js';
 
 const BOOLS = { true: true, false: false, yes: true, no: false, on: true, off: false, '1': true, '0': false };
 
@@ -41,7 +41,8 @@ export function overridesFromFlags(f) {
   if (f.thickness !== undefined) o.thicknessPx = Number(f.thickness);
   if (f.opacity !== undefined) o.opacity = Number(f.opacity);
   if (f.halo !== undefined) o.halo = typeof f.halo === 'boolean' ? f.halo : !!BOOLS[String(f.halo).toLowerCase()];
-  if (f.motion !== undefined) o.motion = String(f.motion) === 'step' ? 'step' : 'glide';
+  if (f.motion !== undefined) o.motion = parseMotion(String(f.motion));
+  if (f.length !== undefined) o.lengthPx = Number(f.length);
   if (f.target !== undefined) o.target = String(f.target) === 'dev' ? 'dev' : 'translit';
   if (f.gap !== undefined) o.gapPx = Number(f.gap);
   if (f.glide !== undefined) o.glideMs = Number(f.glide);
@@ -85,7 +86,7 @@ async function interactive() {
       o.thicknessPx = Number(await ask('  thickness px', u.thicknessPx));
       o.opacity = Number(await ask('  opacity 0-1', u.opacity));
       o.halo = !!BOOLS[(await ask('  halo (soft glow) yes/no', u.halo ? 'yes' : 'no')).toLowerCase()];
-      o.motion = (await ask('  motion glide/step', u.motion)) === 'step' ? 'step' : 'glide';
+      o.motion = parseMotion(await ask('  motion sweep/glide/step', u.motion));
       o.target = (await ask('  underline which line: translit/dev', u.target)) === 'dev' ? 'dev' : 'translit';
     }
     o.showMeaning = !!BOOLS[(await ask('  show meaning block yes/no', m.showMeaning ? 'yes' : 'no')).toLowerCase()];
@@ -108,7 +109,7 @@ async function main() {
   if (cmd === 'build') {
     const rest = argv.slice(1);
     const id = rest.find((a) => !a.startsWith('--'));
-    if (!id) { console.error('usage: mantra build <id> [--underline|--no-underline] [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion glide|step] [--target translit|dev] [--meaning] [--force]'); process.exit(2); }
+    if (!id) { console.error('usage: mantra build <id> [--underline|--no-underline] [--color auto|#hex] [--thickness 3] [--opacity 0.9] [--halo|--no-halo] [--motion sweep|glide|step] [--length 64] [--target translit|dev] [--meaning] [--force]'); process.exit(2); }
     const f = parseFlags(rest);
     await build(id, overridesFromFlags(f), !!f.force);
     return;

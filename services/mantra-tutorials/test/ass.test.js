@@ -90,6 +90,34 @@ test('an outlineHex adds a contrasting border (\\bord + \\3c + \\3a) to the core
   assert.match((none.match(/^Dialogue: 1,.*$/gm) || [])[0], /\\bord0/);
 });
 
+const sweep = { ...opts, motion: 'sweep', lengthPx: 60 };
+const threeWords = [
+  { t: 0, end: 0.4, x: 400, y: 616, w: 120, slide: 0, li: 0 },
+  { t: 0.5, end: 0.9, x: 540, y: 616, w: 30, slide: 0, li: 0 },
+  { t: 1.0, end: 1.6, x: 590, y: 616, w: 200, slide: 0, li: 0 },
+];
+
+test('sweep: a fixed-length bar moves word-start to word-start with no gap in time', () => {
+  const lines = buildAssUnderline(threeWords, sweep).match(/^Dialogue:.*$/gm);
+  assert.equal(lines.length, 3);
+  for (const l of lines) assert.match(l, /\\fscx60\\/); // same length on every word
+  assert.match(lines[0], /0:00:00\.00,0:00:00\.50/);    // ends where the next begins
+  assert.match(lines[0], /\\move\(400,616,540,616\)/);  // whole-event move, never a hold
+  assert.match(lines[1], /\\move\(540,616,590,616\)/);  // a word shorter than the bar still moves
+  // the last word carries the bar to the word's end (590+200-60), then fades
+  assert.match(lines[2], /\\move\(590,616,730,616\)/);
+  assert.match(lines[2], /0:00:01\.00,0:00:01\.60/);
+  assert.match(lines[0], /\\fad\(\d+,0\)/);
+  assert.match(lines[1], /\\fad\(0,0\)/);
+  assert.match(lines[2], /\\fad\(0,\d+\)/);
+});
+
+test('sweep: the bar is clamped inside its line and shrinks for a line shorter than it', () => {
+  const one = buildAssUnderline([{ t: 0, end: 1, x: 400, y: 616, w: 40, slide: 0, li: 0 }], sweep);
+  const l = one.match(/^Dialogue:.*$/gm)[0];
+  assert.match(l, /\\pos\(400,616\)\\fscx40\\/);
+});
+
 test('a line\'s last word ends at its own end, not the next line\'s start', () => {
   const targets = [
     { t: 0, end: 0.5, x: 400, y: 616, w: 120, slide: 0, li: 0 }, // line 0, last word

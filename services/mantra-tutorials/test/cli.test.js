@@ -30,8 +30,9 @@ test('overridesFromFlags only sets keys that were provided', () => {
 
 test('unknown motion/target values fall back to the reference defaults', () => {
   const o = overridesFromFlags(parseFlags(['--motion', 'wobble', '--target', 'sideways']));
-  assert.equal(o.motion, 'glide');
+  assert.equal(o.motion, 'sweep');
   assert.equal(o.target, 'translit');
+  assert.equal(overridesFromFlags(parseFlags(['--motion', 'glide'])).motion, 'glide');
 });
 
 test('boolean-ish strings parse for halo and meaning', () => {

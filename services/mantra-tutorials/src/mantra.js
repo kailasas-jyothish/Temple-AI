@@ -15,6 +15,8 @@ const DEFAULT_FONTS = {
   serifItalic: 'serif-italic.ttf',
 };
 
+const DEFAULT_TEXT_AREA = { left: 70, right: 70, top: 64, bottom: 56 };
+
 /** Resolve a possibly-relative path against the bundle directory. */
 function resolveIn(dir, p) {
   if (!p) return '';
@@ -65,6 +67,9 @@ export function loadMantra(idOrPath) {
     fonts,
     showMeaning: raw.showMeaning ?? config.showMeaning,
     underline: { ...underlineDefaults, ...(raw.underline || {}) },
+    // Where text may go, as px margins from the 1920x1080 frame's edges. A
+    // background with a figure or logo on it keeps them clear by narrowing this.
+    textArea: { ...DEFAULT_TEXT_AREA, ...(raw.textArea || {}) },
   };
 
   const missing = [];
