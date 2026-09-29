@@ -162,6 +162,35 @@ Constraints and traps on the timing side:
 Check a new mantra's timing with `aligner/verify.py` (usage in the README). Use
 `aligner/probe.py` to check whether the model can hear a recording at all.
 
+**Timing measured against the metre, and other aligners tested (2026-09-28, evening).**
+The user asked for known solutions to be researched, naming Montreal Forced
+Aligner and WhisperX. `aligner/meter.py` scores an alignment without any model:
+each word's span, from its start to the next word's start, should track its
+syllable weight.
+
+| Timing | Words breaking the metre | Median error |
+|---|---|---|
+| Current (ctc-forced-aligner + Vakyansh) | **0.9%** (the ॐs) | 6.5% |
+| Current + ±250ms random error | 8.9% | 17% |
+| Words spaced evenly per line | 12.7% | 27% |
+| MFA 3.4 + IndicMFA Sanskrit | 31% | 42% |
+| MFA 3.4 + IndicMFA Sanskrit, speaker-adapted | 34% | 45% |
+
+- **MFA was actually run:** micromamba env, per-line corpus sliced at the CTC line
+  boundaries, lexicon built from IndicMFA's syllable-unit phone set. It is worse
+  on chant, and some of its words are seconds off. Its weights also have no
+  licence.
+- **WhisperX was not run**, because its aligner is the same wav2vec2-CTC method we
+  already use, and it has no Sanskrit model.
+- **Conclusion:** the word timing is not the weak point. If the underline still
+  feels wrong, get the timestamps where it happens, then look at rendering
+  (glide, hold and tail) or at the recording itself.
+- Untried levers, in order: Demucs vocal separation before aligning; a second
+  opinion from IndicConformer (Sanskrit, MIT, gated on HF) via NeMo NFA.
+- **Licence note:** the Vakyansh HF repo has no README or licence tag. The MIT
+  claim comes from the Open-Speech-EkStep GitHub org, so confirm it before
+  commercial release.
+
 ## 4. What the user must see before it is "done"
 
 All three of the steps below were done this session:

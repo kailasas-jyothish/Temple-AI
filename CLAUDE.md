@@ -1482,5 +1482,11 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
   ears-on-the-clip sign-off that it *feels* synced (frames can't judge that);
   preview at `data/durga-kavacham/preview-underline.mp4`. Container-side libass
   shaping + aligner still unverified (deploy note §7 of the handover).
+- **Do not re-try MFA or WhisperX for timing** (tested 2026-09-28). `aligner/meter.py`
+  scores an alignment by the chant's metre, using no model: the current aligner has
+  0.9% of words out of rhythm; MFA + IndicMFA Sanskrit has 31% (34% adapted);
+  ±250ms random error gives 8.9%. WhisperX's aligner is the same CTC method as
+  ours. Details and untried levers are in the handover §3. The Vakyansh HF repo
+  carries no licence tag, so confirm MIT before commercial release.
 - The host env is `services/mantra-tutorials/.env.deploy` (gitignored), not
   `.env`. `dokploy.mjs` prefers it, and gained a `create` command.

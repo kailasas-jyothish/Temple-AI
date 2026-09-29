@@ -77,6 +77,32 @@ aligner\.venv\Scripts\python aligner\verify.py data\<id>\timings.json mantras\<i
 ```
 
 It prints each sampled word next to what the model hears in its slot.
+
+`aligner/meter.py` is a second check that uses no model at all. In chant, the
+gap from one word's start to the next tracks the word's syllable weight (short
+1, long 2), so it flags words whose span breaks the metre. It runs on plain
+Python:
+
+```powershell
+python aligner\meter.py data\<id>\forced-request.json data\<id>\forced-result.json -v
+```
+
+On the Kavacham, 0.9% of words break the metre, and those are the drawn-out
+`ॐ`s. Adding ±0.25s of random error pushes that to 8.9%, and spacing words
+evenly to 12.7%. Treat anything above ~3% as worth a look.
+
+### Aligners that were tried and rejected (2026-09-28)
+
+- **Montreal Forced Aligner** with AI4Bharat's IndicMFA Sanskrit model: 31% of
+  words break the metre, 34% after adapting to the singer, and some words are
+  seconds off. It was trained on read speech, and drawn-out chanting defeats it.
+  Its weights also have no licence.
+- **WhisperX**: its alignment step is the same wav2vec2 CTC method we use, and
+  it has no Sanskrit model.
+- Not tried, and the next things to try if a recording aligns badly:
+  - separating the voice from the instruments with Demucs before aligning;
+  - AI4Bharat's Sanskrit IndicConformer (MIT, gated on Hugging Face), used
+    through NVIDIA's NeMo Forced Aligner as a second opinion.
 `aligner/probe.py` greedy-decodes any slice. Use it to check that a model can
 hear a new recording at all before trusting it.
 
