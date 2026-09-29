@@ -5,10 +5,14 @@
 import './env.js'; // must be first: loads .env before config.js reads process.env
 import { createServer } from './server.js';
 import { config, configProblems } from './config.js';
-import { listMantras } from './mantra.js';
+import { listMantras, seedMantras } from './mantra.js';
 import { log, warn } from './log.js';
 
 for (const p of configProblems()) warn('boot', p);
+try {
+  const seeded = seedMantras();
+  if (seeded.length) log('boot', `seeded ${seeded.join(', ')} into ${config.mantrasDir}`);
+} catch (e) { warn('boot', `could not seed bundles: ${e instanceof Error ? e.message : e}`); }
 const ids = listMantras();
 log('boot', `${ids.length} mantra bundle(s): ${ids.join(', ') || '(none)'}`);
 if (!config.uiPassword) warn('boot', 'UI_PASSWORD unset: the web UI is open. Set it for any non-localhost deployment.');

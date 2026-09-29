@@ -225,16 +225,12 @@ document.fonts.ready.then(function(){
 }
 
 /**
+ * Group verses into slides (preamble first) and place them on the timeline.
  * @param {ReturnType<import('./extract.js').extract>} extracted
- * @param {ReturnType<import('./align.js').align>} timings
- * @param {{accent:string,text:string}} theme
+ * @param {{verses:{number:number,start:number}[],duration:number}} timings
  * @param {import('./mantra.js').Mantra} mantra
- * @param {string} outDir
- * @param {{ noShot?: boolean, only?: (i:number, s:{start:number,end:number})=>boolean }} [opts]
- *   only: screenshot just the slides it accepts (sample renders); the rest are
- *   still measured, because the shared type size depends on every slide.
  */
-export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}) {
+export function groupSlides(extracted, timings, mantra) {
   const startByNumber = new Map(timings.verses.map((v) => [v.number, v.start]));
   const startOf = (n) => startByNumber.get(n) ?? 0;
   const MAX_VERSES = mantra.versesPerSlide || config.versesPerSlide;
@@ -251,6 +247,7 @@ export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}
   }
   if (cur.length) groups.push(cur);
 
+  /** @type {any[]} */
   const slides = [];
   const firstVerseStart = extracted.verses.length ? startOf(extracted.verses[0].number) : timings.duration;
   slides.push({ kind: 'preamble', start: 0, end: firstVerseStart, preamble: extracted.preamble });
@@ -259,11 +256,60 @@ export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}
     const end = g + 1 < groups.length ? startOf(groups[g + 1][0].number) : timings.duration;
     slides.push({ kind: 'verses', start, end, verses: groups[g] });
   }
+  return { slides, groups };
+}
+
+export const slideCtx = (extracted, theme, mantra) => ({
+  title: extracted.title, fonts: mantra.fonts, theme, bg: mantra.background, showMeaning: mantra.showMeaning, textArea: mantra.textArea,
+});
+
+/**
+ * The largest scale at which each slide's text fits, cached by the slide's HTML
+ * so the layout preview and a later build share the work (~3s per slide).
+ * @param {any[]} slides @param {any} ctx @param {string} renderDir
+ */
+export function fitScales(slides, ctx, renderDir) {
+  fs.mkdirSync(renderDir, { recursive: true });
+  const cachePath = path.join(renderDir, 'fits.json');
+  let cache = {};
+  try { cache = JSON.parse(fs.readFileSync(cachePath, 'utf8')); } catch { /* first run */ }
+  const fits = slides.map((s, i) => {
+    const html = htmlFor(s, ctx);
+    const key = crypto.createHash('sha1').update(html).digest('hex');
+    if (!cache[key]) {
+      const p = writeHtml(renderDir, `fit${String(i).padStart(3, '0')}.html`, html);
+      cache[key] = Number(dumpData(p, ['data-scale'])['data-scale']) || 1;
+    }
+    return cache[key];
+  });
+  fs.writeFileSync(cachePath, JSON.stringify(cache), 'utf8');
+  return fits;
+}
+
+/** One size for every verse slide (the tightest fit); the preamble is capped at it. */
+export function uniformScales(slides, fits) {
+  const verseFits = fits.filter((_, i) => slides[i].kind === 'verses');
+  const uniform = verseFits.length ? Math.min(...verseFits) : Math.min(...fits);
+  return { uniform, scales: fits.map((f, i) => (slides[i].kind === 'verses' ? uniform : Math.min(f, uniform))) };
+}
+
+/**
+ * @param {ReturnType<import('./extract.js').extract>} extracted
+ * @param {ReturnType<import('./align.js').align>} timings
+ * @param {{accent:string,text:string}} theme
+ * @param {import('./mantra.js').Mantra} mantra
+ * @param {string} outDir
+ * @param {{ noShot?: boolean, only?: (i:number, s:{start:number,end:number})=>boolean }} [opts]
+ *   only: screenshot just the slides it accepts (sample renders); the rest are
+ *   still measured, because the shared type size depends on every slide.
+ */
+export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}) {
+  const { slides, groups } = groupSlides(extracted, timings, mantra);
 
   const renderDir = path.join(outDir, 'render');
   const slidesDir = path.join(outDir, 'slides');
   fs.mkdirSync(slidesDir, { recursive: true });
-  const ctx = { title: extracted.title, fonts: mantra.fonts, theme, bg: mantra.background, showMeaning: mantra.showMeaning, textArea: mantra.textArea };
+  const ctx = slideCtx(extracted, theme, mantra);
 
   // One type size for the whole mantra: fit every slide on its own, then render
   // all of them at the smallest of those fits — the largest size at which every
@@ -272,24 +318,11 @@ export function buildSlides(extracted, timings, theme, mantra, outDir, opts = {}
   // size: it takes its own fit, capped so it is never larger than the verses.
   let scales = slides.map(() => 0);
   if (!opts.noShot && mantra.uniformScale !== false) {
-    const cachePath = path.join(renderDir, 'fits.json');
-    let cache = {};
-    try { cache = JSON.parse(fs.readFileSync(cachePath, 'utf8')); } catch { /* first run */ }
-    const fits = slides.map((s, i) => {
-      const html = htmlFor(s, ctx);
-      const key = crypto.createHash('sha1').update(html).digest('hex');
-      if (!cache[key]) {
-        const p = writeHtml(renderDir, `fit${String(i).padStart(3, '0')}.html`, html);
-        cache[key] = Number(dumpData(p, ['data-scale'])['data-scale']) || 1;
-      }
-      return cache[key];
-    });
-    fs.writeFileSync(cachePath, JSON.stringify(cache), 'utf8');
-    const verseFits = fits.filter((_, i) => slides[i].kind === 'verses');
-    const uniform = verseFits.length ? Math.min(...verseFits) : Math.min(...fits);
-    scales = fits.map((f, i) => (slides[i].kind === 'verses' ? uniform : Math.min(f, uniform)));
-    const sorted = [...verseFits].sort((a, b) => a - b);
-    log('slides', `uniform verse scale ${uniform} (tightest slide ${fits.indexOf(uniform)}; verse fits ${sorted.slice(0, 5).join(', ')} … ${sorted[sorted.length - 1]}); preamble ${scales[0]}`);
+    const fits = fitScales(slides, ctx, renderDir);
+    const u = uniformScales(slides, fits);
+    scales = u.scales;
+    const sorted = fits.filter((_, i) => slides[i].kind === 'verses').sort((a, b) => a - b);
+    log('slides', `uniform verse scale ${u.uniform} (tightest slide ${fits.indexOf(u.uniform)}; verse fits ${sorted.slice(0, 5).join(', ')} … ${sorted[sorted.length - 1]}); preamble ${scales[0]}`);
   }
 
   const manifest = [];

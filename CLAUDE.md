@@ -1502,3 +1502,25 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
   darkened the average, and the text came out cream on parchment (1.8:1).
 - The host env is `services/mantra-tutorials/.env.deploy` (gitignored), not
   `.env`. `dokploy.mjs` prefers it, and gained a `create` command.
+- **2026-09-29: a reusable template.**
+  - **Inputs.** Only the background, the Devanagari and the audio are
+    required. The IAST, meaning, title and text box are optional.
+  - **Shared code.** `src/bundle.js` is the one module the UI (`server.js`) and
+    the CLI (`new`/`set`/`info`/`preview`/`iast`/`build --sample`) both use to
+    create and edit bundles, so they cannot drift.
+  - **The text box** is drawn on the background in the UI, or given as
+    `--box x1,y1,x2,y2` in the CLI. It is stored as `textArea` margins.
+  - **Outputs** now go to `DATA_DIR/<id>/`, no longer the bundle folder.
+  - **Bundles** live in `MANTRAS_DIR=/data/mantras` in the container. They are
+    seeded from `/app/mantras` and an existing one is never overwritten, so UI
+    edits survive redeploys.
+- **Devanagari→IAST is sanscript.js, vendored** (`src/vendor/sanscript.cjs`,
+  MIT). It is not an npm dep, because the service has zero runtime deps.
+  `translit.js` must keep `।`/`॥` as they are: sanscript writes `|`/`||`, the
+  tokenizer counts those as words, and then the IAST no longer pairs word for
+  word with the Devanagari. On the Kavacham the generated IAST gives an
+  identical preview (same scale 0.886, 114/118 lines byte-equal; the rest are
+  anusvāra spellings).
+- A speaker line typed with a trailing danda (`मार्कण्डेय उवाच ।`) was not
+  detected as a speaker, and extract then found 0 verses. `isSpeaker` strips
+  the danda first.

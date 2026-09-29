@@ -19,6 +19,70 @@ Nothing about Durga or the Kavacham is baked into the engine; every mantra is
 just another bundle. One shared engine (`src/pipeline.js`) drives both a local
 CLI and a hosted web UI, so a build from either is identical.
 
+## Making a new video
+
+| Input | Required? | Notes |
+|---|---|---|
+| Background image | **required** | png/jpg/webp, 16:9 (it is cover-cropped to 1920×1080) |
+| Devanagari text | **required** | `.md`/`.txt`, one half-verse per line, each verse ending `॥ n ॥`. A line ending `उवाच` is a speaker line, a line starting `इति` closes the text |
+| Chant audio | **required** | mp3/wav/m4a/flac/ogg |
+| IAST | optional | generated from the Devanagari with [sanscript](https://github.com/indic-transliteration/sanscript.js) when absent. Upload your own to override it |
+| Text box | optional | where the text may go, drawn on the background. Default: the whole frame less a small margin |
+| Title | optional | shown at the top of every slide, inside the text box |
+| Meaning | optional | a non-underlined translation block, off unless switched on |
+
+**Web UI:** **+ New mantra**, then upload the three required inputs. Drag a
+rectangle over the background to set the text box, and press **Save & preview
+slides** to see the opening slide and the tightest verse slide. Render a clip
+to check the underline, then render the full video.
+
+**CLI:**
+
+```powershell
+node src/cli.js new devi-kavacham --title "Devi Kavacham" --background bg.png --dev devanagari.md --audio chant.mp3 --box 690,44,1770,1030
+node src/cli.js preview devi-kavacham          # PNGs of the layout; no audio needed
+node src/cli.js build devi-kavacham --sample 0-30
+node src/cli.js build devi-kavacham            # the full video
+```
+
+Or run `node src/cli.js` with no arguments. It asks for each input and offers
+the preview. `set <id>` changes any of the same flags later. `info <id>` shows
+what is present and what is missing. `iast <id|file>` prints the generated
+IAST, and `--out english.md` saves it for hand correction.
+
+**Where things are kept:**
+
+- Bundles are in `MANTRAS_DIR`: `./mantras` locally, `/data/mantras` in the
+  container.
+- Videos are written to `DATA_DIR/<id>/`, together with that mantra's caches:
+  - the full video as `<id>.mp4`;
+  - clips as `sample-<from>-<to>.mp4`;
+  - `preview/*.png` for the layout preview;
+  - `iast-auto.md` for the generated IAST.
+
+  In the UI they can be played, downloaded and deleted. `DATA_DIR` is
+  `./data` locally and `/data` in the container.
+- The image seeds its shipped bundles into `/data/mantras` on first boot
+  (`MANTRAS_SEED_DIR`). It never overwrites a bundle that is already there, so
+  bundles made or edited in the UI survive redeploys.
+
+The text box is stored in `mantra.json` as margins (`textArea`). The UI and
+`--box` use corners `x1,y1,x2,y2` of the 1920×1080 frame. Every slide, the title
+included, stays inside the box, and all verse slides share one type size, which
+is set by the widest verse.
+
+### Generated IAST
+
+`src/translit.js` wraps the indic-transliteration project's `sanscript.js`,
+which is vendored unmodified at `src/vendor/sanscript.cjs` (MIT, v1.3.3; licence
+alongside). Vendoring keeps the service at zero runtime deps. The dandas `।`
+and `॥` are kept as they are, because sanscript writes them as `|` and `||`. The
+word splitter would then count those as words, and the IAST line would no
+longer pair word for word with its Devanagari. On the Kavacham, the generated
+IAST matches the hand-typed file on 114 of 118 lines, and every line pairs
+word for word. The four differences are anusvāra spellings (`ṃ` against a
+nasal). The layout and type size come out identical.
+
 ## The pipeline
 
 Six stages, run in order by `runPipeline(idOrPath, { onStage, overrides, force })`:
@@ -146,19 +210,21 @@ A bundle is a folder under `MANTRAS_DIR` (default `./mantras`) with a
 ```jsonc
 {
   "id": "durga-kavacham",
-  "title": "Devi Kavacham\n#DurgaSaptashati Series",
+  "title": "Devi Kavacham",          // "\n" for a second line
   "section": "Kavacha Stotram",     // which '# heading' of the markdown to use, or omit for the whole file
   "background": "background-devi-mahatmyam.png",   // 1920x1080 slide template
   // px margins from the frame edges where text may go; keeps a figure/logo clear.
   // The theme also judges contrast inside this area only. Default 70/70/64/56.
-  "textArea": { "left": 740, "right": 220, "top": 44, "bottom": 50 },
+  "textArea": { "left": 690, "right": 150, "top": 44, "bottom": 50 },
+  "versesPerSlide": 1,
+  "expectedVerses": 56,             // optional check; a mismatch is flagged in the preview
   "devMarkdown": "devanagari.md",
-  "engMarkdown": "english.md",      // the transliteration / IAST — this is what gets underlined
+  "engMarkdown": "english.md",      // optional: the IAST, which is what gets underlined; generated when absent
   "audio": "audio.mp3",             // the chant
   "deepgramCache": "deepgram.json", // optional; only used by the Deepgram fallback
   "fontsDir": "assets",
   "fonts": { "devanagari": "sanskrit2003.ttf" },  // serif faces fall back to prototype/assets
-  "output": "durga-kavacham.mp4",
+  "output": "durga-kavacham.mp4",   // file name inside DATA_DIR/<id>/
   "showMeaning": false,             // optional non-underlined meaning block, off by default
   "underline": { "color": "auto", "thicknessPx": 3, "motion": "sweep" }
 }
@@ -223,9 +289,9 @@ Flags: `--underline` / `--no-underline` (on unless `--no-underline`), `--color`,
 - The chant `.mp3` is not in the repo (too large to commit), so a fresh clone of
   the sample needs it dropped back in as `mantras/durga-kavacham/audio.mp3`
   before it can render. Existing bundles on your machine already have theirs.
-- To add your own mantra, copy the `mantras/durga-kavacham/` folder, swap in your
-  background, text and audio, edit `mantra.json`, and it shows up in `npm run
-  list`. Nothing is hard-coded to the sample.
+- To add your own mantra, use `node src/cli.js new …` or pick `n` in the
+  interactive menu (see **Making a new video**). Nothing is hard-coded to the
+  sample.
 
 ## Web UI
 
@@ -233,10 +299,21 @@ Flags: `--underline` / `--no-underline` (on unless `--no-underline`), `--color`,
 node src/index.js               # serves the UI on PORT (default 3200)
 ```
 
-`http://localhost:3200` — pick a bundle, set the same six controls, Build, watch
-the stage dots, then play the result in-page. Protect it with `UI_PASSWORD`
-(basic auth; empty means open — fine on localhost, set it in production).
-`/healthz` is unauthenticated for the container healthcheck.
+`http://localhost:3200` works in five steps:
+
+1. **Inputs.** Upload, paste or edit each input. The IAST shows what will be
+   generated, and **Use auto** drops a supplied one.
+2. **Layout.** Title, verses per slide, and the text box. Drag on the image to
+   draw it, drag inside it to move it, or drag the corners. Then preview.
+3. **Underline.** The controls, which can be saved as the mantra's default.
+4. **Render.** A clip or the full video, with stage progress. A page reload
+   reattaches to a running render.
+5. **Videos.** Play, download or delete.
+
+Protect the UI with `UI_PASSWORD` (basic auth). Empty means open, which is fine
+on localhost; set it in production. `/healthz` is unauthenticated for the
+container healthcheck. Only one render or preview runs at a time, and a second
+one gets "busy".
 
 ## On the host (the deployed service)
 
@@ -252,19 +329,16 @@ the differences that only matter on the server:
   **CLI locally** instead, which walks the same menus and produces the same MP4.
   A public hostname needs a Caddy vhost added on the host — the Dokploy Domains
   tab cannot do it.
-- **Bundles must be in the image.** The server only sees bundles baked into the
-  container at build time (the Dockerfile `COPY mantras`) or written into the
-  `/data` volume. To add a mantra to the host, commit its bundle and redeploy, or
-  place it under `DATA_DIR`. The chant mp3 is gitignored, so a committed bundle
-  reaches the host **without** its audio — ship the audio through the volume or
-  add it to the build separately; a build with no audio fails at `render`.
+- **Bundles live on the volume** (`/data/mantras`). Make new ones in the UI.
+  Shipped bundles are copied in on first boot, but without their chant audio,
+  which is gitignored. Upload that through the UI before rendering.
 - **Word timing runs in the container.** The image installs the aligner (CPU
   torch). The Sanskrit model is downloaded on the first build and cached in
   `/data/hf`, so it survives redeploys. No API key is needed.
 - **Where output lands.** Rendered MP4s and per-mantra caches (`forced.json`,
   slide PNGs) are written under `/data` (the `temple-mantra-data` volume), so a
   redeploy doesn't re-time or re-render. The finished file is playable
-  in-page and served from `/out/<id>.mp4`.
+  in-page and served from `/out/<id>/<file>.mp4` (`?download` to save it).
 - **Host env is `.env.deploy`, not `.env`.** The local `.env` holds a Windows
   `FFMPEG_PATH` and an empty `DATA_DIR`, which would break the container.
   `scripts/dokploy.mjs` pushes the gitignored `.env.deploy` instead when it
@@ -327,15 +401,35 @@ repo root (CLAUDE.md §11).
 - The default translit build of `durga-kavacham` renders end to end (20 slides,
   ~644s = the audio duration).
 - Both front ends drive the one engine; all server endpoints smoke-tested.
-- The 27 unit tests (`npm test`): tokenizer parallelism (§3 invariant), flag
+- The template flow (2026-09-29), run through the HTTP API:
+  - a bundle was created from a title;
+  - its background and a Devanagari-only text were uploaded;
+  - the text box was set, and the incomplete bundle was refused for a build;
+  - the preview gave 56 verses on 57 slides at the same type size (0.886) as
+    the hand-typed IAST, with correct generated IAST on the slides;
+  - a 20s clip rendered into `data/<id>/` and was served with byte ranges.
+
+  The UI was rendered in headless Edge, and `list`/`info`/`set`/`iast` were
+  run in the CLI.
+- The unit tests (`npm test`): tokenizer parallelism (§3 invariant), flag
   parsing, override selection, config defaults, the ASS encodings, and the
   forced-alignment timeline (sequence order, hand-over, line tail, onset shift,
-  speaker-led slide start, non-parallel spread).
+  speaker-led slide start, non-parallel spread). Plus 11 template tests in
+  `test/template.test.js`:
+  - generated IAST: dandas kept, word pairing, headings;
+  - the text box: clamping, and corners to margins in both directions;
+  - bundle creation, missing-input reporting, uploads and file replacement;
+  - key whitelisting, auto against uploaded IAST, and the output listing;
+  - CLI flags.
+
+  41 tests in all.
 
 **Not yet proven:**
 
 - Any mantra other than the sample. The engine is bundle-driven, but only
-  `durga-kavacham` has been run.
+  `durga-kavacham` has been run, including a Devanagari-only copy of it.
+- The box picker's dragging by hand in a real browser. It rendered correctly
+  headless, but the drag was not exercised there.
 - A build inside the Docker container. Everything above was on the dev machine;
   the image (ffmpeg + Chromium + fonts) has not been built or run on Dokploy.
 - The aligner on a recording with heavy instrumentation or a different chanter.

@@ -39,14 +39,18 @@ COPY src ./src
 COPY public ./public
 COPY aligner/*.py ./aligner/
 COPY prototype/assets ./prototype/assets
-# The mantra bundles' committed inputs (text, background, fonts). The chant
-# audio (*.mp3) is gitignored, so a real build needs it mounted or added.
+# The shipped example bundles (text, background, fonts), seeded into
+# /data/mantras on first boot. Their chant audio (*.mp3) is gitignored, so it
+# is uploaded through the UI like any other input.
 COPY mantras ./mantras
 
+# Bundles live on the volume so ones made in the UI survive a redeploy.
 # HF_HOME on the volume: the Sanskrit model downloads once, not on every deploy.
 ENV NODE_ENV=production \
     PORT=3200 \
     DATA_DIR=/data \
+    MANTRAS_DIR=/data/mantras \
+    MANTRAS_SEED_DIR=/app/mantras \
     HF_HOME=/data/hf \
     BROWSER_PATH=/usr/bin/chromium \
     FFMPEG_PATH=/usr/bin/ffmpeg

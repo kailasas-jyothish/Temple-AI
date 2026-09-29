@@ -5,179 +5,548 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mantra Tutorials</title>
 <style>
-  :root{--bg:#1a1410;--card:#241c15;--line:#3a2e22;--ink:#f2e6d2;--muted:#b9a689;--accent:#cE9a4a;--accent2:#8f6b2f;}
+  :root{--bg:#1a1410;--card:#241c15;--field:#1c1610;--line:#3a2e22;--ink:#f2e6d2;--muted:#b9a689;--accent:#ce9a4a;--ok:#5fae63;--bad:#c9584a;--badink:#e79a8f;}
   *{box-sizing:border-box}
-  body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-  header{padding:22px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#2a2016,#1a1410)}
-  header h1{margin:0;font-size:22px;letter-spacing:.3px}
-  header p{margin:4px 0 0;color:var(--muted);font-size:14px}
-  main{max-width:940px;margin:0 auto;padding:20px;display:grid;gap:18px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-  .card h2{margin:0 0 14px;font-size:15px;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
-  label{display:block;font-size:13px;color:var(--muted);margin:0 0 5px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
-  select,input[type=text],input[type=number]{width:100%;padding:9px 10px;background:#1c1610;border:1px solid var(--line);
-    border-radius:8px;color:var(--ink);font-size:15px}
-  input[type=range]{width:100%}
-  .row{display:flex;align-items:center;gap:10px}
-  .row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
-  .swatch{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);flex:0 0 auto}
-  button{appearance:none;border:0;border-radius:9px;padding:12px 20px;font-size:15px;font-weight:600;cursor:pointer;
-    background:var(--accent);color:#1a1410}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  #stages{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-  #stages li{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#1c1610;border:1px solid var(--line);border-radius:8px;font-size:14px}
-  .dot{width:10px;height:10px;border-radius:50%;background:#5a4a36;flex:0 0 auto}
-  .dot.run{background:var(--accent);animation:pulse 1s infinite}
-  .dot.ok{background:#5fae63}
-  .dot.err{background:#c9584a}
+  body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:18px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#2a2016,#1a1410)}
+  header .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  header h1{margin:0;font-size:21px;letter-spacing:.3px}
+  header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  main{max-width:1080px;margin:0 auto;padding:18px 16px 60px;display:grid;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h2{margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .card h2 small{text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400;font-size:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 4px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  select,input[type=text],input[type=number],textarea{width:100%;padding:8px 10px;background:var(--field);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit}
+  textarea{font-family:ui-monospace,Consolas,monospace;font-size:13px;min-height:160px;resize:vertical}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  input[type=range]{accent-color:var(--accent)}
+  .row input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);margin:0}
+  button,.btn{appearance:none;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);color:#1a1410;text-decoration:none;display:inline-block}
+  button.ghost,.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.danger{background:transparent;color:var(--badink);border:1px solid #5a2f28}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+  .err{color:var(--badink);white-space:pre-wrap}
+  .pill{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+  .pill.ok{color:#9fd8a2;border-color:#2f5a31}
+  .pill.bad{color:var(--badink);border-color:#5a2f28}
+  /* inputs */
+  .inputs{display:grid;gap:8px}
+  .inp{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:center;padding:9px 10px;background:var(--field);border:1px solid var(--line);border-radius:8px}
+  .inp .name{font-weight:600}
+  .inp .name small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+  .inp .state{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .inp .state.have{color:var(--ink)}
+  .inp .state.need{color:var(--badink)}
+  .inp .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .inp .acts button{padding:6px 11px;font-size:13px}
+  .bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;grid-column:1/-1;display:none}
+  .bar i{display:block;height:100%;width:0;background:var(--accent)}
+  @media (max-width:640px){.inp{grid-template-columns:1fr}.inp .acts{justify-content:flex-start}}
+  /* text box picker */
+  .stage{position:relative;width:100%;aspect-ratio:16/9;background:#000 center/cover no-repeat;border-radius:8px;border:1px solid var(--line);overflow:hidden;cursor:crosshair;user-select:none;touch-action:none}
+  .stage .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+  .shade{position:absolute;background:rgba(0,0,0,.45);pointer-events:none}
+  .box{position:absolute;border:2px dashed #ffd27a;box-shadow:0 0 0 1px rgba(0,0,0,.6);cursor:move}
+  .box .tag{position:absolute;left:0;top:-22px;font-size:11px;background:#ffd27a;color:#1a1410;padding:1px 6px;border-radius:4px;white-space:nowrap}
+  .box .h{position:absolute;width:14px;height:14px;background:#ffd27a;border:1px solid #1a1410;border-radius:3px}
+  .box .h[data-h=nw]{left:-8px;top:-8px;cursor:nwse-resize}.box .h[data-h=ne]{right:-8px;top:-8px;cursor:nesw-resize}
+  .box .h[data-h=sw]{left:-8px;bottom:-8px;cursor:nesw-resize}.box .h[data-h=se]{right:-8px;bottom:-8px;cursor:nwse-resize}
+  .box .title-band{position:absolute;left:0;right:0;top:0;border-bottom:1px dotted rgba(255,210,122,.8);pointer-events:none}
+  .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+  .shots figure{margin:0}.shots img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+  .shots figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+  /* progress + outputs */
+  #stages{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
+  #stages li{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--field);border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#5a4a36;flex:0 0 auto}
+  .dot.run{background:var(--accent);animation:pulse 1s infinite}.dot.ok{background:var(--ok)}.dot.err{background:var(--bad)}
   @keyframes pulse{50%{opacity:.35}}
-  video{width:100%;border-radius:10px;border:1px solid var(--line);background:#000}
-  .err{color:#e79a8f;font-size:14px;white-space:pre-wrap}
-  .muted{color:var(--muted)}
+  .outs{display:grid;gap:8px}
+  .out{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--field);border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .out .f{flex:1;min-width:180px;overflow-wrap:anywhere}
+  .out button,.out .btn{padding:5px 10px;font-size:12px}
+  video{width:100%;border-radius:10px;border:1px solid var(--line);background:#000;margin-top:10px}
+  dialog{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(760px,calc(100vw - 32px));padding:16px}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
   a{color:var(--accent)}
+  .muted{color:var(--muted)}
+  .hide{display:none!important}
 </style>
 </head>
 <body>
-<header>
-  <h1>Mantra Tutorials</h1>
-  <p>Turn a mantra bundle into a 1080p video with the transliteration underlined word-by-word, in sync with the chant.</p>
-</header>
+<header><div class="in">
+  <div><h1>Mantra Tutorials</h1><p>Background + Devanagari + chant audio → a 1080p video with the transliteration underlined in time with the chant.</p></div>
+  <div class="row">
+    <select id="mantra" style="width:auto;min-width:220px" aria-label="Mantra"></select>
+    <button class="ghost" id="newBtn">+ New mantra</button>
+  </div>
+</div></header>
+
 <main>
-  <div class="card">
-    <h2>Mantra</h2>
-    <label for="mantra">Bundle</label>
-    <select id="mantra"></select>
-    <p class="hint" id="mantraInfo"></p>
+  <div class="card hide" id="newCard">
+    <h2>New mantra</h2>
+    <div class="grid">
+      <div><label for="newTitle">Title shown on the slides</label><input type="text" id="newTitle" placeholder="Devi Kavacham"></div>
+      <div><label for="newId">Id (folder name)</label><input type="text" id="newId" placeholder="devi-kavacham"></div>
+    </div>
+    <p class="hint">After creating it, add the three required inputs below: background image, Devanagari text and chant audio.</p>
+    <div class="row" style="margin-top:10px"><button id="createBtn">Create</button><button class="ghost" id="cancelNew">Cancel</button><span class="err" id="newErr"></span></div>
   </div>
 
-  <div class="card">
-    <h2>Underline</h2>
-    <div class="row"><input type="checkbox" id="ulOn"><span>Underline the words as they are chanted (experimental — off by default)</span></div>
-    <div class="grid" id="ulGrid" style="margin-top:12px">
-      <div>
-        <label for="color">Colour</label>
-        <div class="row"><input type="text" id="color" placeholder="auto or #cE7A1F"><span class="swatch" id="swatch"></span></div>
-        <p class="hint">“auto” fits the background theme.</p>
+  <div id="noMantra" class="card hide"><p class="muted" style="margin:0">No mantras yet. Click <b>+ New mantra</b> to make one.</p></div>
+
+  <div id="editor" class="hide">
+  <div style="display:grid;gap:16px">
+    <div class="card">
+      <h2>1 · Inputs <span id="readyPill" class="pill"></span></h2>
+      <div class="inputs" id="inputs"></div>
+      <p class="hint">Required: background, Devanagari, audio. The IAST is generated from the Devanagari unless you supply your own. The meaning is optional and shown only if switched on below.</p>
+      <p class="err" id="inErr"></p>
+    </div>
+
+    <div class="card">
+      <h2>2 · Layout <small>drag on the image to set the text box</small></h2>
+      <div class="grid" style="margin-bottom:12px">
+        <div style="grid-column:span 2"><label for="title">Title (optional; a new line with Enter)</label><textarea id="title" style="min-height:44px;font-family:inherit;font-size:15px" rows="1"></textarea></div>
+        <div><label for="vps">Verses per slide</label><input type="number" id="vps" min="1" max="6"></div>
+        <div><label for="expected">Expected verses (a check; 0 = off)</label><input type="number" id="expected" min="0"></div>
+        <div><label for="section">Section heading in the text (optional)</label><input type="text" id="section" placeholder="whole file"></div>
+        <div style="align-self:end"><div class="row"><input type="checkbox" id="meaning"><label for="meaning" style="margin:0;color:var(--ink);font-size:14px">Show meaning block</label></div></div>
       </div>
-      <div>
-        <label for="target">Underlines which line</label>
-        <select id="target"><option value="translit">Transliteration</option><option value="dev">Devanagari</option></select>
+      <div class="stage" id="stage"><div class="empty" id="stageEmpty">Upload a background to place the text box</div></div>
+      <div class="grid" style="margin-top:10px">
+        <div><label for="bx1">Left x</label><input type="number" id="bx1" min="0" max="1920"></div>
+        <div><label for="by1">Top y</label><input type="number" id="by1" min="0" max="1080"></div>
+        <div><label for="bx2">Right x</label><input type="number" id="bx2" min="0" max="1920"></div>
+        <div><label for="by2">Bottom y</label><input type="number" id="by2" min="0" max="1080"></div>
       </div>
-      <div>
-        <label for="motion">Motion</label>
-        <select id="motion"><option value="glide">Glide</option><option value="step">Step</option></select>
+      <p class="hint">Pixels of the 1920×1080 frame. Everything, the title included, stays inside the box. The dotted line marks where the title ends and the verses begin. Keep the box clear of faces, logos and lamps on the background.</p>
+      <div class="row" style="margin-top:10px">
+        <button id="saveLayout">Save layout</button>
+        <button class="ghost" id="previewBtn">Save &amp; preview slides</button>
+        <button class="ghost" id="resetBox">Whole frame</button>
+        <span id="layoutMsg" class="muted" style="font-size:13px"></span>
       </div>
-      <div>
-        <label>Thickness — <span id="thVal"></span> px</label>
-        <input type="range" id="thickness" min="1" max="10" step="1">
+      <div class="shots" id="shots"></div>
+    </div>
+
+    <div class="card">
+      <h2>3 · Underline</h2>
+      <div class="row"><input type="checkbox" id="ulOn"><label for="ulOn" style="margin:0;color:var(--ink);font-size:14px">Underline each word as it is chanted</label></div>
+      <div class="grid" id="ulGrid" style="margin-top:12px">
+        <div><label for="motion">Motion</label><select id="motion">
+          <option value="sweep" title="A short bar moving steadily along the line">Sweep</option>
+          <option value="glide" title="Sized to each word, glides between words">Glide</option>
+          <option value="step" title="Jumps word to word">Step</option></select></div>
+        <div><label for="colorMode">Colour</label>
+          <div class="row" style="flex-wrap:nowrap"><select id="colorMode"><option value="auto" title="Derived from the background">Auto</option><option value="custom">Custom</option></select>
+          <input type="color" id="colorPick" value="#e0a040" style="width:44px;height:36px;padding:0;border:1px solid var(--line);border-radius:6px;background:none"></div></div>
+        <div><label for="thickness">Thickness <span id="thickVal"></span>px</label><input type="range" id="thickness" min="1" max="10" step="1" style="width:100%"></div>
+        <div><label for="length">Sweep bar length <span id="lenVal"></span>px</label><input type="range" id="length" min="24" max="200" step="4" style="width:100%"></div>
+        <div><label for="target">Underline which line</label><select id="target"><option value="translit">IAST</option><option value="dev">Devanagari</option></select></div>
+        <div style="align-self:end"><div class="row"><input type="checkbox" id="halo"><label for="halo" style="margin:0;color:var(--ink);font-size:14px">Soft glow</label></div></div>
       </div>
-      <div>
-        <label>Opacity — <span id="opVal"></span></label>
-        <input type="range" id="opacity" min="0.2" max="1" step="0.05">
+      <div class="row" style="margin-top:10px"><button class="ghost" id="saveUl">Save as this mantra's default</button><span id="ulMsg" class="muted" style="font-size:13px"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>4 · Render</h2>
+      <div class="grid">
+        <div><label for="from">Clip from (seconds)</label><input type="number" id="from" min="0" value="0"></div>
+        <div><label for="to">to (seconds)</label><input type="number" id="to" min="1" value="30"></div>
+        <div style="align-self:end"><div class="row"><input type="checkbox" id="force"><label for="force" style="margin:0;color:var(--ink);font-size:14px" title="Needed after replacing the audio with a different recording of the same length">Re-time the words</label></div></div>
       </div>
-      <div>
-        <label>Options</label>
-        <div class="row"><input type="checkbox" id="halo"><span>Halo (softer, thicker)</span></div>
-        <div class="row" style="margin-top:8px"><input type="checkbox" id="meaning"><span>Show meaning block</span></div>
+      <div class="row" style="margin-top:12px">
+        <button id="clipBtn">Render clip</button>
+        <button class="ghost" id="fullBtn">Render full video</button>
+        <span id="busyMsg" class="muted" style="font-size:13px"></span>
       </div>
+      <p class="hint">A clip renders only that stretch, which is quick for checking the layout and the underline. The first render of a mantra times every word against the audio, which takes a few minutes. After that it is cached.</p>
+      <ul id="stages"></ul>
+      <p class="err" id="buildErr"></p>
+    </div>
+
+    <div class="card">
+      <h2>5 · Videos <small id="outDir"></small></h2>
+      <div class="outs" id="outs"></div>
+      <video id="player" controls class="hide"></video>
     </div>
   </div>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <div><button id="build">Build video</button> <span class="muted" id="status"></span></div>
-    </div>
-    <ul id="stages" style="margin-top:16px"></ul>
-    <p class="err" id="error"></p>
-  </div>
-
-  <div class="card" id="resultCard" style="display:none">
-    <h2>Result</h2>
-    <video id="video" controls preload="metadata"></video>
-    <p class="hint" id="resultInfo"></p>
   </div>
 </main>
+
+<dialog id="textDlg">
+  <h2 style="margin:0 0 8px;font-size:15px;color:var(--accent)" id="dlgTitle"></h2>
+  <p class="hint" id="dlgHint" style="margin:0 0 8px"></p>
+  <textarea id="dlgText" spellcheck="false" style="min-height:340px"></textarea>
+  <div class="row" style="margin-top:10px;justify-content:flex-end">
+    <span class="err" id="dlgErr" style="margin-right:auto"></span>
+    <button class="ghost" id="dlgClose">Close</button>
+    <button id="dlgSave">Save</button>
+  </div>
+</dialog>
+
 <script>
 const $ = (id) => document.getElementById(id);
-const STAGE_LABELS = { extract:'Extract text', transcribe:'Time words to chant', align:'Build timeline', theme:'Derive theme', slides:'Render slides', render:'Assemble video' };
-let mantras = [];
+const W = 1920, H = 1080;
+const STAGES = { extract: 'Read the text', transcribe: 'Time the words to the audio', align: 'Place each word', theme: 'Colours from the background', slides: 'Lay out the slides', render: 'Encode the video' };
+const INPUTS = [
+  { kind: 'background', name: 'Background', note: 'png / jpg, 16:9', accept: 'image/png,image/jpeg,image/webp', required: true },
+  { kind: 'dev', name: 'Devanagari', note: '.md / .txt', accept: '.md,.txt,text/plain,text/markdown', required: true, text: true },
+  { kind: 'audio', name: 'Chant audio', note: 'mp3 / wav / m4a', accept: 'audio/*,.mp3,.wav,.m4a,.flac,.ogg', required: true },
+  { kind: 'iast', name: 'IAST', note: 'optional', accept: '.md,.txt,text/plain,text/markdown', text: true },
+  { kind: 'meaning', name: 'Meaning', note: 'optional', accept: '.md,.txt,text/plain,text/markdown', text: true },
+];
+let cfg = null, cur = null, box = null, polling = null;
 
-function applyDefaults(m){
-  const u = m.underline || {};
-  $('color').value = u.color ?? 'auto';
-  $('target').value = u.target ?? 'translit';
-  $('motion').value = u.motion ?? 'glide';
-  $('thickness').value = u.thicknessPx ?? 3;
-  $('opacity').value = u.opacity ?? 0.9;
-  $('halo').checked = !!u.halo;
-  $('ulOn').checked = !!u.enabled;
-  $('meaning').checked = !!m.showMeaning;
-  $('mantraInfo').textContent = (m.title ? m.title.replace(/\n/g,' — ') : m.id) + (m.section ? '  ·  ' + m.section : '');
-  syncLabels();
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const ct = r.headers.get('content-type') || '';
+  const body = ct.includes('json') ? await r.json() : await r.text();
+  if (!r.ok) throw new Error((body && body.error) || body || r.statusText);
+  return body;
 }
-function syncLabels(){
-  $('ulGrid').style.opacity = $('ulOn').checked ? '1' : '.45';
-  $('thVal').textContent = $('thickness').value;
-  $('opVal').textContent = (+$('opacity').value).toFixed(2);
-  const c = $('color').value.trim();
-  $('swatch').style.background = /^#?[0-9a-fA-F]{6}$/.test(c) ? (c[0]==='#'?c:'#'+c) : 'transparent';
+const enc = encodeURIComponent;
+const mb = (n) => (n / 1e6).toFixed(1) + ' MB';
+
+// ---------- mantra list / new ----------
+async function loadList(select) {
+  const { mantras } = await api('/api/mantras');
+  const sel = $('mantra');
+  sel.innerHTML = mantras.map((m) => `<option value="${m.id}">${m.id}${m.ready ? '' : ' (incomplete)'}</option>`).join('');
+  const want = select || localStorage.getItem('mantra') || (mantras[0] && mantras[0].id);
+  if (mantras.some((m) => m.id === want)) sel.value = want;
+  $('noMantra').classList.toggle('hide', mantras.length > 0);
+  $('editor').classList.toggle('hide', !mantras.length);
+  if (mantras.length) await open(sel.value);
 }
-function overrides(){
+$('mantra').onchange = () => open($('mantra').value);
+$('newBtn').onclick = () => { $('newCard').classList.remove('hide'); $('newTitle').focus(); };
+$('cancelNew').onclick = () => $('newCard').classList.add('hide');
+const slug = (s) => s.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 63);
+$('newTitle').oninput = () => { if (!$('newId').dataset.touched) $('newId').value = slug($('newTitle').value); };
+$('newId').oninput = () => { $('newId').dataset.touched = '1'; };
+$('createBtn').onclick = async () => {
+  $('newErr').textContent = '';
+  try {
+    const m = await api('/api/mantras', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: $('newId').value.trim(), title: $('newTitle').value.trim() }) });
+    $('newCard').classList.add('hide'); $('newTitle').value = ''; $('newId').value = ''; delete $('newId').dataset.touched;
+    await loadList(m.id);
+  } catch (e) { $('newErr').textContent = e.message; }
+};
+
+async function open(id) {
+  try { localStorage.setItem('mantra', id); } catch {}
+  cur = await api(`/api/mantras/${enc(id)}`);
+  $('shots').innerHTML = ''; $('layoutMsg').textContent = ''; $('buildErr').textContent = '';
+  renderInputs(); renderLayout(); renderUnderline(); renderOutputs();
+}
+async function refresh() { cur = await api(`/api/mantras/${enc(cur.id)}`); renderInputs(); renderOutputs(); updateMantraOption(); }
+function updateMantraOption() {
+  const o = [...$('mantra').options].find((x) => x.value === cur.id);
+  if (o) o.textContent = cur.id + (cur.ready ? '' : ' (incomplete)');
+}
+
+// ---------- inputs ----------
+function renderInputs() {
+  const p = $('readyPill');
+  p.textContent = cur.ready ? 'ready to render' : 'needs ' + cur.missing.join(', ');
+  p.className = 'pill ' + (cur.ready ? 'ok' : 'bad');
+  $('inputs').innerHTML = INPUTS.map((k) => {
+    const have = cur.files[k.kind];
+    let state = have ? have : k.required ? 'missing' : k.kind === 'iast' ? 'auto (generated from the Devanagari)' : 'none';
+    const cls = have ? 'have' : k.required ? 'need' : '';
+    const acts = [`<button class="ghost" data-up="${k.kind}">Upload</button>`];
+    if (k.text) acts.push(`<button class="ghost" data-edit="${k.kind}">${k.kind === 'iast' ? (have ? 'Edit' : 'Show / edit') : have ? 'Edit' : 'Paste'}</button>`);
+    if (have && !k.required) acts.push(`<button class="danger" data-del="${k.kind}">${k.kind === 'iast' ? 'Use auto' : 'Remove'}</button>`);
+    const extra = k.kind === 'audio' && have ? `<audio controls preload="none" src="/api/mantras/${enc(cur.id)}/files/audio?t=${Date.now()}" style="grid-column:1/-1;width:100%;height:34px"></audio>` : '';
+    return `<div class="inp"><div class="name">${k.name}<small>${k.note}</small></div><div class="state ${cls}" title="${state}">${state}</div><div class="acts">${acts.join('')}</div><div class="bar" id="bar-${k.kind}"><i></i></div>${extra}</div>`;
+  }).join('');
+  $('inputs').querySelectorAll('[data-up]').forEach((b) => (b.onclick = () => pickFile(b.dataset.up)));
+  $('inputs').querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => editText(b.dataset.edit)));
+  $('inputs').querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => {
+    $('inErr').textContent = '';
+    try { cur = await api(`/api/mantras/${enc(cur.id)}/files/${b.dataset.del}`, { method: 'DELETE' }); renderInputs(); updateMantraOption(); } catch (e) { $('inErr').textContent = e.message; }
+  }));
+  setStageBg();
+}
+
+function pickFile(kind) {
+  const k = INPUTS.find((x) => x.kind === kind);
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = k.accept;
+  inp.onchange = () => inp.files[0] && upload(kind, inp.files[0]);
+  inp.click();
+}
+function upload(kind, file) {
+  $('inErr').textContent = '';
+  const bar = $('bar-' + kind); bar.style.display = 'block';
+  const xhr = new XMLHttpRequest();
+  xhr.open('PUT', `/api/mantras/${enc(cur.id)}/files/${kind}?name=${enc(file.name)}`);
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.firstChild.style.width = (100 * e.loaded / e.total) + '%'; };
+  xhr.onload = () => {
+    let body = {}; try { body = JSON.parse(xhr.responseText); } catch {}
+    if (xhr.status >= 300) { $('inErr').textContent = body.error || xhr.statusText; bar.style.display = 'none'; return; }
+    cur = body; renderInputs(); updateMantraOption();
+    if (kind === 'background') { $('shots').innerHTML = ''; }
+  };
+  xhr.onerror = () => { $('inErr').textContent = 'upload failed'; bar.style.display = 'none'; };
+  xhr.send(file);
+}
+
+let dlgKind = '';
+async function editText(kind) {
+  dlgKind = kind; $('dlgErr').textContent = '';
+  const k = INPUTS.find((x) => x.kind === kind);
+  $('dlgTitle').textContent = k.name;
+  $('dlgText').value = '';
+  if (kind === 'iast') {
+    try {
+      const r = await api(`/api/mantras/${enc(cur.id)}/iast`);
+      $('dlgText').value = r.text;
+      $('dlgHint').textContent = r.auto
+        ? 'Generated from the Devanagari by sanscript. Nothing is saved unless you edit it and press Save. Saving makes it your own IAST file, and "Use auto" goes back to generating it.'
+        : 'Your IAST file. Keep one line per Devanagari line and the same number of words, so the underline pairs the two scripts.';
+    } catch (e) { $('dlgHint').textContent = e.message; }
+  } else {
+    $('dlgHint').textContent = kind === 'dev'
+      ? 'One line per half-verse. End each verse with its number, e.g. ॥ १ ॥. A line ending in उवाच is a speaker line. A line starting with इति closes the text.'
+      : 'Laid out like the Devanagari: same verses, same numbering.';
+    if (cur.files[kind]) { try { $('dlgText').value = await api(`/api/mantras/${enc(cur.id)}/files/${kind}`); } catch {} }
+  }
+  $('textDlg').showModal();
+}
+$('dlgClose').onclick = () => $('textDlg').close();
+$('dlgSave').onclick = async () => {
+  try {
+    cur = await api(`/api/mantras/${enc(cur.id)}/files/${dlgKind}`, { method: 'PUT', headers: { 'content-type': 'text/plain; charset=utf-8' }, body: $('dlgText').value });
+    $('textDlg').close(); renderInputs(); updateMantraOption();
+  } catch (e) { $('dlgErr').textContent = e.message; }
+};
+
+// ---------- layout + text box ----------
+function renderLayout() {
+  $('title').value = cur.title || '';
+  $('vps').value = cur.versesPerSlide;
+  $('expected').value = cur.expectedVerses || 0;
+  $('section').value = cur.section || '';
+  $('meaning').checked = !!cur.showMeaning;
+  box = { ...cur.box };
+  drawBox();
+}
+function setStageBg() {
+  const st = $('stage');
+  if (cur.files.background) {
+    st.style.backgroundImage = `url("/api/mantras/${enc(cur.id)}/files/background?t=${enc(cur.files.background)}${Date.now() % 100000}")`;
+    $('stageEmpty').classList.add('hide');
+  } else { st.style.backgroundImage = ''; $('stageEmpty').classList.remove('hide'); }
+}
+function drawBox() {
+  const st = $('stage');
+  st.querySelectorAll('.box,.shade').forEach((n) => n.remove());
+  const pct = (v, of) => (100 * v / of) + '%';
+  const { x1, y1, x2, y2 } = box;
+  // shade outside the box so the usable area reads at a glance
+  for (const [l, t, w, h] of [[0, 0, W, y1], [0, y2, W, H - y2], [0, y1, x1, y2 - y1], [x2, y1, W - x2, y2 - y1]]) {
+    const s = document.createElement('div'); s.className = 'shade';
+    Object.assign(s.style, { left: pct(l, W), top: pct(t, H), width: pct(w, W), height: pct(h, H) });
+    st.appendChild(s);
+  }
+  const b = document.createElement('div'); b.className = 'box';
+  Object.assign(b.style, { left: pct(x1, W), top: pct(y1, H), width: pct(x2 - x1, W), height: pct(y2 - y1, H) });
+  const titleH = ($('title').value.trim() ? 236 : 96);
+  b.innerHTML = `<span class="tag">${x2 - x1} × ${y2 - y1}</span><div class="title-band" style="height:${Math.min(100, 100 * titleH / (y2 - y1))}%"></div>`
+    + ['nw', 'ne', 'sw', 'se'].map((h) => `<i class="h" data-h="${h}"></i>`).join('');
+  st.appendChild(b);
+  $('bx1').value = x1; $('by1').value = y1; $('bx2').value = x2; $('by2').value = y2;
+}
+$('title').oninput = () => drawBox();
+(function picker() {
+  const st = $('stage');
+  let drag = null;
+  const pt = (e) => {
+    const r = st.getBoundingClientRect();
+    return { x: Math.round(Math.min(W, Math.max(0, (e.clientX - r.left) / r.width * W))), y: Math.round(Math.min(H, Math.max(0, (e.clientY - r.top) / r.height * H))) };
+  };
+  st.addEventListener('pointerdown', (e) => {
+    if (!cur || !cur.files.background) return;
+    const p = pt(e);
+    const h = e.target.dataset && e.target.dataset.h;
+    if (h) drag = { mode: 'resize', h };
+    else if (e.target.closest('.box')) drag = { mode: 'move', from: p, start: { ...box } };
+    else drag = { mode: 'draw', from: p };
+    st.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  st.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const p = pt(e);
+    if (drag.mode === 'draw') box = { x1: Math.min(drag.from.x, p.x), y1: Math.min(drag.from.y, p.y), x2: Math.max(drag.from.x, p.x), y2: Math.max(drag.from.y, p.y) };
+    else if (drag.mode === 'move') {
+      const w = drag.start.x2 - drag.start.x1, hh = drag.start.y2 - drag.start.y1;
+      const x1 = Math.min(W - w, Math.max(0, drag.start.x1 + p.x - drag.from.x));
+      const y1 = Math.min(H - hh, Math.max(0, drag.start.y1 + p.y - drag.from.y));
+      box = { x1, y1, x2: x1 + w, y2: y1 + hh };
+    } else {
+      if (drag.h.includes('w')) box.x1 = Math.min(p.x, box.x2 - 40); else box.x2 = Math.max(p.x, box.x1 + 40);
+      if (drag.h.includes('n')) box.y1 = Math.min(p.y, box.y2 - 40); else box.y2 = Math.max(p.y, box.y1 + 40);
+    }
+    drawBox();
+  });
+  const end = () => {
+    if (drag && drag.mode === 'draw' && (box.x2 - box.x1 < 40 || box.y2 - box.y1 < 40)) box = { ...cur.box }; // a click, not a drag
+    drag = null; drawBox();
+  };
+  st.addEventListener('pointerup', end);
+  st.addEventListener('pointercancel', end);
+  for (const id of ['bx1', 'by1', 'bx2', 'by2']) $(id).onchange = () => {
+    box = { x1: +$('bx1').value, y1: +$('by1').value, x2: +$('bx2').value, y2: +$('by2').value };
+    drawBox();
+  };
+})();
+$('resetBox').onclick = () => { box = { x1: 0, y1: 0, x2: W, y2: H }; drawBox(); };
+
+function layoutPatch() {
   return {
-    enabled: $('ulOn').checked,
-    color: $('color').value.trim() || 'auto',
-    target: $('target').value,
-    motion: $('motion').value,
-    thicknessPx: +$('thickness').value,
-    opacity: +$('opacity').value,
-    halo: $('halo').checked,
-    showMeaning: $('meaning').checked,
+    title: $('title').value, section: $('section').value.trim(), versesPerSlide: +$('vps').value || 1,
+    expectedVerses: +$('expected').value || 0, showMeaning: $('meaning').checked,
+    textArea: { left: Math.min(box.x1, box.x2), right: W - Math.max(box.x1, box.x2), top: Math.min(box.y1, box.y2), bottom: H - Math.max(box.y1, box.y2) },
   };
 }
-function renderStages(job){
-  const done = new Set((job.stages||[]).filter(s=>s.done).map(s=>s.name));
-  const active = (job.stages||[]).find(s=>!s.done);
-  const order = ['extract','transcribe','align','theme','slides','render'];
-  $('stages').innerHTML = order.map(name=>{
-    let cls='dot';
-    if(job.status==='error' && active && active.name===name) cls='dot err';
-    else if(done.has(name)) cls='dot ok';
-    else if(active && active.name===name && job.status==='running') cls='dot run';
-    return `<li><span class="${cls}"></span>${STAGE_LABELS[name]}</li>`;
-  }).join('');
+async function saveLayout() {
+  cur = await api(`/api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(layoutPatch()) });
+  box = { ...cur.box }; drawBox();
 }
-async function poll(jobId){
-  const r = await fetch('api/jobs/'+jobId); const job = await r.json();
-  renderStages(job);
-  if(job.status==='running'){ $('status').textContent='building…'; setTimeout(()=>poll(jobId),1000); return; }
-  $('build').disabled=false;
-  if(job.status==='error'){ $('status').textContent='failed'; $('error').textContent=job.error||'unknown error'; return; }
-  $('status').textContent='done'+(job.bytes?` (${(job.bytes/1e6).toFixed(1)} MB)`:'');
-  $('resultCard').style.display='block';
-  $('video').src = job.output + '?t=' + Date.now();
-  $('resultInfo').textContent = 'Saved to the mantra bundle. Direct link: ' + job.output;
+$('saveLayout').onclick = async () => {
+  $('layoutMsg').textContent = '';
+  try { await saveLayout(); $('layoutMsg').textContent = 'Saved.'; } catch (e) { $('layoutMsg').innerHTML = `<span class="err">${e.message}</span>`; }
+};
+$('previewBtn').onclick = async () => {
+  const b = $('previewBtn'); b.disabled = true;
+  $('layoutMsg').textContent = 'Laying out the slides… (about half a minute)';
+  try {
+    await saveLayout();
+    const r = await api(`/api/mantras/${enc(cur.id)}/preview`, { method: 'POST' });
+    $('layoutMsg').innerHTML = `${r.verses} verses on ${r.slides} slides · type size ${Math.round(r.scale * 100)}%${r.autoIast ? ' · IAST generated' : ''}`
+      + r.problems.map((p) => `<br><span class="err">${p}</span>`).join('');
+    $('shots').innerHTML = (r.shots.preamble ? `<figure><img src="${r.shots.preamble}" alt="Opening slide"><figcaption>Opening slide (title and preamble)</figcaption></figure>` : '')
+      + (r.shots.verse ? `<figure><img src="${r.shots.verse}" alt="Tightest verse slide"><figcaption>Verse ${r.tightestVerses.join('–')}: the widest slide, which sets one type size for every verse</figcaption></figure>` : '');
+  } catch (e) { $('layoutMsg').innerHTML = `<span class="err">${e.message}</span>`; }
+  b.disabled = false;
+};
+
+// ---------- underline ----------
+function renderUnderline() {
+  const u = cur.underline;
+  $('ulOn').checked = !!u.enabled;
+  $('motion').value = u.motion;
+  const custom = u.color && u.color !== 'auto';
+  $('colorMode').value = custom ? 'custom' : 'auto';
+  if (custom) $('colorPick').value = u.color.startsWith('#') ? u.color : '#' + u.color;
+  $('thickness').value = u.thicknessPx; $('length').value = u.lengthPx;
+  $('target').value = u.target; $('halo').checked = !!u.halo;
+  syncUl();
 }
-async function build(){
-  $('error').textContent=''; $('build').disabled=true; $('status').textContent='starting…';
-  const res = await fetch('api/build',{method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({id:$('mantra').value, overrides:overrides()})});
-  const data = await res.json();
-  if(!res.ok){ $('build').disabled=false; $('status').textContent=''; $('error').textContent=data.error||('HTTP '+res.status); return; }
-  poll(data.jobId);
+function syncUl() {
+  $('thickVal').textContent = $('thickness').value; $('lenVal').textContent = $('length').value;
+  $('ulGrid').style.opacity = $('ulOn').checked ? 1 : 0.4;
+  $('colorPick').style.visibility = $('colorMode').value === 'custom' ? 'visible' : 'hidden';
+  $('length').disabled = $('motion').value !== 'sweep';
 }
-async function load(){
-  const r = await fetch('api/mantras'); const d = await r.json();
-  mantras = d.mantras||[];
-  const sel = $('mantra');
-  sel.innerHTML = mantras.map(m=>`<option value="${m.id}">${m.id}</option>`).join('') || '<option>(no bundles)</option>';
-  if(mantras.length) applyDefaults(mantras[0]);
-  sel.onchange=()=>{ const m=mantras.find(x=>x.id===sel.value); if(m) applyDefaults(m); };
+for (const id of ['ulOn', 'motion', 'colorMode', 'thickness', 'length']) $(id).addEventListener('input', syncUl);
+function underlineNow() {
+  return {
+    enabled: $('ulOn').checked, motion: $('motion').value,
+    color: $('colorMode').value === 'auto' ? 'auto' : $('colorPick').value,
+    thicknessPx: +$('thickness').value, lengthPx: +$('length').value, target: $('target').value, halo: $('halo').checked,
+  };
 }
-['thickness','opacity','color','ulOn'].forEach(id=>$(id).addEventListener('input',syncLabels));
-$('build').onclick=build;
-load();
+$('saveUl').onclick = async () => {
+  try {
+    cur = await api(`/api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ underline: underlineNow() }) });
+    $('ulMsg').textContent = 'Saved.';
+  } catch (e) { $('ulMsg').innerHTML = `<span class="err">${e.message}</span>`; }
+};
+
+// ---------- render ----------
+async function build(sample) {
+  $('buildErr').textContent = '';
+  if (!cur.ready) { $('buildErr').textContent = 'Add the missing inputs first: ' + cur.missing.join(', '); return; }
+  try {
+    await saveLayout();
+    const body = { id: cur.id, overrides: { ...underlineNow(), showMeaning: $('meaning').checked }, force: $('force').checked };
+    if (sample) body.sample = sample;
+    const { jobId } = await api('/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    watch(jobId);
+  } catch (e) { $('buildErr').textContent = e.message; }
+}
+$('clipBtn').onclick = () => {
+  const from = +$('from').value, to = +$('to').value;
+  if (!(to > from)) { $('buildErr').textContent = '"to" must be after "from".'; return; }
+  build({ from, to });
+};
+$('fullBtn').onclick = () => { if (confirm('Render the whole video? This takes a while (several minutes to over an hour for a long chant).')) build(null); };
+
+function setBusy(msg) {
+  $('busyMsg').textContent = msg || '';
+  for (const id of ['clipBtn', 'fullBtn', 'previewBtn']) $(id).disabled = !!msg;
+}
+function watch(jobId) {
+  clearInterval(polling);
+  const tick = async () => {
+    let job; try { job = await api(`/api/jobs/${jobId}`); } catch { return; }
+    const names = Object.keys(STAGES);
+    $('stages').innerHTML = names.map((n) => {
+      const s = job.stages.find((x) => x.name === n);
+      const cls = !s ? '' : s.done ? 'ok' : job.status === 'error' ? 'err' : 'run';
+      const secs = s && s.done && s.doneAt ? ` <span class="muted">${Math.max(0, Math.round((s.doneAt - s.at) / 1000))}s</span>` : '';
+      return `<li><span class="dot ${cls}"></span>${STAGES[n]}${secs}</li>`;
+    }).join('');
+    const what = job.kind === 'sample' ? `clip ${job.sample.from}–${job.sample.to}s` : 'full video';
+    if (job.status === 'running') { setBusy(`Rendering ${job.mantra} ${what}…`); return; }
+    clearInterval(polling); setBusy('');
+    if (job.status === 'error') { $('buildErr').textContent = job.error; return; }
+    if (job.mantra === cur.id) { await refresh(); play(job.file); }
+  };
+  tick(); polling = setInterval(tick, 1500);
+}
+
+// ---------- outputs ----------
+function renderOutputs() {
+  $('outDir').textContent = 'saved in ' + cur.outputDir;
+  $('outs').innerHTML = cur.outputs.length ? cur.outputs.map((o) => `<div class="out">
+      <span class="f"><b>${o.file}</b> <span class="muted">· ${mb(o.bytes)} · ${new Date(o.at).toLocaleString()}${o.sample ? ' · clip' : ''}</span></span>
+      <button class="ghost" data-play="${o.file}">Play</button>
+      <a class="btn ghost" href="/out/${enc(cur.id)}/${enc(o.file)}?download=1">Download</a>
+      <button class="danger" data-rm="${o.file}">Delete</button></div>`).join('')
+    : '<p class="muted" style="margin:0">Nothing rendered yet.</p>';
+  $('outs').querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => play(b.dataset.play)));
+  $('outs').querySelectorAll('[data-rm]').forEach((b) => (b.onclick = async () => {
+    if (!confirm('Delete ' + b.dataset.rm + '?')) return;
+    cur = await api(`/api/mantras/${enc(cur.id)}/outputs/${enc(b.dataset.rm)}`, { method: 'DELETE' });
+    $('player').classList.add('hide'); renderOutputs();
+  }));
+}
+function play(file) {
+  const v = $('player');
+  v.src = `/out/${enc(cur.id)}/${enc(file)}?t=${Date.now()}`;
+  v.classList.remove('hide'); v.play().catch(() => {});
+}
+
+// ---------- boot ----------
+(async () => {
+  try {
+    cfg = await api('/api/config');
+    await loadList();
+    // reattach to a render started earlier (e.g. before a page reload)
+    const { jobs } = await api('/api/jobs');
+    const live = jobs.find((j) => j.status === 'running');
+    if (live) watch(live.id);
+  } catch (e) { document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="card err">${e.message}</div>`); }
+})();
 </script>
 </body>
 </html>

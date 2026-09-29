@@ -48,6 +48,10 @@ export const config = {
   uiPassword: env.UI_PASSWORD || '',
   dataDir: env.DATA_DIR || path.join(serviceRoot, 'data'),
   mantrasDir: env.MANTRAS_DIR || path.join(serviceRoot, 'mantras'),
+  // Bundles shipped in the image, copied into MANTRAS_DIR at boot when absent.
+  // In the container MANTRAS_DIR is on the /data volume, so bundles made in the
+  // UI survive a redeploy; the image's own copy would not.
+  mantrasSeedDir: env.MANTRAS_SEED_DIR || '',
   // Word timing. 'ctc' = forced alignment of the exact text (aligner/align.py);
   // 'deepgram' = the older ASR + fuzzy-match path; 'auto' = ctc when the Python
   // aligner is installed (npm run setup), else deepgram.

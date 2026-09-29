@@ -29,7 +29,10 @@ export function deriveTheme(bgPath, outDir, opts = {}) {
   img.onload=function(){
     try{
       var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-      var g=cv.getContext('2d'); g.drawImage(img,0,0,W,H);
+      // drawn like the slides' CSS "center/cover", so the band samples the same
+      // pixels the text sits on even when the upload is not 16:9
+      var g=cv.getContext('2d'); var cs=Math.max(W/img.width,H/img.height);
+      g.drawImage(img,(W-img.width*cs)/2,(H-img.height*cs)/2,img.width*cs,img.height*cs);
       var d=g.getImageData(0,0,W,H).data;
       // coarse 5-bit-per-channel histogram
       var buckets={};

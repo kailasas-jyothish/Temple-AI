@@ -15,7 +15,7 @@ const DEFAULT_FONTS = {
   serifItalic: 'serif-italic.ttf',
 };
 
-const DEFAULT_TEXT_AREA = { left: 70, right: 70, top: 64, bottom: 56 };
+export const DEFAULT_TEXT_AREA = { left: 70, right: 70, top: 64, bottom: 56 };
 
 /** Resolve a possibly-relative path against the bundle directory. */
 function resolveIn(dir, p) {
@@ -24,10 +24,32 @@ function resolveIn(dir, p) {
 }
 
 /**
- * Load and validate a bundle by id (folder name) or by an explicit mantra.json path.
- * @param {string} idOrPath
+ * Clamp a text area to the frame, leaving at least a 320x240 box, so a bad drag
+ * or a typo cannot produce a slide with nowhere to put the text.
+ * @param {any} a
  */
-export function loadMantra(idOrPath) {
+export function clampArea(a) {
+  const n = (v, d) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : d);
+  let left = Math.max(0, n(a && a.left, DEFAULT_TEXT_AREA.left));
+  let right = Math.max(0, n(a && a.right, DEFAULT_TEXT_AREA.right));
+  let top = Math.max(0, n(a && a.top, DEFAULT_TEXT_AREA.top));
+  let bottom = Math.max(0, n(a && a.bottom, DEFAULT_TEXT_AREA.bottom));
+  if (1920 - left - right < 320) { left = Math.min(left, 1600); right = 1920 - left - 320; }
+  if (1080 - top - bottom < 240) { top = Math.min(top, 840); bottom = 1080 - top - 240; }
+  return { left, right, top, bottom };
+}
+
+/**
+ * Load a bundle by id (folder name) or by an explicit mantra.json path.
+ *
+ * Required inputs: background, Devanagari text, audio. The transliteration is
+ * optional — without it the IAST is generated from the Devanagari (translit.js).
+ * `partial` returns the bundle with a `missing` list instead of throwing, which
+ * is what the UI and `mantra info` need to show a half-filled bundle.
+ * @param {string} idOrPath
+ * @param {{ partial?: boolean }} [opts]
+ */
+export function loadMantra(idOrPath, opts = {}) {
   let jsonPath;
   if (idOrPath.toLowerCase().endsWith('.json')) {
     jsonPath = path.resolve(idOrPath);
@@ -63,29 +85,35 @@ export function loadMantra(idOrPath) {
     deepgramCache: resolveIn(dir, raw.deepgramCache || ''),     // optional pre-fetched JSON
     deepgramLanguage: raw.deepgramLanguage || config.deepgramLanguage,
     expectedVerses: raw.expectedVerses || 0,
-    output: resolveIn(dir, raw.output || `${id}.mp4`),
+    // Renders go to DATA_DIR/<id>/, never into the bundle: in the container only
+    // /data persists, and the bundle folder may be the read-only image copy.
+    output: path.isAbsolute(raw.output || '') ? raw.output
+      : path.join(config.dataDir, id, path.basename(raw.output || `${id}.mp4`)),
     fonts,
     showMeaning: raw.showMeaning ?? config.showMeaning,
     underline: { ...underlineDefaults, ...(raw.underline || {}) },
     // Where text may go, as px margins from the 1920x1080 frame's edges. A
     // background with a figure or logo on it keeps them clear by narrowing this.
-    textArea: { ...DEFAULT_TEXT_AREA, ...(raw.textArea || {}) },
+    textArea: clampArea({ ...DEFAULT_TEXT_AREA, ...(raw.textArea || {}) }),
     versesPerSlide: Math.max(0, Math.round(Number(raw.versesPerSlide) || 0)), // 0 = VERSES_PER_SLIDE
     uniformScale: raw.uniformScale !== false, // one type size on every slide
+    /** true when there is no transliteration file and the IAST is generated */
+    autoIast: false,
+    /** @type {string[]} required inputs that are absent */
+    missing: [],
   };
+  if (!bundle.engMarkdown || !fs.existsSync(bundle.engMarkdown)) { bundle.engMarkdown = ''; bundle.autoIast = true; }
+  if (bundle.meaningMarkdown && !fs.existsSync(bundle.meaningMarkdown)) bundle.meaningMarkdown = '';
 
-  const missing = [];
   for (const [label, p] of [
     ['background', bundle.background],
-    ['devMarkdown', bundle.devMarkdown],
-    ['engMarkdown', bundle.engMarkdown],
+    ['devanagari', bundle.devMarkdown],
     ['audio', bundle.audio],
   ]) {
-    if (!p || !fs.existsSync(p)) missing.push(`${label} (${p || 'unset'})`);
+    if (!p || !fs.existsSync(p)) bundle.missing.push(label);
   }
-  if (missing.length) throw new Error(`mantra "${id}" is missing inputs: ${missing.join(', ')}`);
-  if (bundle.showMeaning && bundle.meaningMarkdown && !fs.existsSync(bundle.meaningMarkdown)) {
-    throw new Error(`showMeaning is on but meaningMarkdown ${bundle.meaningMarkdown} does not exist`);
+  if (bundle.missing.length && !opts.partial) {
+    throw new Error(`mantra "${id}" is missing inputs: ${bundle.missing.join(', ')}`);
   }
   return bundle;
 }
@@ -98,6 +126,22 @@ export function listMantras() {
   return fs.readdirSync(config.mantrasDir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && fs.existsSync(path.join(config.mantrasDir, d.name, 'mantra.json')))
     .map((d) => d.name);
+}
+
+/** Copy shipped bundles into MANTRAS_DIR when missing; never overwrite an edited one. */
+export function seedMantras() {
+  const src = config.mantrasSeedDir;
+  if (!src || !fs.existsSync(src) || path.resolve(src) === path.resolve(config.mantrasDir)) return [];
+  fs.mkdirSync(config.mantrasDir, { recursive: true });
+  const seeded = [];
+  for (const d of fs.readdirSync(src, { withFileTypes: true })) {
+    if (!d.isDirectory() || !fs.existsSync(path.join(src, d.name, 'mantra.json'))) continue;
+    const dest = path.join(config.mantrasDir, d.name);
+    if (fs.existsSync(dest)) continue;
+    fs.cpSync(path.join(src, d.name), dest, { recursive: true });
+    seeded.push(d.name);
+  }
+  return seeded;
 }
 
 /** The working directory for a mantra's intermediate artefacts and PNGs. */

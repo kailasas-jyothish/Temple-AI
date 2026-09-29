@@ -13,11 +13,72 @@ import { align, alignForced } from './align.js';
 import { forcedAlign, alignerPython } from './forced.js';
 import { config } from './config.js';
 import { deriveTheme } from './color.js';
-import { buildSlides } from './slides.js';
+import { buildSlides, groupSlides, slideCtx, fitScales, htmlFor } from './slides.js';
+import { writeHtml, screenshot } from './browser.js';
 import { render } from './render.js';
 import { log, warn } from './log.js';
 
 const STAGES = ['extract', 'transcribe', 'align', 'theme', 'slides', 'render'];
+
+/**
+ * Judge contrast against where the text actually sits, not the whole frame: a
+ * figure on one side of the background would otherwise darken the average.
+ * @param {import('./mantra.js').Mantra} mantra @param {string} out
+ */
+function themeFor(mantra, out) {
+  const a = mantra.textArea;
+  return deriveTheme(mantra.background, out, { band: { top: a.top + (mantra.title ? 236 : 96), bottom: 1080 - a.bottom, left: a.left, right: 1920 - a.right } });
+}
+
+/**
+ * What the slides will look like with the current text box, without the audio
+ * or a render: the preamble and the verse slide that decides the type size,
+ * as PNGs in data/<id>/preview/. Fitting every slide takes minutes, so this
+ * fits only the likeliest-tightest few (widest lines, most lines). The build
+ * fits them all, so its size can come out a touch smaller, never larger.
+ * @param {string} idOrPath
+ */
+export function previewLayout(idOrPath) {
+  const mantra = loadMantra(idOrPath, { partial: true });
+  const need = ['background', 'devanagari'].filter((k) => mantra.missing.includes(k));
+  if (need.length) throw new Error(`a layout preview needs the ${need.join(' and the ')} first`);
+  const out = workDir(mantra);
+  const extracted = extract(mantra, out);
+  const theme = themeFor(mantra, out);
+  const fake = { verses: extracted.verses.map((v, i) => ({ number: v.number, start: (i + 1) * 10 })), duration: (extracted.verses.length + 1) * 10 };
+  const { slides } = groupSlides(extracted, fake, mantra);
+
+  const verseIdx = slides.map((_, i) => i).filter((i) => slides[i].kind === 'verses');
+  const widest = (s, key) => Math.max(0, ...s.verses.flatMap((v) => v[key].map((l) => l.length)));
+  const height = (s) => s.verses.reduce((n, v) => n + v.eng.length + (v.speaker ? 1 : 0), 0);
+  const pick = new Set([0]);
+  for (const f of [(s) => widest(s, 'dev'), (s) => widest(s, 'eng'), height]) {
+    [...verseIdx].sort((a, b) => f(slides[b]) - f(slides[a])).slice(0, 2).forEach((i) => pick.add(i));
+  }
+  const cand = [...pick].sort((a, b) => a - b);
+  const ctx = slideCtx(extracted, theme, mantra);
+  const fits = fitScales(cand.map((i) => slides[i]), ctx, path.join(out, 'render'));
+  const verseCand = cand.map((i, k) => ({ i, fit: fits[k] })).filter((c) => slides[c.i].kind === 'verses');
+  const tight = verseCand.length ? verseCand.reduce((a, b) => (b.fit < a.fit ? b : a)) : null;
+  const scale = tight ? tight.fit : fits[0];
+  const preScale = Math.min(fits[0], scale);
+
+  const dir = path.join(out, 'preview');
+  const shots = {};
+  for (const [name, i, s] of /** @type {[string, number, number][]} */ ([['preamble', 0, preScale], ...(tight ? [['verse', tight.i, scale]] : [])])) {
+    const html = writeHtml(dir, `${name}.html`, htmlFor(slides[i], { ...ctx, fixedScale: s }));
+    screenshot(html, path.join(dir, `${name}.png`));
+    shots[name] = path.join(dir, `${name}.png`);
+  }
+  const problems = [];
+  if (scale < 0.6) problems.push(`the text comes out small (scale ${scale}); widen or heighten the box, or show fewer verses per slide`);
+  if (mantra.expectedVerses && extracted.verses.length !== mantra.expectedVerses) problems.push(`expected ${mantra.expectedVerses} verses, found ${extracted.verses.length}`);
+  log('preview', `${extracted.verses.length} verses in ${slides.length} slides; type scale ~${scale} (tightest: verse ${tight ? slides[tight.i].verses.map((v) => v.number).join('-') : '-'}), preamble ${preScale}`);
+  return {
+    shots, scale, preambleScale: preScale, verses: extracted.verses.length, slides: slides.length,
+    tightestVerses: tight ? slides[tight.i].verses.map((v) => v.number) : [], autoIast: mantra.autoIast, problems,
+  };
+}
 
 /**
  * Run the whole pipeline for one mantra bundle.
@@ -60,10 +121,7 @@ export async function runPipeline(idOrPath, opts = {}) {
   at(2, 'done', { mode: timings.mode, words: timings.words.length });
 
   at(3, 'start');
-  // Judge contrast against where the text actually sits, not the whole frame: a
-  // figure on one side of the background would otherwise darken the average.
-  const a = mantra.textArea;
-  const theme = deriveTheme(mantra.background, out, { band: { top: a.top + 236, bottom: 1080 - a.bottom, left: a.left, right: 1920 - a.right } });
+  const theme = themeFor(mantra, out);
   at(3, 'done', { accent: theme.accent, text: theme.text });
 
   // A sample renders one stretch of the timeline to data/<id>/, never over the

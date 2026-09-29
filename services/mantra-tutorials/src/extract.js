@@ -6,14 +6,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { log, warn } from './log.js';
+import { devMarkdownToIast } from './translit.js';
 
-/** Slice out one '# <section>' block, or the whole file when section is ''. */
-function sectionLines(file, section) {
-  const md = fs.readFileSync(file, 'utf8');
+/** Slice out one '# <section>' block, or the whole text when section is ''. */
+function sectionLines(md, section, label) {
   let body = md;
   if (section) {
     const start = md.indexOf(`# ${section}`);
-    if (start < 0) throw new Error(`no "# ${section}" heading in ${file}`);
+    if (start < 0) throw new Error(`no "# ${section}" heading in ${label}`);
     const afterHeading = md.indexOf('\n', start) + 1;
     const nextIdx = md.indexOf('\n# ', afterHeading);
     body = md.slice(afterHeading, nextIdx < 0 ? md.length : nextIdx);
@@ -21,7 +21,11 @@ function sectionLines(file, section) {
   return body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^\{#/.test(l) && !/^#/.test(l));
 }
 
-const isSpeaker = (l) => /(उवाच|ब्रह्मोवाच|ovāca|uvāca)\s*$/iu.test(l) && l.split(/\s+/).length <= 3 && !/\d/.test(l);
+// "मार्कण्डेय उवाच" is often typed with a trailing danda; it is still a speaker line.
+const isSpeaker = (l) => {
+  const s = l.replace(/\s*[।|]\s*$/u, '');
+  return /(उवाच|ब्रह्मोवाच|ovāca|uvāca)$/iu.test(s) && s.split(/\s+/).length <= 3 && !/\d/.test(s);
+};
 const markerNum = (l) => {
   const m = l.match(/॥\s*([\d०-९]{1,3})[\d०-९\s]*॥\s*$/u);
   return m ? parseInt(m[1].replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966)), 10) : null;
@@ -31,8 +35,8 @@ const markerNum = (l) => {
 const isClosing = (l) => /^(इति|iti)(?=\s|$)/iu.test(l);
 
 /** Parse one script's section into { preamble, verses, closing }. */
-function parseScript(file, section) {
-  const lines = sectionLines(file, section);
+function parseScript(md, section, label) {
+  const lines = sectionLines(md, section, label);
   const preamble = [];
   const closing = [];
   const verses = [];
@@ -64,8 +68,20 @@ function parseScript(file, section) {
  * @param {string} outDir
  */
 export function extract(mantra, outDir) {
-  const dev = parseScript(mantra.devMarkdown, mantra.section);
-  const eng = parseScript(mantra.engMarkdown, mantra.section);
+  const devMd = fs.readFileSync(mantra.devMarkdown, 'utf8');
+  let engMd;
+  if (mantra.engMarkdown) {
+    engMd = fs.readFileSync(mantra.engMarkdown, 'utf8');
+  } else {
+    // No transliteration supplied: generate it line for line from the
+    // Devanagari, so the two scripts pair by construction. Written out so what
+    // the video shows can be read and, if needed, corrected and uploaded.
+    engMd = devMarkdownToIast(devMd);
+    fs.writeFileSync(path.join(outDir, 'iast-auto.md'), engMd, 'utf8');
+    log('extract', 'no transliteration file: IAST generated from the Devanagari -> iast-auto.md');
+  }
+  const dev = parseScript(devMd, mantra.section, path.basename(mantra.devMarkdown));
+  const eng = parseScript(engMd, mantra.section, mantra.engMarkdown ? path.basename(mantra.engMarkdown) : 'the generated IAST');
 
   if (dev.verses.length !== eng.verses.length) {
     throw new Error(`verse count mismatch: dev=${dev.verses.length} translit=${eng.verses.length}`);
@@ -81,7 +97,7 @@ export function extract(mantra, outDir) {
 
   let meaning = null;
   if (mantra.showMeaning && mantra.meaningMarkdown && fs.existsSync(mantra.meaningMarkdown)) {
-    const m = parseScript(mantra.meaningMarkdown, mantra.section);
+    const m = parseScript(fs.readFileSync(mantra.meaningMarkdown, 'utf8'), mantra.section, path.basename(mantra.meaningMarkdown));
     if (m.verses.length === dev.verses.length) meaning = m;
     else warn('extract', `meaning has ${m.verses.length} verses vs ${dev.verses.length}; ignoring meaning`);
   }
