@@ -116,3 +116,18 @@ test('duration', () => {
   assert.equal(duration(7200), '2h');
   assert.equal(duration(300246), '3d');
 });
+
+test('PROBE_URL_<ID> overrides the host for that service only', async () => {
+  const { impl, calls } = fakeFetch({
+    'http://temple-mantra-tutorials-vka2v8:3200/healthz': { body: { ok: true, mantras: [] } },
+    'http://probe.test:8479/healthz': { body: { ok: true, queue: 0 } },
+  });
+  const env = { PROBE_URL_MANTRA_TUTORIALS: 'http://temple-mantra-tutorials-vka2v8:3200/' };
+  const services = SERVICES.filter((s) => s.id === 'mantra-tutorials' || s.id === 'reels');
+  const prober = createProber({ config: { ...config, env }, services, fetchImpl: impl });
+  await prober.probeAll();
+  assert.deepEqual(calls.map((c) => c.url).sort(), ['http://probe.test:8479/healthz', 'http://temple-mantra-tutorials-vka2v8:3200/healthz']);
+  const mantra = byId(prober.snapshot(), 'mantra-tutorials');
+  assert.equal(mantra.state, 'up');
+  assert.equal(mantra.url, 'http://example.test:8481');
+});

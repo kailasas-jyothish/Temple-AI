@@ -23,7 +23,7 @@ export function createProber({ config, services, fetchImpl = fetch }) {
 
   /** @param {import('./services.js').Service} service */
   async function probe(service) {
-    const base = `${config.probeHost}:${service.port}`;
+    const base = probeBase(config, service);
     /** @type {import('./services.js').GetJson} */
     const get = async (path, headers = {}) => {
       const res = await fetchImpl(base + path, { headers, signal: AbortSignal.timeout(config.probeTimeoutMs) });
@@ -75,12 +75,25 @@ export function createProber({ config, services, fetchImpl = fetch }) {
   };
 }
 
+/**
+ * A container cannot reach its own host's public IP (no hairpin NAT), so on
+ * Dokploy each service is probed by its Swarm service name over
+ * dokploy-network: PROBE_URL_NOTIFIER=http://<swarm name>:3000, and so on.
+ * @param {typeof import('./config.js').config} config
+ * @param {import('./services.js').Service} service
+ */
+export function probeBase(config, service) {
+  const override = config.env[`PROBE_URL_${service.id.toUpperCase().replace(/-/g, '_')}`];
+  return override ? override.replace(/\/+$/, '') : `${config.probeHost}:${service.port}`;
+}
+
 /** @param {unknown} err */
 function message(err) {
   if (err instanceof Error) {
     if (err.name === 'TimeoutError') return 'no answer (timed out)';
     const cause = /** @type {any} */ (err).cause;
     if (cause?.code === 'ECONNREFUSED') return 'connection refused — not running';
+    if (cause?.code === 'ENOTFOUND' || cause?.code === 'EAI_AGAIN') return 'service name not found — not running, or not on dokploy-network';
     if (cause?.code) return `${err.message} (${cause.code})`;
     return err.message || err.name;
   }
