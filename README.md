@@ -8,7 +8,9 @@ source (`github.com/kailasas-jyothish/Temple-AI`).
 |---|---|---|---|
 | [`services/notifier`](services/notifier) | Posts every new YouTube video, Short, premiere and live stream across six temple channels into Slack the moment it goes out, and marks Garbha Mandir live-stream attendance in a Google Sheet. Facebook path written, dormant until a Page token exists. | Node 22 | `Social-media-notifications` |
 | [`services/reels`](services/reels) | Turns a day's ritual photos from Google Drive into a branded vertical reel — an LLM picks the images, ffmpeg does every visual effect — and files it back into Drive with a Slack ping. | Python 3.12 | `Temple-reels` |
-| [`services/panchaloha`](services/panchaloha) | Panchaloha murthy cost calculator: final manufacturing cost per kg from weight, composition, wax and material rates, with AI-researched, source-checked rates a person approves. | Node 22 | not deployed |
+| [`services/panchaloha`](services/panchaloha) | Panchaloha murthy cost calculator: final manufacturing cost per kg from weight, composition, wax and material rates, with AI-researched, source-checked rates a person approves. | Node 22 | `Temple-panchaloha` |
+| [`services/mantra-tutorials`](services/mantra-tutorials) | Background slide + Devanagari + chant audio in; a 1080p tutorial video out, with the transliteration underlined word by word in time with the chant. | Node 22 + Python aligner | `Temple-mantra-tutorials` |
+| [`services/dashboard`](services/dashboard) | One page for all of the above: an Open link, live health and the key numbers for each service. **Start here: http://157.180.15.165:8482** | Node 22 | `Temple-dashboard` |
 | [`services/youtube`](services/youtube) | The one service that talks to youtube.com itself. Other services call its HTTP API for live-stream frames. WireGuard with a kill switch, PO tokens, Deno, yt-dlp and ffmpeg in one container, because YouTube bot-blocks the server's own IP. | Python 3.12 | not deployed yet |
 
 `CLAUDE.md` carries the full working history: the decisions, the dead ends, and

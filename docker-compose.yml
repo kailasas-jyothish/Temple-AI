@@ -38,6 +38,14 @@ services:
     ports:
       - "3100:3100"
 
+  dashboard:
+    build:
+      context: services/dashboard
+    restart: unless-stopped
+    env_file: services/dashboard/.env
+    ports:
+      - "3300:3300"
+
   youtube:
     build:
       context: services/youtube

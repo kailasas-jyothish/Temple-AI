@@ -62,7 +62,7 @@ const SERVICES = {
     defaultPort: 8000,
     publishedPort: 8479,
   },
-  // Not created on Dokploy yet. Stateless: preferences live in the browser.
+  // Stateless: preferences live in the browser.
   panchaloha: {
     dir: 'services/panchaloha',
     appName: env.DOKPLOY_PANCHALOHA_APP_NAME || 'Temple-panchaloha',
@@ -80,6 +80,16 @@ const SERVICES = {
     volumeName: 'temple-mantra-data',
     defaultPort: 3200,
     publishedPort: 8481,
+  },
+  // Stateless: probes the other services by their published ports. Keep its
+  // service list (services/dashboard/src/services.js) in step with this one.
+  dashboard: {
+    dir: 'services/dashboard',
+    appName: env.DOKPLOY_DASHBOARD_APP_NAME || 'Temple-dashboard',
+    dockerfile: 'services/dashboard/Dockerfile',
+    volumeName: null,
+    defaultPort: 3300,
+    publishedPort: 8482,
   },
 };
 
