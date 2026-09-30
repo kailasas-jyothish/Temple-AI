@@ -1375,10 +1375,8 @@ stray literal `null` in the panel was caught.
 
 ### Not done / open
 
-- **Not deployed.** `scripts/dokploy.mjs` knows it (`--app panchaloha`, port
-  8480, stateless) but no Dokploy application exists. The user's machine blocks
-  bare IPs (§12), so it would be reached only once a Caddy hostname exists; it
-  runs locally with `npm run start:local` meanwhile.
+- **Deployed 2026-09-29** as Dokploy app `Temple-panchaloha` (swarm name
+  `temple-panchaloha-0ichn0`), host port 8480 → 3100, stateless. See §17.
 - The local folder rename: Windows will not rename a directory a running
   process holds as its working directory, so it could not be done from inside
   the session that did the GitHub rename.
@@ -1529,3 +1527,49 @@ and `MANTRA-TUTORIALS-HANDOVER.md`; what is worth not re-deriving:
 - A speaker line typed with a trailing danda (`मार्कण्डेय उवाच ।`) was not
   detected as a speaker, and extract then found 0 verses. `isSpeaker` strips
   the danda first.
+
+---
+
+## 17. The dashboard (`services/dashboard`, 2026-09-29)
+
+The user is getting `157.180.15.165` unblocked in Cold Turkey, and asked for one
+page to use as the front door to every service. **http://157.180.15.165:8482**,
+Dokploy app `Temple-dashboard` (`temple-dashboard-zcajrf`), port 8482 → 3300,
+basic auth `UI_PASSWORD` (any username). Panchaloha was deployed the same day
+so its card would not start red.
+
+Every service is still on its own port:
+
+| Port | Service | Swarm name |
+|---|---|---|
+| 8478 | notifier | `temple-social-media-socialmedianotifications-5qmxpf` (:3000) |
+| 8479 | reels | `temple-reels-6x6wbz` (:8000) |
+| 8480 | panchaloha | `temple-panchaloha-0ichn0` (:3100) |
+| 8481 | mantra-tutorials | `temple-mantra-tutorials-vka2v8` (:3200) |
+| 8482 | dashboard | `temple-dashboard-zcajrf` (:3300) |
+
+- **Not on port 80.** Caddy owns 80/443 and 308s everything to HTTPS (§12, "The
+  edge, settled"). A bare `http://157.180.15.165` reaches no service.
+- **A container cannot reach its own host's public IP.** The first deploy probed
+  `157.180.15.165:<port>` and every service timed out, although all of them were
+  up. Each service is now probed by its Swarm service name over dokploy-network
+  (`PROBE_URL_<SERVICE>` in the dashboard's env). If an app is recreated its swarm
+  name changes, and that card goes red with "service name not found". Update
+  the env from `dokploy.mjs show --app <name>`.
+- It **links** to each UI and does not embed or proxy them. Proxying would break
+  each service's own auth and absolute paths.
+- Probes run on a 30s server-side timer and never per page view. The notifier
+  card uses `NOTIFIER_ADMIN_TOKEN` (`x-admin-token`) for `/status` and
+  `/admin/attendance`. Without it the card shows health only.
+- **No Dokploy API key in this container.** It would give "last deployed" times,
+  but that key can redeploy or delete every app, and this page is plain HTTP.
+  `dokploy.mjs verify` gives the same answer from the user's machine.
+- To add a service: add one entry to `SERVICES` in `src/services.js`, add it to
+  `SERVICES` in `scripts/dokploy.mjs`, and set a `PROBE_URL_*` line.
+
+Verified: 6 unit tests pass, and the page was rendered in headless Edge at 1280px
+and in a 360px iframe. Headless Edge will not make its window narrower than
+504px, so a `--window-size=390` screenshot crops the page and looks like
+overflow when there is none. The deployed container's `/api/refresh` reported
+all four services up with the notifier's live numbers, and an unauthenticated
+request returned 401.
