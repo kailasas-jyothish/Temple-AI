@@ -58,14 +58,17 @@ const isSubClosing = (l) => isIti(l) && /(सम्पूर्ण|समाप�
  * Where the section's colophon begins. Verses also open with इति ("इति
  * ध्यात्वा…"), and a chapter's colophon runs on into numbered lines ("…अध्यायः॥
  * 1॥", "उवाच 14, … ॥ 104॥"), so neither "first इति" nor "after the last marker"
- * works. It is the start of the last run of इति lines.
+ * works. It is the start of the last run of इति lines — unless that run is
+ * followed by more text than any colophon holds: a bundle cut mid-chapter has
+ * no colophon, and its last इति is a verse ("इति कृत्वा मतिं देवा…").
  */
+const MAX_COLOPHON_LINES = 8;
 function closingStart(lines) {
   let i = lines.length - 1;
   while (i >= 0 && !isIti(lines[i])) i--;
   if (i < 0) return lines.length;
   while (i > 0 && isIti(lines[i - 1])) i--;
-  return i;
+  return lines.length - i > MAX_COLOPHON_LINES ? lines.length : i;
 }
 
 /** Parse one script's section into { preamble, verses, closing }. */

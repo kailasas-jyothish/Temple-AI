@@ -1,4 +1,4 @@
-# services/mantra-tutorials
+d# services/mantra-tutorials
 
 Turn a **mantra bundle** — a background slide, the Devanagari + transliteration
 text, and the chant audio — into a 1080p tutorial MP4 where the transliteration
