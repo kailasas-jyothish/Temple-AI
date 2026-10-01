@@ -139,8 +139,17 @@ function summaryRow(labelCol) {
   return 0;
 }
 
+// Compared as days, not strings. The header is written USER_ENTERED, so Sheets
+// stores "01-Oct-2026" as a date and reads it back as "1-Oct-2026"; a string
+// match then never finds the group just created, and every retry inserted
+// another four columns (144 copies of 01-Oct before it was caught).
 export function groupFor(layout, date) {
-  return layout.groups.find((g) => g.date === date) || null;
+  const day = parseDateLabel(date);
+  return (
+    layout.groups.find((g) =>
+      Number.isFinite(day) ? parseDateLabel(g.date) === day : g.date === date,
+    ) || null
+  );
 }
 
 /**
