@@ -69,7 +69,7 @@ export function start() {
   timer.runNow();
   log.info(
     `attendance: watching ${config.attendance.tab} — sweep every ${config.attendance.sweepSeconds}s, ` +
-      `continuation credit ${config.attendance.continuationHours}h`,
+      `continuation credit ${config.attendance.continuationHours || 'unlimited'}h, live scan every ${config.attendance.scanMinutes}m`,
   );
 }
 
@@ -197,7 +197,7 @@ async function sweep() {
   await ensureGroup(today);
   // A temple added after today's group was built still reads "—" there.
   await markTrackedPending(today);
-  await discoverLiveStreams(today);
+  await discoverLiveStreams();
   await creditContinuingStreams(today);
   await closePreviousDay(today);
   await flush();
@@ -214,8 +214,9 @@ async function sweep() {
  * would read Absent while visibly broadcasting. Costs two quota units per
  * channel, once a day.
  */
-async function discoverLiveStreams(today) {
-  if (getMeta(SCANNED_KEY) === today) return;
+async function discoverLiveStreams() {
+  const scannedAt = Number(getMeta(SCANNED_KEY)) || 0;
+  if (Date.now() - scannedAt < config.attendance.scanMinutes * 60000) return;
 
   const found = { ...liveStreams() };
   // One scan per channel, however many temples share it.
@@ -258,7 +259,7 @@ async function discoverLiveStreams(today) {
     }
   }
   setMeta(LIVE_KEY, found);
-  setMeta(SCANNED_KEY, today);
+  setMeta(SCANNED_KEY, Date.now());
 }
 
 /**
@@ -288,7 +289,9 @@ async function creditContinuingStreams(today) {
     }
 
     const ageHours = (Date.now() - Date.parse(stream.startedAt)) / 3600000;
-    if (ageHours > config.attendance.continuationHours) {
+    // 0 means no cap: the sheet shows what is live right now, and a 24/7
+    // broadcast that never restarts is exactly what it is meant to credit.
+    if (config.attendance.continuationHours > 0 && ageHours > config.attendance.continuationHours) {
       log.info(
         `attendance: ${stream.videoId} has been live ${Math.round(ageHours)}h, past the ` +
           `${config.attendance.continuationHours}h credit window — it needs restarting`,

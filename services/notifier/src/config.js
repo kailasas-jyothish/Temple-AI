@@ -96,7 +96,9 @@ export const config = {
     sweepSeconds: num(process.env.ATTENDANCE_SWEEP_SECONDS, 600),
     // A 24/7 stream fires one live event and then runs for days. It keeps
     // counting for this long before the temple is expected to restart it.
-    continuationHours: num(process.env.ATTENDANCE_CONTINUATION_HOURS, 48),
+    // 0 = no cap: whatever is live now is credited, however long it has run.
+    continuationHours: num(process.env.ATTENDANCE_CONTINUATION_HOURS, 0),
+    scanMinutes: Math.max(5, num(process.env.ATTENDANCE_SCAN_MINUTES, 30)),
     notifySlack: bool(process.env.ATTENDANCE_NOTIFY_SLACK, true),
     alertAfterAttempts: num(process.env.ATTENDANCE_ALERT_AFTER_ATTEMPTS, 3),
     // Best-effort frame grab off the live stream; falls back to the Data API
@@ -184,7 +186,11 @@ export function configProblems() {
     const daily =
       86400 / config.youtube.uploadsPollSeconds +
       86400 / config.youtube.livePollSeconds +
-      (config.attendance.enabled ? 86400 / config.attendance.sweepSeconds : 0);
+      (config.attendance.enabled
+        ? 86400 / config.attendance.sweepSeconds +
+          // recentUploads + videos.list per channel on every live scan
+          (1440 / config.attendance.scanMinutes) * 2 * (config.youtube.channels?.length || 1)
+        : 0);
     if (daily > 9000) {
       p.push(
         `YouTube polling intervals imply ~${Math.round(daily)} quota units/day, close to or over ` +
