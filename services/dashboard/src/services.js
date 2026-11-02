@@ -112,4 +112,25 @@ export const SERVICES = [
       return { facts: [] };
     },
   },
+  {
+    id: 'scriptures',
+    name: 'Scriptures',
+    description: 'Upanishads from sanskritdocuments.org as Devanagari + IAST, translated per SPH’s teachings through OpenRouter. One CSV per text.',
+    port: 8483,
+    healthPath: '/healthz',
+    async read(health) {
+      const translatable = Number(health.translatable) || 0;
+      const translated = Number(health.translated) || 0;
+      const busy = health.busy ? String(health.busy) : '';
+      return {
+        facts: [
+          { label: 'Texts extracted', value: Number(health.extracted) || 0 },
+          { label: 'Translated', value: translatable ? `${translated} of ${translatable}` : 0 },
+          { label: 'Model', value: health.model || 'not chosen', tone: health.model ? undefined : 'warn' },
+          { label: 'Working', value: busy || 'idle', tone: busy ? 'good' : undefined },
+        ],
+        problems: problemsOf(health.problems),
+      };
+    },
+  },
 ];

@@ -1573,3 +1573,46 @@ and in a 360px iframe. Headless Edge will not make its window narrower than
 overflow when there is none. The deployed container's `/api/refresh` reported
 all four services up with the notifier's live numbers, and an unauthenticated
 request returned 401.
+
+---
+
+## 19. Scriptures (`services/scriptures`, 2026-11-01/02)
+
+The request: material for translation books. Each Upanishad from
+sanskritdocuments.org becomes Devanagari + IAST, and an OpenRouter model
+translates it "as per the teachings of THE SPH". Output is **one CSV per
+text**, with no book assembly. The user chooses the translation model after
+testing models, so `TRANSLATION_MODEL` is empty on purpose. Translation refuses
+to start without a model, and `compare` exists so models can be tested side by
+side. Port 8483 → 3400, Dokploy `Temple-scriptures`, volume
+`temple-scriptures-data`. Not deployed yet.
+
+- **Node, not the skill's Python default**, because the user chose
+  [sanscript.js](https://github.com/sanskrit/sanscript) and explicitly
+  rejected the Python `indic-transliteration` library. sanscript is vendored
+  (`src/vendor/sanscript.cjs`, built at a pinned commit). It is MIT too, which
+  the user was told.
+- **Source = the site's `.itx` (ITRANS)**, converted locally. The site's own
+  Devanagari page is used only to *verify* (the `check` column). IAST is
+  always derived from our Devanagari, so the two columns cannot disagree.
+- **The site writes a TeX dialect of ITRANS.** `preprocess()` in `src/itrans.js`
+  swaps macros for `##…##` placeholders that sanscript passes through. Traps:
+  `{\m+}` is ꣳ; `\"` is ᳚; and **`{}` between letters is a separator**
+  (`pra{}uga` = प्रउग), so dropping it gives प्रौग.
+- **IAST conventions:** ꣳ → ṁ (sanscript gives m̐), hiatus → diaeresis
+  (praüga), ळ → ḻ, and no accents (sanscript's IAST accents are U+032D).
+- **Corpus check** (`scripts/corpus.js`): 226 of 231 texts are fully clean
+  against the site's page. The remaining 5 are source typos (`|a`, `|na`), site
+  garbage or omissions, and one commentary.
+- Translations are cached by (model, prompt hash, text). `MAX_COST_USD` is a
+  per-run budget. Jobs run one at a time, and their terminal state is set last.
+- The site's notice (personal study, no commercial reuse without permission)
+  is carried in row 0 of every CSV. Fetched sources and outputs stay in
+  `data/`, which is gitignored.
+- **Secrets:** the OpenRouter key was pasted in chat. It lives only in
+  `services/scriptures/.env`, and the user was advised to rotate it.
+
+Verified: 18 tests and strict `tsc`; a real CLI extract of `iisha` (23 rows,
+23/23 site check ok); the CSV read back by eye; and the full corpus run.
+**Not verified:** any live OpenRouter translation (no model chosen yet),
+the Docker build, the web UI in a browser, and the deploy.

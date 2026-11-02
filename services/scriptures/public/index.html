@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scriptures</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>Scriptures</h1>
+  <p class="sub">Upanishads from sanskritdocuments.org → Devanagari, IAST and translation, one CSV per text</p>
+  <div id="problems"></div>
+</header>
+
+<main>
+  <section class="card" id="texts-card">
+    <div class="row">
+      <h2>Texts</h2>
+      <input id="filter" type="search" placeholder="Filter by name…">
+      <label class="check"><input type="checkbox" id="only-done"> Extracted only</label>
+    </div>
+    <div class="row actions">
+      <button id="extract-selected">Extract selected</button>
+      <label class="check"><input type="checkbox" id="refresh"> Re-download from the site</label>
+      <span id="selected-count" class="muted"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="texts">
+        <thead><tr><th></th><th>Text</th><th>Rows</th><th>Translated</th><th>Check</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Translate</h2>
+    <div class="grid">
+      <label>Text id <input id="t-id" placeholder="e.g. iisha"></label>
+      <label>Model <input id="t-model" list="models" placeholder="choose after comparing"></label>
+      <label>Passages (0 = all) <input id="t-limit" type="number" min="0" value="0"></label>
+      <label class="check"><input type="checkbox" id="t-force"> Re-translate finished passages</label>
+    </div>
+    <div class="row actions">
+      <button id="translate">Translate</button>
+      <span class="muted" id="budget"></span>
+    </div>
+    <h3>Compare models</h3>
+    <div class="grid">
+      <label class="wide">Model ids, comma separated <input id="c-models" placeholder="model-a, model-b"></label>
+      <label>Passages <input id="c-limit" type="number" min="1" value="5"></label>
+    </div>
+    <div class="row actions"><button id="compare">Compare on the text above</button></div>
+    <datalist id="models"></datalist>
+  </section>
+
+  <section class="card">
+    <h2>Jobs</h2>
+    <div id="jobs"></div>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

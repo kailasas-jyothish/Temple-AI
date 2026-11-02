@@ -83,6 +83,16 @@ const SERVICES = {
   },
   // Stateless: probes the other services by their published ports. Keep its
   // service list (services/dashboard/src/services.js) in step with this one.
+  // Needs /data: the cached sanskritdocuments sources, per-text JSON/CSV and the
+  // translation cache, so a redeploy never re-fetches or re-pays for anything.
+  scriptures: {
+    dir: 'services/scriptures',
+    appName: env.DOKPLOY_SCRIPTURES_APP_NAME || 'Temple-scriptures',
+    dockerfile: 'services/scriptures/Dockerfile',
+    volumeName: 'temple-scriptures-data',
+    defaultPort: 3400,
+    publishedPort: 8483,
+  },
   dashboard: {
     dir: 'services/dashboard',
     appName: env.DOKPLOY_DASHBOARD_APP_NAME || 'Temple-dashboard',
