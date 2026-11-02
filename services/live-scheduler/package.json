@@ -1,0 +1,18 @@
+{
+  "name": "temple-ai-live-scheduler",
+  "version": "1.0.0",
+  "description": "Schedule a batch of YouTube live streams (title, description, time, thumbnail) from one schedule file.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "live-scheduler": "src/cli.js"
+  },
+  "scripts": {
+    "yt": "node --env-file-if-exists=.env src/cli.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

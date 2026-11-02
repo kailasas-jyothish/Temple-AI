@@ -37,6 +37,9 @@ venv/
 # Google service-account key for the attendance sheet (delivered to Dokploy as base64 env)
 service-account.json
 
+# OAuth client for services/live-scheduler (Google Auth Platform -> Clients)
+oauth-client.json
+
 # Python tooling caches
 .pytest_cache/
 .ruff_cache/

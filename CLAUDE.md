@@ -1576,6 +1576,36 @@ request returned 401.
 
 ---
 
+## 18. Live-stream scheduler (`services/live-scheduler`, 2026-10-06)
+
+The request: schedule every Navaratri seva as a **public** YouTube live on
+*KAILASA's Nithyanandeshwara Paramashiva Devalayam* (`@kailasastemple`,
+`UCgDMywiR2XbZOkYmFknD-mg`), from a folder of thumbnails plus a content
+document and schedule. Local CLI, zero deps; the service README has usage.
+
+- **An API key cannot do it**: liveBroadcasts answers 401 "API keys are not
+  supported". It needs an OAuth user token from the channel owner or a
+  **Brand Account** owner/manager.
+- **Studio channel permissions do not reach the API.** Proven: temple@usk is
+  a Studio editor on the channel, and its sign-in landed on its own personal
+  channel, `@templedevalayam` (`UC8mE7idU7ikbdLP-qlnlHaw`), which is not even
+  live-enabled. The user has no access to the owning account and knows one
+  person with "manager" access. Whether that is Brand Account or Studio
+  manager is unknown, and only the former works. They check at
+  myaccount.google.com/brandaccounts.
+- Cloud project `teak-mix-489419-v1` (not the API key's project). The OAuth
+  client is type *TVs and Limited Input devices* (device-code sign-in, so it
+  can be done on a phone). The consent screen is **Internal** (Workspace org),
+  so a manager outside the org needs Make external → Publish first.
+  `oauth-client.json` is gitignored.
+- `EXPECTED_CHANNEL_ID` gates every write. Today's saved token (temple@usk)
+  is refused by it, which is correct.
+- Without a qualifying sign-in, the fallback is manual scheduling in Studio
+  from a prepared checklist. Never Studio automation with a logged-in
+  session (§8, no cookies).
+
+---
+
 ## 19. Scriptures (`services/scriptures`, 2026-11-01/02)
 
 The request: material for translation books. Each Upanishad from
@@ -1619,7 +1649,6 @@ Deployed: the container rolled and is healthy, `/healthz` is open, the UI
 answers 401 without auth and 200 with it, `/api/config` reports the key set
 without leaking it, and the dashboard card is live. **Not verified:** any live
 OpenRouter translation (no model chosen yet) and the web UI in a browser.
-
 ---
 
 ## 20. Festival Budget (`services/festival-budget`, 2026-11-02)

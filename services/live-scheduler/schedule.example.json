@@ -1,0 +1,19 @@
+{
+  "timezone": "America/Los_Angeles",
+  "privacy": "public",
+  "stream": "Navaratri sevas",
+  "thumbnails": "./thumbnails",
+  "autoStart": true,
+  "autoStop": true,
+  "events": [
+    {
+      "id": "navaratri-day1-morning",
+      "date": "2026-10-11",
+      "start": "06:00",
+      "end": "08:00",
+      "title": "LIVE: Navaratri Day 1 — Shailaputri Alankaram & Abhishekam",
+      "description": "Day 1 of Sharad Navaratri at KAILASA's Nithyanandeshwara Paramashiva Devalayam.\n\nJoin the live darshan…",
+      "thumbnail": "day1-morning.jpg"
+    }
+  ]
+}
