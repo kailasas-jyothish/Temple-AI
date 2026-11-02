@@ -1730,3 +1730,62 @@ ignored it.
   about 333.
 - Mandagappadi has no reference data. It blocks writing until it is filled or
   removed.
+---
+
+## 21. One hostname for every tool (`temple.unclutch.dev`, 2026-11-02)
+
+The user's boss pointed `temple.unclutch.dev` at 157.180.15.165, through
+Cloudflare (proxied), and meant it for all of Temple AI. The user said: "we have
+to work around it. I want everything to be available from this itself". That
+rules out any Caddy change.
+
+**The design.** The dashboard became a gateway (`services/dashboard/src/gateway.js`).
+`/<service-id>/…` is proxied to that service's swarm URL (`PROBE_URL_*`) with
+the prefix stripped. The dashboard login is the only one a visitor sees. The
+gateway drops the visitor's credential and injects the service's own:
+`UPSTREAM_PASSWORD_<ID>` as basic auth, or `UPSTREAM_TOKEN_REELS` /
+`NOTIFIER_ADMIN_TOKEN` as `x-admin-token`. Bodies stream in both directions, so
+uploads and videos are never buffered. `Location` headers and cookie paths are
+rewritten, and `WWW-Authenticate` is dropped.
+
+- **Service UIs must use relative URLs** (`api/x`, `./lib/x`, `styles.css`),
+  never `/api/x`. This was fixed in festival-budget, mantra-tutorials and
+  panchaloha. Reels already derived `BASE` from the path. A new UI that uses
+  absolute paths works on its own port and breaks behind the gateway.
+- Reels `/api/me` now honours `x-admin-token`, or its own login screen would
+  appear behind the gateway.
+
+**How the edge behaves, measured:**
+
+- The bare hostname gives **525**. Caddy owns 443 and holds no cert for this name.
+- Cloudflare forwards its alternate ports (8443, 2053, …, 8080, 8880) to the
+  *same* port on the origin, which bypasses Caddy. The dashboard therefore
+  publishes 8443 → 3443 (TLS, a self-signed cert baked in at build) and
+  8080 → 3300. `dokploy.mjs` has `extraPorts` for this.
+- **8443 gives 526**: the zone is Full (strict) and refuses the self-signed
+  cert. It needs a Cloudflare Origin CA cert, delivered as
+  `TLS_CERT_PEM_B64`/`TLS_KEY_PEM_B64` (the code path exists), or a Full-mode
+  Configuration Rule for this hostname. Both need someone with access to the
+  zone. Let's Encrypt is impossible here: HTTP-01 and TLS-ALPN land on Caddy,
+  and DNS-01 needs the zone.
+- **8080 works for curl, never in a browser.** `.dev` is an HSTS-preloaded TLD,
+  so browsers force HTTPS for every `.dev` host and port. Edge gives
+  `ERR_CONNECTION_CLOSED`. Don't offer users a plain-HTTP URL on this hostname.
+
+**Verified (2026-11-02):** all five containers rolled (checked by container age).
+Through Cloudflare on :8080 with curl:
+- every `/<id>/` page and its API answered 200;
+- panchaloha's `lib/` imports loaded;
+- `/reels/api/me` returned `signed_in: true`;
+- `/festival-budget` returned 301 to `/festival-budget/`;
+- an unauthenticated request got 401.
+
+The same gateway on the origin's :8080 was then loaded in headless Edge. All
+seven pages loaded with no page errors.
+
+**Not verified:** HTTPS through Cloudflare. It cannot work until the cert issue
+is resolved.
+
+**Found while checking (not the gateway):** scriptures' `/api/catalog` returns
+500 "the catalog page listed no texts" both through the gateway and directly on
+:8483. The sanskritdocuments.org catalog fetch is failing from the server.

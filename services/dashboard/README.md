@@ -3,10 +3,11 @@
 One page for every Temple AI service. Each one gets a card with an **Open**
 link, whether it is running, and the few numbers it reports about itself.
 
-Deployed as the Dokploy app `Temple-dashboard` at
-**https://temple.unclutch.dev:8443**. It is also reachable at
-`http://temple.unclutch.dev:8080` and `http://157.180.15.165:8482`. All three
-sit behind `UI_PASSWORD` (any username).
+Deployed as the Dokploy app `Temple-dashboard`. It is meant to be used at
+**https://temple.unclutch.dev:8443**. That URL answers 526 until Cloudflare
+accepts the origin certificate; see "Why port 8443" below. Until then the
+dashboard is at `http://157.180.15.165:8482` (or `:8080`). Every address sits
+behind `UI_PASSWORD` (any username).
 
 ## What each card shows
 
@@ -45,10 +46,23 @@ Why port 8443: `temple.unclutch.dev` is proxied by Cloudflare, and Caddy owns
 **525**. Cloudflare forwards its alternate ports to the same port on the origin,
 which bypasses Caddy. The app publishes:
 
-- **8443 → 3443** for TLS. The certificate is self-signed and baked in at
-  build. Cloudflare "Full" mode accepts it; "Full (strict)" would answer 526 and
-  needs `TLS_CERT_PEM_B64`/`TLS_KEY_PEM_B64` from a Cloudflare Origin CA cert.
-- **8080 → 3300** for plain HTTP.
+- **8443 → 3443** for TLS. The certificate baked in at build is self-signed.
+  The zone runs **Full (strict)**, so Cloudflare answers 526 to it (measured
+  2026-11-02). There are two fixes, and both need someone with access to the
+  `unclutch.dev` Cloudflare zone:
+  - Preferred: create a **Cloudflare Origin CA certificate** for
+    `temple.unclutch.dev` (SSL/TLS → Origin Server). Base64 the PEM and the key
+    into `TLS_CERT_PEM_B64` / `TLS_KEY_PEM_B64`, then run `push-env` and
+    `deploy`. Strict mode stays on.
+  - Alternative: add a Configuration Rule that sets SSL to **Full** for this one
+    hostname.
+
+  There is no self-service route. Let's Encrypt cannot validate this host:
+  HTTP-01 and TLS-ALPN-01 both land on Caddy, and DNS-01 needs the zone.
+- **8080 → 3300** for plain HTTP. curl gets through it, but **browsers never
+  will**: `.dev` is an HSTS-preloaded TLD, so a browser rewrites
+  `http://temple.unclutch.dev:8080` to HTTPS on a port that only speaks HTTP and
+  gets `ERR_CONNECTION_CLOSED`. On this hostname, only HTTPS can work.
 
 The bare `https://temple.unclutch.dev` needs one Caddy site block on the host:
 
@@ -59,6 +73,9 @@ temple.unclutch.dev {
 ```
 
 Whoever administers Caddy can add it at any time, and nothing else changes.
+Behind Cloudflare, Caddy may fail to get its own certificate (the ACME
+challenges pass through the proxy). If that happens, give it the same Origin CA
+pair with `tls cert.pem key.pem`.
 
 ## Adding a service
 
