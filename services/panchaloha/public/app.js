@@ -1,7 +1,7 @@
 // The page runs the same engine as the server (/lib/ is src/), so every result
 // updates as you type and is identical to POST /api/calculate.
-import { calculateMurthyCost, compositionFractions, validateInput } from '/lib/calculator.js';
-import { isDecimalText, percent, toText } from '/lib/decimal.js';
+import { calculateMurthyCost, compositionFractions, validateInput } from './lib/calculator.js';
+import { isDecimalText, percent, toText } from './lib/decimal.js';
 
 const STORE_KEY = 'panchaloha:v1';
 const RATE_KEYS = ['copperPerKg', 'gunMetalPerKg', 'zincPerKg', 'beeswaxPerKg', 'paraffinWaxPerKg'];
@@ -281,7 +281,7 @@ async function loadModels(providerId, { force = false } = {}) {
   modelLists[providerId] = { status: 'loading', models: [] };
   renderResearchControls();
   try {
-    const res = await fetch(`/api/models?provider=${encodeURIComponent(providerId)}`);
+    const res = await fetch(`api/models?provider=${encodeURIComponent(providerId)}`);
     const body = await res.json().catch(() => null);
     if (!res.ok || !body || body.error) throw new Error(body?.error?.message || `HTTP ${res.status}`);
     modelLists[providerId] = { status: 'ok', models: body.models || [] };
@@ -383,7 +383,7 @@ async function runResearch() {
   renderResearchControls();
   let failure = null;
   try {
-    const res = await fetch('/api/research', {
+    const res = await fetch('api/research', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ provider: state.provider, market: state.market, model }),
@@ -566,7 +566,7 @@ $('research-btn').addEventListener('click', runResearch);
 
 (async function boot() {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch('api/config');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     catalog = await res.json();
   } catch (err) {

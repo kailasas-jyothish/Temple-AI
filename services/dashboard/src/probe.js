@@ -3,7 +3,7 @@
 /**
  * @typedef {'up' | 'degraded' | 'down' | 'unknown'} State
  * @typedef {{
- *   id: string, name: string, description: string, url: string,
+ *   id: string, name: string, description: string, url: string, direct: string,
  *   state: State, error?: string, ms?: number,
  *   checkedAt?: string, lastUpAt?: string,
  *   details?: import('./services.js').Details,
@@ -18,7 +18,9 @@
 export function createProber({ config, services, fetchImpl = fetch }) {
   /** @type {Map<string, Result>} */
   const results = new Map(
-    services.map((s) => [s.id, { id: s.id, name: s.name, description: s.description, url: `${config.publicHost}:${s.port}`, state: /** @type {State} */ ('unknown') }]),
+    // Cards open the service through this page's own gateway (gateway.js), so
+    // every tool is reachable from whichever hostname the dashboard was.
+    services.map((s) => [s.id, { id: s.id, name: s.name, description: s.description, url: `/${s.id}/${s.openPath || ''}`, direct: `${config.publicHost}:${s.port}`, state: /** @type {State} */ ('unknown') }]),
   );
 
   /** @param {import('./services.js').Service} service */

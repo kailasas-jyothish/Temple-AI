@@ -52,7 +52,8 @@ test('reads every service and links to the public host', async () => {
 
   const notifier = byId(snap, 'notifier');
   assert.equal(notifier.state, 'up');
-  assert.equal(notifier.url, 'http://example.test:8478');
+  assert.equal(notifier.url, '/notifier/status');
+  assert.equal(notifier.direct, 'http://example.test:8478');
   assert.deepEqual(notifier.details.facts.map((f) => [f.label, f.value]), [
     ['Up for', '2h'],
     ['Channels', '2'],
@@ -129,5 +130,5 @@ test('PROBE_URL_<ID> overrides the host for that service only', async () => {
   assert.deepEqual(calls.map((c) => c.url).sort(), ['http://probe.test:8479/healthz', 'http://temple-mantra-tutorials-vka2v8:3200/healthz']);
   const mantra = byId(prober.snapshot(), 'mantra-tutorials');
   assert.equal(mantra.state, 'up');
-  assert.equal(mantra.url, 'http://example.test:8481');
+  assert.equal(mantra.url, '/mantra-tutorials/');
 });

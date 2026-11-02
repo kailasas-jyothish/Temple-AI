@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { createGateway } from './gateway.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,9 +15,9 @@ function safeEqual(a, b) {
 }
 
 /**
- * @param {{ config: typeof import('./config.js').config, prober: ReturnType<typeof import('./probe.js').createProber> }} deps
+ * @param {{ config: typeof import('./config.js').config, prober: ReturnType<typeof import('./probe.js').createProber>, services: import('./services.js').Service[] }} deps
  */
-export function createServer({ config, prober }) {
+export function createServer({ config, prober, services }) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -30,6 +31,8 @@ export function createServer({ config, prober }) {
       res.set('www-authenticate', 'Basic realm="Temple AI"').status(401).send('Authentication required');
     });
   }
+
+  app.use(createGateway({ config, services }));
 
   app.get('/api/status', (_req, res) => {
     res.set('cache-control', 'no-store').json(prober.snapshot());

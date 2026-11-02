@@ -214,7 +214,7 @@ const mb = (n) => (n / 1e6).toFixed(1) + ' MB';
 
 // ---------- mantra list / new ----------
 async function loadList(select) {
-  const { mantras } = await api('/api/mantras');
+  const { mantras } = await api('api/mantras');
   const sel = $('mantra');
   sel.innerHTML = mantras.map((m) => `<option value="${m.id}">${m.id}${m.ready ? '' : ' (incomplete)'}</option>`).join('');
   const want = select || localStorage.getItem('mantra') || (mantras[0] && mantras[0].id);
@@ -232,7 +232,7 @@ $('newId').oninput = () => { $('newId').dataset.touched = '1'; };
 $('createBtn').onclick = async () => {
   $('newErr').textContent = '';
   try {
-    const m = await api('/api/mantras', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: $('newId').value.trim(), title: $('newTitle').value.trim() }) });
+    const m = await api('api/mantras', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: $('newId').value.trim(), title: $('newTitle').value.trim() }) });
     $('newCard').classList.add('hide'); $('newTitle').value = ''; $('newId').value = ''; delete $('newId').dataset.touched;
     await loadList(m.id);
   } catch (e) { $('newErr').textContent = e.message; }
@@ -240,11 +240,11 @@ $('createBtn').onclick = async () => {
 
 async function open(id) {
   try { localStorage.setItem('mantra', id); } catch {}
-  cur = await api(`/api/mantras/${enc(id)}`);
+  cur = await api(`api/mantras/${enc(id)}`);
   $('shots').innerHTML = ''; $('layoutMsg').textContent = ''; $('buildErr').textContent = '';
   renderInputs(); renderLayout(); renderUnderline(); renderOutputs();
 }
-async function refresh() { cur = await api(`/api/mantras/${enc(cur.id)}`); renderInputs(); renderOutputs(); updateMantraOption(); }
+async function refresh() { cur = await api(`api/mantras/${enc(cur.id)}`); renderInputs(); renderOutputs(); updateMantraOption(); }
 function updateMantraOption() {
   const o = [...$('mantra').options].find((x) => x.value === cur.id);
   if (o) o.textContent = cur.id + (cur.ready ? '' : ' (incomplete)');
@@ -262,14 +262,14 @@ function renderInputs() {
     const acts = [`<button class="ghost" data-up="${k.kind}">Upload</button>`];
     if (k.text) acts.push(`<button class="ghost" data-edit="${k.kind}">${k.kind === 'iast' ? (have ? 'Edit' : 'Show / edit') : have ? 'Edit' : 'Paste'}</button>`);
     if (have && !k.required) acts.push(`<button class="danger" data-del="${k.kind}">${k.kind === 'iast' ? 'Use auto' : 'Remove'}</button>`);
-    const extra = k.kind === 'audio' && have ? `<audio controls preload="none" src="/api/mantras/${enc(cur.id)}/files/audio?t=${Date.now()}" style="grid-column:1/-1;width:100%;height:34px"></audio>` : '';
+    const extra = k.kind === 'audio' && have ? `<audio controls preload="none" src="api/mantras/${enc(cur.id)}/files/audio?t=${Date.now()}" style="grid-column:1/-1;width:100%;height:34px"></audio>` : '';
     return `<div class="inp"><div class="name">${k.name}<small>${k.note}</small></div><div class="state ${cls}" title="${state}">${state}</div><div class="acts">${acts.join('')}</div><div class="bar" id="bar-${k.kind}"><i></i></div>${extra}</div>`;
   }).join('');
   $('inputs').querySelectorAll('[data-up]').forEach((b) => (b.onclick = () => pickFile(b.dataset.up)));
   $('inputs').querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => editText(b.dataset.edit)));
   $('inputs').querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => {
     $('inErr').textContent = '';
-    try { cur = await api(`/api/mantras/${enc(cur.id)}/files/${b.dataset.del}`, { method: 'DELETE' }); renderInputs(); updateMantraOption(); } catch (e) { $('inErr').textContent = e.message; }
+    try { cur = await api(`api/mantras/${enc(cur.id)}/files/${b.dataset.del}`, { method: 'DELETE' }); renderInputs(); updateMantraOption(); } catch (e) { $('inErr').textContent = e.message; }
   }));
   setStageBg();
 }
@@ -285,7 +285,7 @@ function upload(kind, file) {
   $('inErr').textContent = '';
   const bar = $('bar-' + kind); bar.style.display = 'block';
   const xhr = new XMLHttpRequest();
-  xhr.open('PUT', `/api/mantras/${enc(cur.id)}/files/${kind}?name=${enc(file.name)}`);
+  xhr.open('PUT', `api/mantras/${enc(cur.id)}/files/${kind}?name=${enc(file.name)}`);
   xhr.upload.onprogress = (e) => { if (e.lengthComputable) bar.firstChild.style.width = (100 * e.loaded / e.total) + '%'; };
   xhr.onload = () => {
     let body = {}; try { body = JSON.parse(xhr.responseText); } catch {}
@@ -305,7 +305,7 @@ async function editText(kind) {
   $('dlgText').value = '';
   if (kind === 'iast') {
     try {
-      const r = await api(`/api/mantras/${enc(cur.id)}/iast`);
+      const r = await api(`api/mantras/${enc(cur.id)}/iast`);
       $('dlgText').value = r.text;
       $('dlgHint').textContent = r.auto
         ? 'Generated from the Devanagari by sanscript. Nothing is saved unless you edit it and press Save. Saving makes it your own IAST file, and "Use auto" goes back to generating it.'
@@ -315,14 +315,14 @@ async function editText(kind) {
     $('dlgHint').textContent = kind === 'dev'
       ? 'One line per half-verse. End each verse with its number, e.g. ॥ १ ॥. A line ending in उवाच is a speaker line. A line starting with इति closes the text.'
       : 'Laid out like the Devanagari: same verses, same numbering.';
-    if (cur.files[kind]) { try { $('dlgText').value = await api(`/api/mantras/${enc(cur.id)}/files/${kind}`); } catch {} }
+    if (cur.files[kind]) { try { $('dlgText').value = await api(`api/mantras/${enc(cur.id)}/files/${kind}`); } catch {} }
   }
   $('textDlg').showModal();
 }
 $('dlgClose').onclick = () => $('textDlg').close();
 $('dlgSave').onclick = async () => {
   try {
-    cur = await api(`/api/mantras/${enc(cur.id)}/files/${dlgKind}`, { method: 'PUT', headers: { 'content-type': 'text/plain; charset=utf-8' }, body: $('dlgText').value });
+    cur = await api(`api/mantras/${enc(cur.id)}/files/${dlgKind}`, { method: 'PUT', headers: { 'content-type': 'text/plain; charset=utf-8' }, body: $('dlgText').value });
     $('textDlg').close(); renderInputs(); updateMantraOption();
   } catch (e) { $('dlgErr').textContent = e.message; }
 };
@@ -340,7 +340,7 @@ function renderLayout() {
 function setStageBg() {
   const st = $('stage');
   if (cur.files.background) {
-    st.style.backgroundImage = `url("/api/mantras/${enc(cur.id)}/files/background?t=${enc(cur.files.background)}${Date.now() % 100000}")`;
+    st.style.backgroundImage = `url("api/mantras/${enc(cur.id)}/files/background?t=${enc(cur.files.background)}${Date.now() % 100000}")`;
     $('stageEmpty').classList.add('hide');
   } else { st.style.backgroundImage = ''; $('stageEmpty').classList.remove('hide'); }
 }
@@ -417,7 +417,7 @@ function layoutPatch() {
   };
 }
 async function saveLayout() {
-  cur = await api(`/api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(layoutPatch()) });
+  cur = await api(`api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(layoutPatch()) });
   box = { ...cur.box }; drawBox();
 }
 $('saveLayout').onclick = async () => {
@@ -429,7 +429,7 @@ $('previewBtn').onclick = async () => {
   $('layoutMsg').textContent = 'Laying out the slides… (about half a minute)';
   try {
     await saveLayout();
-    const r = await api(`/api/mantras/${enc(cur.id)}/preview`, { method: 'POST' });
+    const r = await api(`api/mantras/${enc(cur.id)}/preview`, { method: 'POST' });
     $('layoutMsg').innerHTML = `${r.verses} verses on ${r.slides} slides · type size ${Math.round(r.scale * 100)}%${r.autoIast ? ' · IAST generated' : ''}`
       + r.problems.map((p) => `<br><span class="err">${p}</span>`).join('');
     $('shots').innerHTML = (r.shots.preamble ? `<figure><img src="${r.shots.preamble}" alt="Opening slide"><figcaption>Opening slide (title and preamble)</figcaption></figure>` : '')
@@ -466,7 +466,7 @@ function underlineNow() {
 }
 $('saveUl').onclick = async () => {
   try {
-    cur = await api(`/api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ underline: underlineNow() }) });
+    cur = await api(`api/mantras/${enc(cur.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ underline: underlineNow() }) });
     $('ulMsg').textContent = 'Saved.';
   } catch (e) { $('ulMsg').innerHTML = `<span class="err">${e.message}</span>`; }
 };
@@ -479,7 +479,7 @@ async function build(sample) {
     await saveLayout();
     const body = { id: cur.id, overrides: { ...underlineNow(), showMeaning: $('meaning').checked }, force: $('force').checked };
     if (sample) body.sample = sample;
-    const { jobId } = await api('/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const { jobId } = await api('api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     watch(jobId);
   } catch (e) { $('buildErr').textContent = e.message; }
 }
@@ -497,7 +497,7 @@ function setBusy(msg) {
 function watch(jobId) {
   clearInterval(polling);
   const tick = async () => {
-    let job; try { job = await api(`/api/jobs/${jobId}`); } catch { return; }
+    let job; try { job = await api(`api/jobs/${jobId}`); } catch { return; }
     const names = Object.keys(STAGES);
     $('stages').innerHTML = names.map((n) => {
       const s = job.stages.find((x) => x.name === n);
@@ -520,29 +520,29 @@ function renderOutputs() {
   $('outs').innerHTML = cur.outputs.length ? cur.outputs.map((o) => `<div class="out">
       <span class="f"><b>${o.file}</b> <span class="muted">· ${mb(o.bytes)} · ${new Date(o.at).toLocaleString()}${o.sample ? ' · clip' : ''}</span></span>
       <button class="ghost" data-play="${o.file}">Play</button>
-      <a class="btn ghost" href="/out/${enc(cur.id)}/${enc(o.file)}?download=1">Download</a>
+      <a class="btn ghost" href="out/${enc(cur.id)}/${enc(o.file)}?download=1">Download</a>
       <button class="danger" data-rm="${o.file}">Delete</button></div>`).join('')
     : '<p class="muted" style="margin:0">Nothing rendered yet.</p>';
   $('outs').querySelectorAll('[data-play]').forEach((b) => (b.onclick = () => play(b.dataset.play)));
   $('outs').querySelectorAll('[data-rm]').forEach((b) => (b.onclick = async () => {
     if (!confirm('Delete ' + b.dataset.rm + '?')) return;
-    cur = await api(`/api/mantras/${enc(cur.id)}/outputs/${enc(b.dataset.rm)}`, { method: 'DELETE' });
+    cur = await api(`api/mantras/${enc(cur.id)}/outputs/${enc(b.dataset.rm)}`, { method: 'DELETE' });
     $('player').classList.add('hide'); renderOutputs();
   }));
 }
 function play(file) {
   const v = $('player');
-  v.src = `/out/${enc(cur.id)}/${enc(file)}?t=${Date.now()}`;
+  v.src = `out/${enc(cur.id)}/${enc(file)}?t=${Date.now()}`;
   v.classList.remove('hide'); v.play().catch(() => {});
 }
 
 // ---------- boot ----------
 (async () => {
   try {
-    cfg = await api('/api/config');
+    cfg = await api('api/config');
     await loadList();
     // reattach to a render started earlier (e.g. before a page reload)
-    const { jobs } = await api('/api/jobs');
+    const { jobs } = await api('api/jobs');
     const live = jobs.find((j) => j.status === 'running');
     if (live) watch(live.id);
   } catch (e) { document.querySelector('main').insertAdjacentHTML('afterbegin', `<div class="card err">${e.message}</div>`); }

@@ -98,9 +98,16 @@ def logout(response: Response) -> dict:
 
 
 @app.get("/api/me")
-def me(session: str | None = Cookie(default=None, alias=COOKIE)) -> dict:
-    signed_in = bool(config.app_password and session and hmac.compare_digest(session, _session_value()))
-    return {"signed_in": signed_in}
+def me(
+    session: str | None = Cookie(default=None, alias=COOKIE),
+    x_admin_token: str | None = Header(default=None),
+) -> dict:
+    # The dashboard gateway signs in with the admin token on the visitor's
+    # behalf, so the page must not show its own login behind it.
+    try:
+        return {"signed_in": authed(session, x_admin_token)}
+    except HTTPException:
+        return {"signed_in": False}
 
 
 # ------------------------------------------------------------------- data

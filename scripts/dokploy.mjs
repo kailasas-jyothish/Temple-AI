@@ -100,6 +100,12 @@ const SERVICES = {
     volumeName: null,
     defaultPort: 3300,
     publishedPort: 8482,
+    // temple.unclutch.dev is proxied by Cloudflare, and Caddy owns 443 with no
+    // vhost for it. Cloudflare forwards its alternate ports to the same origin
+    // port, so 8443 (TLS, self-signed: Full mode) and 8080 (plain) reach this
+    // container without touching Caddy. The dashboard is the gateway to every
+    // other service (services/dashboard/src/gateway.js).
+    extraPorts: [[8443, 3443], [8080, 3300]],
   },
   // Keeps files under /data.
   'festival-budget': {
@@ -356,17 +362,18 @@ async function configure() {
   // config, so a Dokploy domain record never reaches it. Traffic arrives on a
   // host-published port instead, and Caddy (or the IP directly) points at it.
   const targetPort = Number(serviceEnv.PORT || service.defaultPort);
-  const alreadyPublished = (app.ports || []).some(
-    (p) => p.publishedPort === service.publishedPort && p.targetPort === targetPort
-  );
-  if (alreadyPublished) {
-    console.log(`port ok     ${service.publishedPort} -> ${targetPort} already published`);
-  } else {
+  const wanted = [[service.publishedPort, targetPort], ...(service.extraPorts || [])];
+  for (const [publishedPort, target] of wanted) {
+    const alreadyPublished = (app.ports || []).some((p) => p.publishedPort === publishedPort && p.targetPort === target);
+    if (alreadyPublished) {
+      console.log(`port ok     ${publishedPort} -> ${target} already published`);
+      continue;
+    }
     const port = await tryRoutes([
-      ['POST', 'port.create', { applicationId, publishedPort: service.publishedPort, targetPort, protocol: 'tcp', publishMode: 'host' }],
+      ['POST', 'port.create', { applicationId, publishedPort, targetPort: target, protocol: 'tcp', publishMode: 'host' }],
     ]);
     if (!port.ok) throw new Error(`could not publish port: ${JSON.stringify(port.attempts)}`);
-    console.log(`port set    ${service.publishedPort} -> ${targetPort} (host mode)`);
+    console.log(`port set    ${publishedPort} -> ${target} (host mode)`);
   }
 
   // WebSub will not deliver without a public HTTPS callback, and the reels UI

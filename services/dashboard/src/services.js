@@ -10,6 +10,7 @@
  *   description: string,
  *   port: number,
  *   healthPath: string,
+ *   openPath?: string,
  *   read: (health: any, get: GetJson, config: typeof import('./config.js').config) => Promise<Details>,
  * }} Service
  */
@@ -38,6 +39,8 @@ export const SERVICES = [
     description: 'New YouTube videos, Shorts and live streams across the temple channels, posted to Slack. Marks Garbha Mandir attendance in the sheet.',
     port: 8478,
     healthPath: '/healthz',
+    // No UI; its status JSON is the useful page.
+    openPath: 'status',
     async read(health, get, config) {
       /** @type {Fact[]} */
       const facts = [{ label: 'Up for', value: duration(Number(health.uptime) || 0) }];

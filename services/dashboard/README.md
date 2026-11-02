@@ -3,8 +3,10 @@
 One page for every Temple AI service. Each one gets a card with an **Open**
 link, whether it is running, and the few numbers it reports about itself.
 
-Deployed as the Dokploy app `Temple-dashboard` on
-**http://157.180.15.165:8482**, behind `UI_PASSWORD` (any username).
+Deployed as the Dokploy app `Temple-dashboard` at
+**https://temple.unclutch.dev:8443**. It is also reachable at
+`http://temple.unclutch.dev:8080` and `http://157.180.15.165:8482`. All three
+sit behind `UI_PASSWORD` (any username).
 
 ## What each card shows
 
@@ -21,8 +23,42 @@ answer). The server probes every `PROBE_INTERVAL_SECONDS` (30) on a timer, not
 per page view, so a slow service cannot hold the page up. **Check now**
 re-probes immediately, which is the quick way to see whether a deploy came back.
 
-The page links to each service on its own port instead of embedding it:
-proxying every UI through one port would break their own logins and paths.
+## The gateway: every tool from one hostname
+
+The dashboard proxies each service at `/<service-id>/` (`src/gateway.js`). For
+example, `/festival-budget/` and `/reels/` are forwarded to that service's
+container (`PROBE_URL_*`, by its Swarm name) with the prefix stripped.
+
+- **One password.** The dashboard's login runs first. The gateway then removes
+  the visitor's credential and injects the service's own: `UPSTREAM_PASSWORD_<ID>`
+  as basic auth, or `UPSTREAM_TOKEN_REELS` / `NOTIFIER_ADMIN_TOKEN` as
+  `x-admin-token`.
+- **Bodies stream both ways**, so uploads and rendered videos are never buffered.
+- **Redirect `Location` headers and cookie `Path`s are rewritten** to keep the
+  prefix. An upstream `WWW-Authenticate` header is dropped, so that the browser
+  never asks for a second password.
+- **Every service page uses relative URLs** (`api/...`, not `/api/...`), so it
+  works on its own port and under a prefix. Keep it that way when editing a UI.
+
+Why port 8443: `temple.unclutch.dev` is proxied by Cloudflare, and Caddy owns
+80/443 on the host with no vhost for that name, so the bare hostname gives
+**525**. Cloudflare forwards its alternate ports to the same port on the origin,
+which bypasses Caddy. The app publishes:
+
+- **8443 → 3443** for TLS. The certificate is self-signed and baked in at
+  build. Cloudflare "Full" mode accepts it; "Full (strict)" would answer 526 and
+  needs `TLS_CERT_PEM_B64`/`TLS_KEY_PEM_B64` from a Cloudflare Origin CA cert.
+- **8080 → 3300** for plain HTTP.
+
+The bare `https://temple.unclutch.dev` needs one Caddy site block on the host:
+
+```
+temple.unclutch.dev {
+    reverse_proxy localhost:8482
+}
+```
+
+Whoever administers Caddy can add it at any time, and nothing else changes.
 
 ## Adding a service
 

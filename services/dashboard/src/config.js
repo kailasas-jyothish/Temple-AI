@@ -19,6 +19,13 @@ export const config = {
   // setInterval clamps NaN to 1ms, which would hammer every service (CLAUDE.md §9).
   probeIntervalMs: Math.max(10, Number(env.PROBE_INTERVAL_SECONDS) || 30) * 1000,
   probeTimeoutMs: Math.max(2, Number(env.PROBE_TIMEOUT_SECONDS) || 8) * 1000,
+  // A second, TLS listener for https://temple.unclutch.dev:8443. Cloudflare
+  // (Full mode) accepts a self-signed origin cert; the image makes one at build.
+  // TLS_CERT_PEM_B64/TLS_KEY_PEM_B64 replace it, e.g. with a Cloudflare Origin
+  // CA cert if the zone is ever switched to Full (strict).
+  tlsPort: Number(env.TLS_PORT) || 0,
+  tlsCertFile: env.TLS_CERT_FILE || '/app/tls/cert.pem',
+  tlsKeyFile: env.TLS_KEY_FILE || '/app/tls/key.pem',
   // The notifier's ADMIN_TOKEN. Without it the card shows health only.
   notifierAdminToken: env.NOTIFIER_ADMIN_TOKEN || '',
   /** @type {Record<string, string | undefined>} */

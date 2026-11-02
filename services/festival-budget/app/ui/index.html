@@ -154,12 +154,12 @@ const ICONS = [[/vishesha|dravya/i, "🍯"], [/mangala/i, "🌼"], [/abhish/i, "
 const icon = (name) => (ICONS.find(([re]) => re.test(name)) || [, "🕉️"])[1];
 
 async function loadLibrary() {
-  LIB = await api("/api/library");
+  LIB = await api("api/library");
   ITEMS = Object.fromEntries(LIB.items.map((i) => [i.id, i]));
   RITUALS = Object.fromEntries(LIB.rituals.map((r) => [r.id, r]));
 }
 async function loadList(select) {
-  LIST = await api("/api/budgets");
+  LIST = await api("api/budgets");
   $("pick").innerHTML = '<option value="">— open a budget —</option>' + LIST.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
   $("pick").value = select || "";
 }
@@ -207,7 +207,7 @@ function label(q) {
 }
 
 async function op(body) {
-  try { const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) }); B = v.budget; CALC = v.calc; return true; }
+  try { const v = await api(`api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) }); B = v.budget; CALC = v.calc; return true; }
   catch (e) { toast(e.message, 6000); return false; }
 }
 // Answer the current question, then move to whatever follows it in the
@@ -227,7 +227,7 @@ function goto(key) { CUR = key; render(); }
 function back() { const qs = questions(); const i = qs.findIndex((q) => q.key === CUR); if (i > 0) goto(qs[i - 1].key); }
 
 async function open(id) {
-  const v = await api(`/api/budgets/${encodeURIComponent(id)}`);
+  const v = await api(`api/budgets/${encodeURIComponent(id)}`);
   B = v.budget; CALC = v.calc; PREV = {}; lastTotal = null;
   const qs = questions();
   const want = new URLSearchParams(location.hash.slice(1)).get("q");
@@ -270,7 +270,7 @@ function renderStart() {
   $("go").addEventListener("click", async () => {
     const name = $("fname").value.trim();
     if (!name) return $("fname").focus();
-    try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); await loadList(v.budget.id); B = v.budget; CALC = v.calc; CUR = "rituals"; PREV = {}; lastTotal = null; store("set", "fb-last", B.id); render(); }
+    try { const v = await api("api/budgets", { method: "POST", body: JSON.stringify({ name }) }); await loadList(v.budget.id); B = v.budget; CALC = v.calc; CUR = "rituals"; PREV = {}; lastTotal = null; store("set", "fb-last", B.id); render(); }
     catch (e) { toast(e.message); }
   });
   $("qcard").querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => open(b.dataset.open)));
@@ -465,14 +465,14 @@ const QUESTION = {
         $("qcard").querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => goto(b.dataset.go)));
         $("go").addEventListener("click", async () => {
           $("go").disabled = true; $("go").textContent = "Writing…";
-          try { const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
+          try { const v = await api(`api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
             B = v.budget; CALC = v.calc; toast("🎉 Written to the sheet"); }
           catch (e) { toast(e.message, 8000); }
           render();
         });
         $("del").addEventListener("click", async () => {
           if (!confirm(`Delete "${B.name}"? The Google Sheet is not touched.`)) return;
-          await api(`/api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
+          await api(`api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
           B = null; await loadList(); render();
         });
       },
@@ -553,14 +553,14 @@ $("pick").addEventListener("change", (e) => e.target.value ? open(e.target.value
 $("newBtn").addEventListener("click", () => { B = null; $("pick").value = ""; render(); });
 $("iSave").addEventListener("click", async () => {
   try {
-    await api("/api/library/item", { method: "POST", body: JSON.stringify({ name: $("iName").value, unit: $("iUnit").value, section: $("iSection").value, vendor: $("iVendor").value, pack_unit: $("iPackUnit").value, pack_size: $("iPackSize").value || null }) });
+    await api("api/library/item", { method: "POST", body: JSON.stringify({ name: $("iName").value, unit: $("iUnit").value, section: $("iSection").value, vendor: $("iVendor").value, pack_unit: $("iPackUnit").value, pack_size: $("iPackSize").value || null }) });
     await loadLibrary(); render(); toast("Item saved");
     ["iName", "iUnit", "iVendor", "iPackUnit", "iPackSize"].forEach((k) => $(k).value = "");
   } catch (e) { toast(e.message); }
 });
 $("rSave").addEventListener("click", async () => {
   try {
-    await api("/api/library/ritual", { method: "POST", body: JSON.stringify({ name: $("rName").value, kind: $("rKind").value, group: $("rGroup").value }) });
+    await api("api/library/ritual", { method: "POST", body: JSON.stringify({ name: $("rName").value, kind: $("rKind").value, group: $("rGroup").value }) });
     await loadLibrary(); render(); toast("Ritual saved");
     ["rName", "rGroup"].forEach((k) => $(k).value = "");
   } catch (e) { toast(e.message); }
@@ -569,7 +569,7 @@ $("rSave").addEventListener("click", async () => {
 (async () => {
   try {
     await loadLibrary();
-    const info = await api("/api/info");
+    const info = await api("api/info");
     $("whoami").textContent = info.problems?.length ? "⚠ " + info.problems.join("; ") : info.service_account ? "Writes as " + info.service_account : "";
     const last = new URLSearchParams(location.search).get("b") || store("get", "fb-last");
     await loadList();
