@@ -7,35 +7,86 @@
 <style>
 :root {
   --bg: #faf7f2; --panel: #fff; --ink: #2a2118; --muted: #7a6e60; --line: #e6ddd0;
-  --accent: #b5651d; --accent-ink: #fff; --bad: #b3261e; --bad-bg: #fdecea; --ok: #2e7d32; --head: #f3eadc;
+  --accent: #b5651d; --accent-ink: #fff; --accent-soft: #fbeee0; --bad: #b3261e; --bad-bg: #fdecea;
+  --ok: #2e7d32; --ok-bg: #e8f5e9; --head: #f3eadc; --gold: #d99a1e;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #17130f; --panel: #211b15; --ink: #f1e8dc; --muted: #a89a88; --line: #3a3128;
-    --accent: #e09a52; --accent-ink: #1a1208; --bad: #ff8a80; --bad-bg: #3a1d1a; --ok: #81c784; --head: #2c241b; }
+    --accent: #e09a52; --accent-ink: #1a1208; --accent-soft: #3a2a18; --bad: #ff8a80; --bad-bg: #3a1d1a;
+    --ok: #81c784; --ok-bg: #1c2e1d; --head: #2c241b; --gold: #f0b84a; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
 header h1 { font-size: 17px; margin: 0 12px 0 0; }
 main { max-width: 1400px; margin: 0 auto; padding: 16px; }
-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
-h2 { font-size: 15px; margin: 0 0 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+section, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+h2 { font-size: 16px; margin: 0 0 4px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 h2 .total { margin-left: auto; font-variant-numeric: tabular-nums; }
-h2 .muted { font-weight: 400; font-size: 13px; }
-input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; }
+h3 { font-size: 14px; margin: 14px 0 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.lede { color: var(--muted); margin: 0 0 12px; }
+input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 input.num { width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
 input.missing { border-color: var(--bad); background: var(--bad-bg); }
 button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 button.link { border: 0; background: none; color: var(--accent); padding: 2px 4px; }
 .muted { color: var(--muted); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-.rituals { display: grid; gap: 8px; }
-details { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
-details[open] { padding-bottom: 10px; }
-summary { cursor: pointer; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-summary .tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--head); color: var(--muted); }
-summary .warn { color: var(--bad); font-size: 12px; }
+
+/* score bar */
+.score { position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 16px; }
+.score-inner { max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.score .name { font-weight: 700; font-size: 15px; }
+.bar { flex: 1 1 180px; height: 10px; background: var(--head); border-radius: 6px; overflow: hidden; min-width: 140px; }
+.bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); transition: width .4s ease; }
+.bar.done > div { background: var(--ok); }
+.pct { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.5em; }
+.counter { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.counter b { font-weight: 700; }
+.grand { margin-left: auto; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bump { animation: bump .35s ease; }
+@keyframes bump { 50% { transform: scale(1.08); color: var(--accent); } }
+
+/* steps */
+.steps { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 14px; padding-bottom: 2px; }
+.step { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+.step .n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--head); font-size: 12px; font-weight: 700; }
+.step.active { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.step.done .n { background: var(--ok); color: #fff; }
+.step .left { font-size: 12px; color: var(--bad); }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+.tile { position: relative; border: 2px solid var(--line); border-radius: 12px; padding: 12px 10px 10px; background: var(--panel); cursor: pointer; user-select: none; text-align: center; transition: border-color .15s, background .15s, transform .1s; min-height: 112px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tile:hover { border-color: var(--accent); }
+.tile:active { transform: scale(.98); }
+.tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.tile .icon { font-size: 28px; line-height: 1; }
+.tile .tname { font-weight: 600; line-height: 1.25; }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.tile.on { border-color: var(--accent); background: var(--accent-soft); animation: pop .25s ease; }
+.tile.on::after { content: "✓"; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+@keyframes pop { 50% { transform: scale(1.04); } }
+.stepper { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.stepper button { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-weight: 700; background: var(--panel); }
+.stepper input { width: 52px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+.chip.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+.pill.warn { background: var(--bad-bg); color: var(--bad); }
+.pill.good { background: var(--ok-bg); color: var(--ok); }
+.tile.add { border-style: dashed; color: var(--muted); justify-content: center; }
+
+/* quantities */
+.rituals { display: grid; gap: 10px; }
+details.rit { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); }
+details.rit[open] { padding-bottom: 12px; }
+details.rit summary { cursor: pointer; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; list-style: none; }
+details.rit summary::-webkit-details-marker { display: none; }
+details.rit summary .icon { font-size: 20px; }
 .scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 th, td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
@@ -44,56 +95,97 @@ th:first-child, td:first-child { text-align: left; position: sticky; left: 0; ba
 th:first-child { background: var(--head); }
 td.note input { width: 200px; }
 tr.vendor td { background: var(--head); font-weight: 600; text-align: left; }
-tr.sub td { font-weight: 600; }
-.problems { border-color: var(--bad); }
-.problems ul { margin: 6px 0 0; padding-left: 18px; color: var(--bad); max-height: 220px; overflow: auto; }
-.ok { color: var(--ok); font-weight: 600; }
+tr.tot td { font-weight: 700; border-top: 2px solid var(--line); }
+.problems ul { margin: 6px 0 0; padding-left: 18px; color: var(--bad); max-height: 260px; overflow: auto; }
+.ready { border-color: var(--ok); background: var(--ok-bg); }
+.ready h2 { color: var(--ok); }
+.nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; display: none; max-width: 90vw; z-index: 5; white-space: pre-wrap; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-@media (max-width: 600px) { header h1 { width: 100%; } input.num { width: 64px; } }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+@media (max-width: 600px) {
+  header h1 { width: 100%; } input.num { width: 64px; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .grand { margin-left: 0; width: 100%; }
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>Festival Budget</h1>
+  <h1>🪔 Festival Budget</h1>
   <select id="pick" aria-label="Budget"></select>
   <input id="newName" placeholder="New festival name">
-  <button id="create">New budget</button>
+  <button id="create" class="primary">Start a budget</button>
   <span class="muted" id="whoami"></span>
 </header>
-<main>
-  <div id="empty" class="muted">Pick a budget or create one. A new budget starts with every constant ritual once.</div>
-  <div id="editor" hidden>
-    <section>
-      <h2><span id="title"></span><span class="total" id="grand"></span></h2>
-      <div class="row">
-        <select id="addRitual" aria-label="Ritual to add"></select>
-        <label>× <input id="addTimes" class="num" value="1" inputmode="numeric"></label>
-        <button id="addBtn">Add ritual</button>
-        <span class="muted">A variable ritual starts with empty quantities; fill them for this festival.</span>
-      </div>
-      <div class="rituals" id="rituals"></div>
-    </section>
-    <section class="problems" id="problemsBox" hidden>
-      <h2>Still to fill before it can be written <span class="muted" id="problemCount"></span></h2>
-      <ul id="problems"></ul>
-    </section>
-    <div id="sections"></div>
-    <section>
-      <h2>Google Sheet</h2>
-      <div class="row">
-        <input id="sheetLink" placeholder="Existing spreadsheet link (optional)" style="flex:1;min-width:240px">
-        <button class="primary" id="writeBtn">Write to sheet</button>
-        <button id="deleteBtn">Delete budget</button>
-      </div>
-      <div id="sheetInfo" class="muted"></div>
-    </section>
+<div class="score" id="score" hidden>
+  <div class="score-inner">
+    <span class="name" id="title"></span>
+    <div class="bar" id="bar" title="How much of the budget is filled in"><div></div></div>
+    <span class="pct" id="pct"></span>
+    <span class="counter">🛕 <b id="cRit">0</b> rituals</span>
+    <span class="counter">⚖️ <b id="cQty"></b> quantities</span>
+    <span class="counter">₹ <b id="cRate"></b> rates</span>
+    <span class="grand" id="grand"></span>
   </div>
-  <details>
+</div>
+<main>
+  <div id="empty" class="card">
+    <h2>Make a festival budget in four steps</h2>
+    <p class="lede">① Tap the rituals the festival has and set how many times each is performed. ② Fill the quantities. ③ Enter what is in stock and each vendor's rate. ④ Write it to the Google Sheet.<br>
+    Type the festival name at the top and press <b>Start a budget</b>, or open one from the list.</p>
+  </div>
+
+  <div id="editor" hidden>
+    <nav class="steps" id="steps"></nav>
+
+    <div data-panel="1">
+      <section>
+        <h2>Standard rituals</h2>
+        <p class="lede">Performed at most festivals. Tap one to add it; it brings its usual quantities. Then set how many times it is performed.</p>
+        <div id="constTiles"></div>
+      </section>
+      <section>
+        <h2>Festival rituals</h2>
+        <p class="lede">Specific to a festival. Tap to add; you fill in their quantities in step ②, with past figures shown as a guide.</p>
+        <div class="tiles" id="varTiles"></div>
+      </section>
+    </div>
+
+    <div data-panel="2" hidden>
+      <p class="lede">Quantity <b>for one performance</b>. The total multiplies it by the number of times. Red boxes still need a number.</p>
+      <div class="rituals" id="rituals"></div>
+    </div>
+
+    <div data-panel="3" hidden>
+      <p class="lede">Everything to buy, by vendor. Enter what is <b>already in stock</b> and the vendor's <b>rate</b> for every item you still need to buy. No rate is ever filled in for you.</p>
+      <div id="sections"></div>
+    </div>
+
+    <div data-panel="4" hidden>
+      <section id="readyBox">
+        <h2 id="readyTitle"></h2>
+        <div id="summary"></div>
+        <div class="problems" id="problemsWrap"><ul id="problems"></ul></div>
+      </section>
+      <section>
+        <h2>Google Sheet</h2>
+        <div class="row">
+          <input id="sheetLink" placeholder="Existing spreadsheet link (optional)" style="flex:1;min-width:240px">
+          <button class="primary" id="writeBtn">Write to sheet</button>
+        </div>
+        <div id="sheetInfo" class="muted"></div>
+        <div class="row" style="margin-top:14px"><button id="deleteBtn">Delete this budget</button></div>
+      </section>
+    </div>
+
+    <div class="nav"><button id="prev">← Back</button><button id="next" class="primary">Next →</button></div>
+  </div>
+
+  <details class="card" id="library" style="margin-top:20px">
     <summary><strong>Library</strong> <span class="muted">— add an item or a ritual for future budgets</span></summary>
     <div class="grid2" style="margin-top:10px">
       <div>
-        <h2>Item</h2>
+        <h3>Item</h3>
         <div class="row"><input id="iName" placeholder="Name"><input id="iUnit" placeholder="Unit (kg, nos…)" style="width:120px"></div>
         <div class="row"><select id="iSection"><option value="ritual">Ritual</option><option value="fruit">Fruit</option></select>
           <input id="iVendor" placeholder="Vendor"></div>
@@ -101,10 +193,10 @@ tr.sub td { font-weight: 600; }
         <button id="iSave">Save item</button>
       </div>
       <div>
-        <h2>Ritual</h2>
-        <div class="row"><input id="rName" placeholder="Name"><select id="rKind"><option value="variable">Variable</option><option value="constant">Constant</option></select>
+        <h3>Ritual</h3>
+        <div class="row"><input id="rName" placeholder="Name"><select id="rKind"><option value="variable">Festival</option><option value="constant">Standard</option></select>
           <input id="rGroup" placeholder="Group (optional)" style="width:140px"></div>
-        <div class="muted">Items are added to it from the budget editor; for a constant, set quantities there and save it back as the standard later.</div>
+        <div class="muted">It appears as a tile. Add its items in step ② of a budget.</div>
         <button id="rSave">Save ritual</button>
       </div>
     </div>
@@ -113,7 +205,9 @@ tr.sub td { font-weight: 600; }
 <div id="toast"></div>
 <script>
 const $ = (id) => document.getElementById(id);
-let LIB = null, ITEMS = {}, RITUALS = {}, B = null, CALC = null;
+let LIB = null, ITEMS = {}, RITUALS = {}, B = null, CALC = null, STEP = 1;
+const STEPS = ["Rituals", "Quantities", "Stock & rates", "Write"];
+const QUICK = [1, 3, 5, 9, 10];
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
@@ -124,6 +218,21 @@ async function api(path, opts = {}) {
 function toast(msg, ms = 3500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms); }
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const inr = (v) => v === "" || v == null ? "—" : "₹" + Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function store(op, k, v) { try { return op === "set" ? localStorage.setItem(k, v) : localStorage.getItem(k); } catch { return null; } }
+
+// Exact decimal × whole number, so the "total" column never shows float noise.
+function mulInt(q, n) {
+  const s = String(q); const neg = s.startsWith("-"); const [i, f = ""] = s.replace("-", "").split(".");
+  let v = (BigInt(i + f || "0") * BigInt(n)).toString().padStart(f.length + 1, "0");
+  let out = f.length ? v.slice(0, -f.length) + "." + v.slice(-f.length) : v;
+  if (out.includes(".")) out = out.replace(/0+$/, "").replace(/\.$/, "");
+  return (neg ? "-" : "") + out;
+}
+
+const ICONS = [[/vishesha|dravya/i, "🍯"], [/mangala/i, "🌼"], [/abhish/i, "💧"], [/deep|arat|aarat/i, "🪔"], [/poornahuti|agni|homa|havan/i, "🔥"], [/kalash/i, "🏺"],
+  [/varuna/i, "🌊"], [/vighn|ganesh|ganapat/i, "🐘"], [/guru/i, "🙏"], [/dhwaj|dhvaj|flag/i, "🚩"], [/mandagap/i, "🛕"],
+  [/kanya/i, "👧"], [/durga|chandi|devi|amman/i, "🔱"], [/bali|navami/i, "⚔️"], [/laghu/i, "🌸"], [/lalitha|sahasra|archana/i, "📿"], [/saraswat|vidya/i, "📚"], [/lakshmi/i, "🪷"]];
+const icon = (name) => (ICONS.find(([re]) => re.test(name)) || [, "🕉️"])[1];
 
 async function loadLibrary() {
   LIB = await api("/api/library");
@@ -132,71 +241,165 @@ async function loadLibrary() {
 }
 async function loadList(select) {
   const list = await api("/api/budgets");
-  $("pick").innerHTML = '<option value="">— budgets —</option>' + list.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  $("pick").innerHTML = '<option value="">— open a budget —</option>' + list.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
   if (select) $("pick").value = select;
 }
+
+// What is left in each step, counted from the budget itself rather than parsed out of problem text.
+function progress() {
+  const qty = B.rituals.flatMap((r) => Object.values(r.qty));
+  const qtyLeft = qty.filter((q) => q == null).length + B.rituals.filter((r) => !Object.keys(r.qty).length).length;
+  const rows = Object.values(CALC.sections).flatMap((s) => s.rows);
+  const buying = rows.filter((r) => Number(r.purchase) > 0);
+  const rateLeft = buying.filter((r) => r.rate == null).length;
+  const reasonLeft = Object.values(B.lines).filter((l) => l.override != null && !l.override_reason).length;
+  const left = { 1: B.rituals.length ? 0 : 1, 2: qtyLeft, 3: rateLeft + reasonLeft, 4: CALC.problems.length };
+  const need = 1 + qty.length + buying.length + reasonLeft;
+  const have = (B.rituals.length ? 1 : 0) + (qty.length - qty.filter((q) => q == null).length) + (buying.length - rateLeft);
+  const pct = CALC.problems.length ? Math.min(99, Math.floor(100 * have / Math.max(need, 1))) : 100;
+  return { left, pct, qty: [qty.length - qty.filter((q) => q == null).length, qty.length], rate: [buying.length - rateLeft, buying.length] };
+}
+
+let lastTotal = null;
 function show(view) {
   B = view.budget; CALC = view.calc;
-  $("empty").hidden = true; $("editor").hidden = false;
+  $("empty").hidden = true; $("editor").hidden = false; $("score").hidden = false;
   $("title").textContent = B.name;
-  $("grand").textContent = "Total " + inr(CALC.total);
-  renderAddRitual(); renderRituals(); renderProblems(); renderSections();
-  $("sheetInfo").innerHTML = B.spreadsheet ? `Writes to <a href="${esc(B.spreadsheet.url)}" target="_blank" rel="noopener">${esc(B.spreadsheet.url)}</a>${B.written ? " — last written " + esc(B.written.replace("T", " ").slice(0, 16)) + " UTC" : ""}` : "Not written yet. Leave the link empty to create a new spreadsheet in the budget folder.";
-  localStorageSafe("set", B.id);
-  history.replaceState(null, "", "?b=" + encodeURIComponent(B.id));
+  const p = progress();
+  $("bar").firstElementChild.style.width = p.pct + "%";
+  $("bar").classList.toggle("done", p.pct === 100);
+  $("pct").textContent = p.pct + "%";
+  $("cRit").textContent = B.rituals.length;
+  $("cQty").textContent = `${p.qty[0]}/${p.qty[1]}`;
+  $("cRate").textContent = `${p.rate[0]}/${p.rate[1]}`;
+  $("grand").textContent = inr(CALC.total);
+  if (lastTotal !== null && lastTotal !== CALC.total) { $("grand").classList.remove("bump"); void $("grand").offsetWidth; $("grand").classList.add("bump"); }
+  lastTotal = CALC.total;
+  renderSteps(p); renderTiles(); renderRituals(); renderSections(); renderWrite(p);
+  store("set", "fb-last", B.id);
+  history.replaceState(null, "", "?b=" + encodeURIComponent(B.id) + "#step=" + STEP);
 }
-function localStorageSafe(op, v) { try { return op === "set" ? localStorage.setItem("fb-last", v) : localStorage.getItem("fb-last"); } catch { return null; } }
 
-async function open(id) { if (!id) return; show(await api(`/api/budgets/${encodeURIComponent(id)}`)); }
+function renderSteps(p) {
+  $("steps").innerHTML = STEPS.map((name, i) => {
+    const n = i + 1, left = p.left[n];
+    const done = n < 4 ? !left : !CALC.problems.length;
+    return `<button class="step ${n === STEP ? "active" : ""} ${done ? "done" : ""}" data-step="${n}">
+      <span class="n">${done ? "✓" : n}</span>${name}${!done && left && n !== 1 ? `<span class="left">${left} left</span>` : ""}</button>`;
+  }).join("");
+  $("steps").querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => go(+b.dataset.step)));
+  document.querySelectorAll("[data-panel]").forEach((d) => d.hidden = +d.dataset.panel !== STEP);
+  $("prev").style.visibility = STEP > 1 ? "visible" : "hidden";
+  $("next").style.visibility = STEP < 4 ? "visible" : "hidden";
+  $("next").textContent = STEP < 4 ? `Next: ${STEPS[STEP]} →` : "";
+}
+function go(n) { STEP = Math.max(1, Math.min(4, n)); store("set", "fb-step", STEP); history.replaceState(null, "", "?b=" + encodeURIComponent(B.id) + "#step=" + STEP); renderSteps(progress()); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+async function open(id) { if (!id) return; lastTotal = null; const v = await api(`/api/budgets/${encodeURIComponent(id)}`); const h = +(location.hash.match(/step=(\d)/) || [])[1];
+  STEP = h || (v.budget.rituals.length ? (+store("get", "fb-step") || 1) : 1); show(v); }
 async function op(body, quiet) {
   try { show(await api(`/api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) })); if (!quiet) toast("Saved"); }
   catch (e) { toast(e.message, 6000); show({ budget: B, calc: CALC }); }
 }
 
-function renderAddRitual() {
-  const have = new Set(B.rituals.map((r) => r.ritual_id));
-  const groups = [...new Set(LIB.rituals.map((r) => r.group).filter(Boolean))];
-  const opt = (r) => `<option value="r:${esc(r.id)}">${esc(r.name)}</option>`;
-  const avail = LIB.rituals.filter((r) => !have.has(r.id));
-  $("addRitual").innerHTML =
-    `<optgroup label="Variable">${avail.filter((r) => r.kind === "variable").map(opt).join("")}</optgroup>` +
-    `<optgroup label="Constant">${avail.filter((r) => r.kind === "constant").map(opt).join("")}</optgroup>` +
-    `<optgroup label="Whole group">${groups.map((g) => `<option value="g:${esc(g)}">All of ${esc(g)}</option>`).join("")}</optgroup>`;
+// ---- step 1: tiles
+function tile(r) {
+  const got = B.rituals.find((x) => x.ritual_id === r.id);
+  const items = Object.keys(r.items || {}).length;
+  if (!got) return `<div class="tile" tabindex="0" role="button" aria-pressed="false" data-tile="${esc(r.id)}">
+    <span class="icon">${icon(r.name)}</span><span class="tname">${esc(r.name)}</span>
+    <span class="sub">${items ? items + (items === 1 ? " item" : " items") : "no items yet"} · tap to add</span></div>`;
+  const empty = Object.values(got.qty).filter((q) => q == null).length;
+  const status = !Object.keys(got.qty).length ? `<span class="pill warn">add items</span>`
+    : empty ? `<span class="pill warn">${empty} to fill</span>` : `<span class="pill good">ready</span>`;
+  return `<div class="tile on" tabindex="0" role="button" aria-pressed="true" data-tile="${esc(r.id)}">
+    <span class="icon">${icon(r.name)}</span><span class="tname">${esc(r.name)}</span>${status}
+    <div class="stepper" data-stop>
+      <button data-dec aria-label="Fewer times">−</button>
+      <input data-times value="${got.times}" inputmode="numeric" aria-label="Number of times performed">
+      <button data-inc aria-label="More times">+</button></div>
+    <div class="chips" data-stop>${QUICK.map((q) => `<button class="chip ${q === got.times ? "sel" : ""}" data-quick="${q}">×${q}</button>`).join("")}</div>
+  </div>`;
 }
 
+function renderTiles() {
+  const consts = LIB.rituals.filter((r) => r.kind === "constant");
+  const loose = consts.filter((r) => !r.group);
+  const groups = [...new Set(consts.map((r) => r.group).filter(Boolean))];
+  const have = new Set(B.rituals.map((r) => r.ritual_id));
+  $("constTiles").innerHTML = `<div class="tiles">${loose.map(tile).join("")}</div>` + groups.map((g) => {
+    const members = consts.filter((r) => r.group === g);
+    const all = members.every((r) => have.has(r.id));
+    return `<h3>${icon(g)} ${esc(g)} <span class="muted">${members.length} rituals performed together</span>
+      <button class="link" data-group="${esc(g)}" data-all="${all ? 1 : 0}">${all ? "remove all" : "add all"}</button></h3>
+      <div class="tiles">${members.map(tile).join("")}</div>`;
+  }).join("");
+  $("varTiles").innerHTML = LIB.rituals.filter((r) => r.kind !== "constant").map(tile).join("") +
+    `<div class="tile add" tabindex="0" role="button" id="newRitualTile"><span class="icon">＋</span><span class="tname">New ritual</span><span class="sub">add it to the library</span></div>`;
+
+  document.querySelectorAll("[data-tile]").forEach((el) => {
+    const rid = el.dataset.tile;
+    const toggle = () => {
+      const got = B.rituals.find((x) => x.ritual_id === rid);
+      if (!got) return op({ op: "add", ritual: rid, times: 1 }, true);
+      const typed = got.kind === "variable" && Object.values(got.qty).some((q) => q != null);
+      if (typed && !confirm(`Remove ${got.name}? The quantities you filled for it are lost.`)) return;
+      op({ op: "remove", ritual: rid }, true);
+    };
+    el.addEventListener("click", (e) => { if (!e.target.closest("[data-stop]")) toggle(); });
+    el.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); toggle(); } });
+    const inp = el.querySelector("[data-times]");
+    if (!inp) return;
+    // Rapid +/- clicks update the number at once and send one change when they stop.
+    let timer;
+    const bump = (d) => { inp.value = Math.max(1, (parseInt(inp.value, 10) || 1) + d); clearTimeout(timer); timer = setTimeout(send, 450); };
+    const send = () => op({ op: "times", ritual: rid, times: inp.value }, true);
+    el.querySelector("[data-dec]").addEventListener("click", () => bump(-1));
+    el.querySelector("[data-inc]").addEventListener("click", () => bump(1));
+    inp.addEventListener("change", () => { clearTimeout(timer); send(); });
+    el.querySelectorAll("[data-quick]").forEach((c) => c.addEventListener("click", () => op({ op: "times", ritual: rid, times: c.dataset.quick }, true)));
+  });
+  document.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
+    const g = b.dataset.group;
+    if (b.dataset.all === "1") op(LIB.rituals.filter((r) => r.group === g).map((r) => ({ op: "remove", ritual: r.id })), true);
+    else op({ op: "add_group", group: g, times: 1 }, true);
+  }));
+  $("newRitualTile").addEventListener("click", () => { $("library").open = true; $("rName").focus(); $("library").scrollIntoView({ behavior: "smooth" }); });
+}
+
+// ---- step 2: quantities
 function renderRituals() {
   const box = $("rituals");
-  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.id));
+  if (!B.rituals.length) { box.innerHTML = `<div class="card muted">No rituals picked yet. Go back to step ① and tap some tiles.</div>`; return; }
+  const opened = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.id));
+  const first = !box.dataset.ready; box.dataset.ready = "1";
   box.innerHTML = B.rituals.map((r) => {
     const empty = Object.values(r.qty).filter((q) => q == null).length;
     const ref = (RITUALS[r.ritual_id] || {}).items || {};
     const rows = Object.entries(r.qty).map(([id, q]) => {
       const it = ITEMS[id] || { name: id + " (missing)", unit: "" };
-      const hint = ref[id] != null && r.kind === "variable" ? `<span class="muted">ref ${ref[id]}</span>` : "";
-      return `<tr><td>${esc(it.name)}</td><td>${esc(it.unit)}</td>
+      const hint = ref[id] != null && r.kind === "variable" ? `<span class="muted">past: ${ref[id]}</span>` : "";
+      return `<tr><td>${esc(it.name)}</td>
         <td><input class="num ${q == null ? "missing" : ""}" data-qty="${esc(id)}" value="${esc(q ?? "")}" inputmode="decimal"></td>
-        <td>${hint}</td><td><button class="link" data-drop="${esc(id)}" title="Remove from this ritual">✕</button></td></tr>`;
+        <td style="text-align:left">${esc(it.unit)}</td><td class="muted">× ${r.times}</td>
+        <td><b>${q == null ? "—" : esc(mulInt(q, r.times))}</b></td><td>${hint}</td>
+        <td><button class="link" data-drop="${esc(id)}" title="Remove from this ritual">✕</button></td></tr>`;
     }).join("");
     const addable = LIB.items.filter((i) => !(i.id in r.qty)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("");
-    return `<details data-id="${esc(r.ritual_id)}" ${open.has(r.ritual_id) ? "open" : ""}>
-      <summary><strong>${esc(r.name)}</strong><span class="tag">${r.kind}${r.group ? " · " + esc(r.group) : ""}</span>
-        <label onclick="event.stopPropagation()">× <input class="num" data-times value="${r.times}" inputmode="numeric" style="width:56px"></label>
-        <span class="muted">${Object.keys(r.qty).length} items</span>
-        ${empty ? `<span class="warn">${empty} quantit${empty === 1 ? "y" : "ies"} to fill</span>` : ""}
-        ${!Object.keys(r.qty).length ? `<span class="warn">no items</span>` : ""}
-        <button class="link" data-remove onclick="event.stopPropagation()">remove</button></summary>
+    const isOpen = opened.has(r.ritual_id) || (first && empty > 0);
+    const status = !Object.keys(r.qty).length ? `<span class="pill warn">no items</span>` : empty ? `<span class="pill warn">${empty} to fill</span>` : `<span class="pill good">✓ complete</span>`;
+    return `<details class="rit" data-id="${esc(r.ritual_id)}" ${isOpen ? "open" : ""}>
+      <summary><span class="icon">${icon(r.name)}</span><strong>${esc(r.name)}</strong><span class="muted">× ${r.times}</span>
+        <span class="muted">${r.kind === "constant" ? "standard" : "festival"} · ${Object.keys(r.qty).length} items</span>${status}</summary>
       <div class="row">
-        ${empty && Object.keys(ref).length ? `<button data-ref>Use reference quantities for the empty ones</button>` : ""}
-        <select data-additem><option value="">+ add item…</option>${addable}</select>
+        ${empty && Object.keys(ref).length ? `<button data-ref>Fill the empty ones with past figures</button>` : ""}
+        <select data-additem><option value="">+ add an item…</option>${addable}</select>
       </div>
-      <div class="muted">Quantity per performance; the budget multiplies by ×${r.times}.</div>
-      <div class="scroll"><table><thead><tr><th>Item</th><th>Unit</th><th>Qty</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="scroll"><table><thead><tr><th>Item</th><th>Per performance</th><th style="text-align:left">Unit</th><th>Times</th><th>Total</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     </details>`;
   }).join("");
   box.querySelectorAll("details").forEach((d) => {
     const rid = d.dataset.id;
-    d.querySelector("[data-times]").addEventListener("change", (e) => op({ op: "times", ritual: rid, times: e.target.value }));
-    d.querySelector("[data-remove]").addEventListener("click", (e) => { e.preventDefault(); if (confirm("Remove this ritual from the budget?")) op({ op: "remove", ritual: rid }); });
     d.querySelector("[data-ref]")?.addEventListener("click", () => op({ op: "reference", ritual: rid }));
     d.querySelector("[data-additem]").addEventListener("change", (e) => e.target.value && op({ op: "qty", ritual: rid, item: e.target.value, qty: null }));
     d.querySelectorAll("[data-qty]").forEach((inp) => inp.addEventListener("change", () => op({ op: "qty", ritual: rid, item: inp.dataset.qty, qty: inp.value }, true)));
@@ -204,18 +407,12 @@ function renderRituals() {
   });
 }
 
-function renderProblems() {
-  const p = CALC.problems;
-  $("problemsBox").hidden = !p.length;
-  $("problemCount").textContent = p.length ? `(${p.length})` : "";
-  $("problems").innerHTML = p.map((x) => `<li>${esc(x)}</li>`).join("");
-  $("writeBtn").disabled = !!p.length;
-  $("writeBtn").title = p.length ? "Fill everything listed above first" : "";
-}
-
+// ---- step 3: stock and rates
 function renderSections() {
   const others = Object.fromEntries(B.others.map((o) => [o.item_id, o]));
   $("sections").innerHTML = Object.entries(CALC.sections).map(([key, s]) => {
+    const buying = s.rows.filter((r) => Number(r.purchase) > 0);
+    const rated = buying.filter((r) => r.rate != null).length;
     const head = `<tr><th>Item</th><th>Required</th><th>Unit</th><th>${esc(s.other_label)}</th><th>In stock</th><th>Net</th><th>Buy</th><th>Buy unit</th><th>Override</th><th>Rate ₹</th><th>Amount</th><th>${esc(s.note_label)}</th></tr>`;
     let vendor = null, body = "";
     const grouped = s.rows.some((r) => r.vendor);
@@ -230,14 +427,15 @@ function renderSections() {
         <td>${esc(r.net)}</td><td><strong>${esc(r.purchase)}</strong></td><td>${esc(r.purchase_unit)}</td>
         <td><input class="num" data-f="override" value="${esc(line.override ?? "")}" inputmode="decimal" title="Purchase quantity by hand; needs a reason">
           ${line.override != null ? `<input data-f="override_reason" class="${line.override_reason ? "" : "missing"}" value="${esc(line.override_reason ?? "")}" placeholder="reason" style="width:120px">` : ""}</td>
-        <td><input class="num ${missing ? "missing" : ""}" data-f="rate" value="${esc(line.rate ?? "")}" placeholder="required" inputmode="decimal"></td>
+        <td><input class="num ${missing ? "missing" : ""}" data-f="rate" value="${esc(line.rate ?? "")}" placeholder="${missing ? "required" : ""}" inputmode="decimal"></td>
         <td>${inr(r.amount)}</td>
         <td class="note"><input data-f="note" value="${esc(line.note ?? "")}"></td></tr>`;
     }
     const addable = LIB.items.filter((i) => i.section === key && !s.rows.some((r) => r.item_id === i.id)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("");
-    return `<section data-section="${key}"><h2>${esc(s.title)}<span class="muted">${s.columns.map((c) => esc(c.name) + (c.times > 1 ? " ×" + c.times : "")).join(", ")}</span><span class="total">${inr(s.total)}</span></h2>
-      <div class="row"><select data-addother><option value="">+ ${esc(s.other_label)}: add an item outside any ritual…</option>${addable}</select></div>
-      <div class="scroll"><table><thead>${head}</thead><tbody>${body || `<tr><td colspan="12" class="muted">No items yet.</td></tr>`}</tbody></table></div></section>`;
+    return `<section data-section="${key}"><h2>${esc(s.title)}
+        <span class="pill ${rated === buying.length ? "good" : "warn"}">rates ${rated}/${buying.length}</span><span class="total">${inr(s.total)}</span></h2>
+      <div class="row"><select data-addother><option value="">+ ${esc(s.other_label)}: an item outside any ritual…</option>${addable}</select></div>
+      <div class="scroll"><table><thead>${head}</thead><tbody>${body || `<tr><td colspan="12" class="muted">Nothing to buy yet.</td></tr>`}</tbody></table></div></section>`;
   }).join("");
   document.querySelectorAll("#sections tr[data-item]").forEach((tr) => {
     const id = tr.dataset.item;
@@ -253,30 +451,46 @@ function renderSections() {
   }));
 }
 
+// ---- step 4: write
+function renderWrite(p) {
+  const n = CALC.problems.length;
+  $("readyBox").classList.toggle("ready", !n);
+  $("readyTitle").textContent = n ? `${n} thing${n === 1 ? "" : "s"} still to fill` : "🎉 All filled in. Ready to write.";
+  const lines = Object.values(CALC.sections).map((s) => `<tr><td>${esc(s.title)}</td><td>${inr(s.total)}</td></tr>`).join("");
+  $("summary").innerHTML = `<div class="scroll" style="max-width:480px;margin:8px 0"><table><tbody>${lines}
+    <tr><td class="muted">Flowers budget</td><td class="muted">not included yet</td></tr>
+    <tr><td class="muted">Madappalli budget</td><td class="muted">not included yet</td></tr>
+    <tr class="tot"><td>Total</td><td>${inr(CALC.total)}</td></tr></tbody></table></div>`;
+  $("problemsWrap").hidden = !n;
+  $("problems").innerHTML = CALC.problems.map((x) => `<li>${esc(x)}</li>`).join("");
+  $("writeBtn").disabled = !!n;
+  $("writeBtn").title = n ? "Fill everything listed first" : "";
+  $("sheetInfo").innerHTML = B.spreadsheet ? `Writes to <a href="${esc(B.spreadsheet.url)}" target="_blank" rel="noopener">${esc(B.spreadsheet.url)}</a>${B.written ? " — last written " + esc(B.written.replace("T", " ").slice(0, 16)) + " UTC" : ""}` : "Not written yet. Leave the link empty to create a new spreadsheet in the budget folder.";
+}
+
+$("prev").addEventListener("click", () => go(STEP - 1));
+$("next").addEventListener("click", () => go(STEP + 1));
 $("pick").addEventListener("change", (e) => open(e.target.value).catch((err) => toast(err.message)));
 $("create").addEventListener("click", async () => {
   const name = $("newName").value.trim();
-  if (!name) return toast("Type the festival name first");
-  try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); $("newName").value = ""; await loadList(v.budget.id); show(v); }
+  if (!name) { $("newName").focus(); return toast("Type the festival name first"); }
+  try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); $("newName").value = ""; await loadList(v.budget.id); STEP = 1; lastTotal = null; show(v); }
   catch (e) { toast(e.message); }
 });
-$("addBtn").addEventListener("click", () => {
-  const v = $("addRitual").value; if (!v) return;
-  const times = $("addTimes").value;
-  op(v.startsWith("g:") ? { op: "add_group", group: v.slice(2), times } : { op: "add", ritual: v.slice(2), times });
-});
+$("newName").addEventListener("keydown", (e) => { if (e.key === "Enter") $("create").click(); });
 $("writeBtn").addEventListener("click", async () => {
   $("writeBtn").disabled = true; $("writeBtn").textContent = "Writing…";
   try {
     const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
-    show(v); $("sheetLink").value = ""; toast("Written to the sheet");
+    show(v); $("sheetLink").value = ""; toast("🎉 Written to the sheet");
   } catch (e) { toast(e.message, 8000); }
-  finally { $("writeBtn").textContent = "Write to sheet"; renderProblems(); }
+  finally { $("writeBtn").textContent = "Write to sheet"; renderWrite(progress()); }
 });
 $("deleteBtn").addEventListener("click", async () => {
   if (!confirm(`Delete "${B.name}"? The Google Sheet is not touched.`)) return;
   await api(`/api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
-  B = null; $("editor").hidden = true; $("empty").hidden = false; await loadList();
+  B = null; $("editor").hidden = true; $("score").hidden = true; $("empty").hidden = false;
+  history.replaceState(null, "", location.pathname); await loadList();
 });
 $("iSave").addEventListener("click", async () => {
   try {
@@ -288,7 +502,7 @@ $("iSave").addEventListener("click", async () => {
 $("rSave").addEventListener("click", async () => {
   try {
     await api("/api/library/ritual", { method: "POST", body: JSON.stringify({ name: $("rName").value, kind: $("rKind").value, group: $("rGroup").value }) });
-    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Ritual saved — add it to a budget, then add its items");
+    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Ritual saved: it is now a tile");
     ["rName", "rGroup"].forEach((k) => $(k).value = "");
   } catch (e) { toast(e.message); }
 });
@@ -299,7 +513,7 @@ $("rSave").addEventListener("click", async () => {
     const info = await api("/api/info");
     if (info.problems.length) $("whoami").textContent = "⚠ " + info.problems.join("; ");
     else if (info.service_account) $("whoami").textContent = "Writes as " + info.service_account;
-    const last = new URLSearchParams(location.search).get("b") || localStorageSafe("get");
+    const last = new URLSearchParams(location.search).get("b") || store("get", "fb-last");
     await loadList(last || "");
     if (last && $("pick").value === last) await open(last);
   } catch (e) { toast(e.message, 8000); }

@@ -49,8 +49,18 @@ def test_seed_library_has_no_rates_and_valid_references():
         assert set(r["items"]) <= ids, r["id"]
 
 
-def test_new_budget_adds_constants_with_quantities_and_variables_empty():
-    b = core.new_budget("Navaratri")
+def test_new_budget_starts_empty_and_a_picked_constant_brings_its_quantities():
+    b = core.new_budget("Deepam")
+    assert b["rituals"] == []
+    # picking a tile: Abhishekam performed 10 times
+    core.add_ritual(b, "abhishekam", 10)
+    assert b["rituals"][0]["times"] == 10 and None not in b["rituals"][0]["qty"].values()
+    _, r = rows(b)
+    assert not any("quantity" in p for p in r["problems"])
+
+
+def test_constants_flag_adds_constants_with_quantities_and_variables_empty():
+    b = core.new_budget("Navaratri", constants=True)
     assert [r["ritual_id"] for r in b["rituals"]] == ["abhishekam", "agnikaryam", "poornahuti"]
     core.add_ritual(b, "Durga Puja", 3)
     durga = b["rituals"][-1]
@@ -62,7 +72,7 @@ def test_new_budget_adds_constants_with_quantities_and_variables_empty():
 
 
 def test_quantities_times_stock_and_pack_rounding():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     core.add_ritual(b, "durga_puja", 3)
     core.use_reference(b, "durga_puja")
     core.set_line(b, "ghee", stock="1")
@@ -83,7 +93,7 @@ def test_countable_pack_units():
 
 
 def test_every_rate_is_mandatory_and_amounts_round_per_line():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     _, r = rows(b)
     missing = [p for p in r["problems"] if "rate for" in p]
     assert len(missing) == 3  # ghee, agarbathi, banana
@@ -99,7 +109,7 @@ def test_every_rate_is_mandatory_and_amounts_round_per_line():
 
 
 def test_stock_covering_need_means_no_rate_needed():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     core.set_line(b, "banana", stock="100")
     by, r = rows(b)
     assert by["banana"]["purchase"] == 0
@@ -107,7 +117,7 @@ def test_stock_covering_need_means_no_rate_needed():
 
 
 def test_override_needs_a_reason_and_is_noted():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     core.set_line(b, "ghee", override="5", rate="600")
     _, r = rows(b)
     assert any("overridden without a reason" in p for p in r["problems"])
@@ -118,7 +128,7 @@ def test_override_needs_a_reason_and_is_noted():
 
 
 def test_miscellaneous_fruit_and_negative_rejected():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     core.set_other(b, "banana", "24", "naivedyam")
     by, _ = rows(b)
     assert by["banana"]["required"] == 36 and by["banana"]["note"] == "naivedyam"
@@ -131,7 +141,7 @@ def test_miscellaneous_fruit_and_negative_rejected():
 
 
 def test_empty_ritual_blocks_writing():
-    b = core.new_budget("Test")
+    b = core.new_budget("Test", constants=True)
     core.add_ritual(b, "durga_puja")
     for item in list(b["rituals"][-1]["qty"]):
         core.drop_item(b, "durga_puja", item)
@@ -175,7 +185,7 @@ class FakeSession:
 
 
 def filled_budget():
-    b = core.new_budget("Navaratri 2026")
+    b = core.new_budget("Navaratri 2026", constants=True)
     core.add_ritual(b, "durga_puja", 2)
     core.use_reference(b, "durga_puja")
     for item in ("ghee", "agarbathi", "firewood", "lamp", "banana"):
@@ -251,7 +261,7 @@ def test_healthz_is_open_even_with_password(monkeypatch):
 
 
 def test_api_ops_apply_all_or_none():
-    v = client.post("/api/budgets", json={"name": "Deepam"}).json()
+    v = client.post("/api/budgets", json={"name": "Deepam", "constants": True}).json()
     bid = v["budget"]["id"]
     assert client.get("/").status_code == 200
     ok = client.post(f"/api/budgets/{bid}/ops", json=[

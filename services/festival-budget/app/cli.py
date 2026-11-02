@@ -150,8 +150,56 @@ def pick_budget(lib: dict) -> dict:
         return core.load_budget(budgets[int(choice) - 1]["id"])
     name = ask("Festival name (e.g. Karthigai Deepam 2026)")
     b = core.new_budget(name, lib=lib)
-    print(f"Created with the constant rituals once each: {', '.join(r['name'] for r in b['rituals'])}")
+    pick_rituals(b, lib)
     return b
+
+
+def ordered_rituals(lib: dict) -> list[dict]:
+    """Standard (constant) rituals first, then festival (variable) ones, as on the UI's tile board."""
+    return [r for r in lib["rituals"] if r["kind"] == "constant"] + \
+           [r for r in lib["rituals"] if r["kind"] != "constant"]
+
+
+def pick_rituals(b: dict, lib: dict) -> None:
+    """The CLI's tile board: every ritual is listed, picked ones are ticked with
+    their count, and one line toggles a ritual or sets its count."""
+    while True:
+        chosen = {r["ritual_id"]: r for r in b["rituals"]}
+        rituals = ordered_rituals(lib)
+        print()
+        heading = None
+        for n, r in enumerate(rituals, 1):
+            h = "Standard rituals (bring their usual quantities)" if r["kind"] == "constant" \
+                else "Festival rituals (you fill the quantities)"
+            if h != heading:
+                heading = h
+                print(f"  {h}")
+            got = chosen.get(r["id"])
+            mark = f"[✓] ×{got['times']:<3}" if got else "[ ]     "
+            group = f"  · {r['group']}" if r.get("group") else ""
+            print(f"    {mark} {n:>2}. {r['name']}{group}")
+        print('\n  "5" picks or unpicks ritual 5 · "5 x10" picks it performed 10 times'
+              ' · "homa x3" picks a whole group · Enter when done')
+        line = ask("Pick").strip().lower()
+        if not line:
+            core.save_budget(b)
+            return
+        target, _, times = line.replace("×", "x").partition(" x")
+        target, times = target.strip(), times.strip() or None
+        try:
+            if target.isdigit():
+                r = rituals[int(target) - 1]
+                if r["id"] in chosen and times is None:
+                    core.remove_ritual(b, r["id"])
+                elif r["id"] in chosen:
+                    core.set_times(b, r["id"], times)
+                else:
+                    core.add_ritual(b, r["id"], times or 1, lib=lib)
+            else:
+                core.add_group(b, target, times or 1, lib=lib)
+            core.save_budget(b)
+        except (BudgetError, IndexError) as exc:
+            print(f"\n  {exc}")
 
 
 def guided() -> int:
@@ -159,31 +207,18 @@ def guided() -> int:
     b = pick_budget(lib)
     while True:
         print_budget(b, lib, detail=False)
-        print("\n  1. add a ritual   2. change number of times   3. remove a ritual"
-              "\n  4. fill in what is missing   5. show every line   6. write to Google Sheet   7. quit")
-        choice = ask("Choose", "4")
+        print("\n  1. pick rituals and how many times   2. fill in what is missing"
+              "\n  3. show every line   4. write to Google Sheet   5. quit")
+        choice = ask("Choose", "2" if b["rituals"] else "1")
         try:
             if choice == "1":
-                variables = [r for r in lib["rituals"] if not any(x["ritual_id"] == r["id"] for x in b["rituals"])]
-                for n, r in enumerate(variables, 1):
-                    print(f"  {n}. {r['name']} ({r['kind']})")
-                pick = ask("Ritual number, or a group name such as Homa")
-                times = ask("How many times is it performed", "1")
-                if pick.isdigit():
-                    core.add_ritual(b, variables[int(pick) - 1]["id"], times, lib=lib)
-                else:
-                    core.add_group(b, pick, times, lib=lib)
+                pick_rituals(b, lib)
             elif choice == "2":
-                r = ask("Ritual")
-                core.set_times(b, r, ask("Times"))
-            elif choice == "3":
-                core.remove_ritual(b, ask("Ritual"))
-            elif choice == "4":
                 fill(b, lib)
-            elif choice == "5":
+            elif choice == "3":
                 print_budget(b, lib)
                 continue
-            elif choice == "6":
+            elif choice == "4":
                 link = ""
                 if not b.get("spreadsheet"):
                     link = ask("Existing spreadsheet link (Enter to create a new one in the budget folder)")
@@ -226,9 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--item", action="append", default=[], metavar="ITEM=QTY",
                    help="per-performance quantity; repeat. For a variable ritual this is only the reference")
 
-    s = sub.add_parser("new", help="start a budget (constant rituals added once each)")
+    s = sub.add_parser("new", help="start an empty budget; then add rituals with their number of times")
     s.add_argument("name")
-    s.add_argument("--no-constants", action="store_true")
+    s.add_argument("--constants", action="store_true", help="add every standard ritual once to start with")
     sub.add_parser("list", help="list budgets")
     s = sub.add_parser("show", help="print a budget and what is still missing")
     s.add_argument("budget")
@@ -313,7 +348,7 @@ def run(a: argparse.Namespace) -> int:
         print(f"saved ritual {r['id']} ({len(r['items'])} items)")
         return 0
     if a.command == "new":
-        b = core.new_budget(a.name, constants=not a.no_constants, lib=lib)
+        b = core.new_budget(a.name, constants=a.constants, lib=lib)
         print(f"created {b['id']}")
         print_budget(b, lib, detail=False)
         return 0

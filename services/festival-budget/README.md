@@ -18,7 +18,9 @@ Python 3.12, managed entirely with [uv](https://docs.astral.sh/uv/). Dokploy app
 - **Constant rituals** recur at every festival: Abhishekam, Deeparathana, Mandagappadi,
   Dhwajarohanam, the Homa group (Vighneshwara, Guru, Varuna, Pradhana Kalasha puja,
   Agnikaryam, Poornahuti), Vishesha Dravya Homa, Mangala Dravya Homa and Laghu Puja.
-  A new budget starts with all of them, once each, carrying their library quantities.
+  A new budget starts **empty**: every ritual is a tile, and you tap the ones the
+  festival has and set how many times each is performed (Deeparathana ×10). A constant
+  brings its library quantities when it is picked.
 - **Variable rituals** belong to one festival (Kanya Puja, Durga Puja, Navami Puja &
   Bali, …). Added to a budget, their quantities start **empty**. They are filled by hand,
   and the library figure is shown beside each one as a reference.
@@ -39,6 +41,12 @@ Python 3.12, managed entirely with [uv](https://docs.astral.sh/uv/). Dokploy app
 Amounts are Decimal and are rounded to the paisa once per line, so vendor subtotals and
 totals add up exactly to the lines shown.
 
+The web UI walks through four steps: ① tap the ritual tiles and set ×times, ② fill
+the quantities, ③ enter stock and rates, ④ write. A bar at the top shows how much is
+filled in, and how many quantities and rates are left, plus the running total. Each
+step shows what is still missing. The guided CLI does the same with a numbered board:
+`5` toggles ritual 5, `5 x10` sets it to ten times, `homa x3` adds the Homa group.
+
 ## Run it
 
 ```
@@ -52,7 +60,8 @@ uv run pytest                   # tests
 CLI commands, for scripting (`festival-budget.cmd <command> --help` for each):
 
 ```
-new "Navaratri 2026"                     list / show <budget> / delete <budget>
+new "Navaratri 2026" [--constants]       list / show <budget> / delete <budget>
+                                         (--constants pre-adds every standard ritual once)
 add <budget> "Durga Puja" --times 9      add <budget> Homa          (a whole group)
 remove <budget> <ritual>                 times <budget> <ritual> 3
 qty <budget> <ritual> <item> 2.5         reference <budget> <ritual>   (fill empties from the library)

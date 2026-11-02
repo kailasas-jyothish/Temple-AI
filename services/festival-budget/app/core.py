@@ -238,9 +238,9 @@ def delete_budget(budget_id: str) -> None:
     (budgets_dir() / f"{b['id']}.json").unlink()
 
 
-def new_budget(name: str, *, constants: bool = True, lib: dict | None = None) -> dict:
-    """A new budget. By default every constant ritual is added once, since a
-    festival almost always has them; remove the ones it does not."""
+def new_budget(name: str, *, constants: bool = False, lib: dict | None = None) -> dict:
+    """A new budget, empty by default: people pick each ritual and say how many
+    times it is performed. Pre-adding the constants once each hid that choice."""
     name = name.strip()
     if not name:
         raise BudgetError("a budget needs a name")

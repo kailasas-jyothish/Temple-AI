@@ -98,7 +98,7 @@ def budgets(_: bool = Depends(authed)) -> list[dict]:
 def create(body: dict = Body(...), _: bool = Depends(authed)) -> dict:
     with _lock:
         try:
-            b = core.new_budget(body.get("name", ""), constants=body.get("constants", True))
+            b = core.new_budget(body.get("name", ""), constants=bool(body.get("constants", False)))
         except BudgetError as exc:
             raise _bad(exc) from None
     return _view(b)

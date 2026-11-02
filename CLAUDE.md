@@ -1637,10 +1637,16 @@ service README has usage.
   rituals with per-performance quantities.
 - **Constants vs variables.** Constant rituals (abhishekam, deeparathana,
   mandagappadi, dhwajarohanam, the Homa group, vishesha/mangala dravya homa,
-  laghu puja) start every budget with library quantities. Variable rituals start
+  laghu puja) bring their library quantities when picked. Variable rituals start
   **empty** and are filled by hand, with the library figure shown as a reference.
   Every ritual has a "times performed". "Others"/"Miscellaneous" covers
   quantities outside any ritual.
+- **A budget starts empty, and rituals are tiles** (the user's correction: the
+  first version pre-added every constant once, and the user found that confusing).
+  The UI is four steps (tiles with a ×times stepper → quantities → stock & rates →
+  write), with a progress bar and a running total at the top. The CLI has a
+  matching numbered board (`5 x10`). `new --constants` / `{"constants": true}`
+  keeps the old pre-filled start.
 - **Rates are mandatory, and none is ever prefilled** (the user's rule).
   `write()` refuses while any problem remains: a missing rate, an empty quantity,
   or an override without a reason. The review columns from the reference sheet
