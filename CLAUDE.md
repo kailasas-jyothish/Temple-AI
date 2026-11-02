@@ -1714,8 +1714,16 @@ test sheet in a Shared Drive folder was read back (totals and formatting) and
 then deleted. The UI was driven against a local server and screenshotted at
 desktop and 520px widths. Dashboard `npm test` passed.
 
+**Deployed 2026-11-02** at http://157.180.15.165:8484 (swarm
+`temple-festival-budget-iviuar`, dashboard `PROBE_URL_FESTIVAL_BUDGET` set). The
+container came up healthy, `/healthz` answered 200, the UI answered 401 without
+auth and 200 with it, and the dashboard card is reachable (amber only for the
+`BUDGET_FOLDER_ID` notice). The host env comes from `.env.deploy`, which is now in
+the root `.gitignore` for every service. Before this change only mantra-tutorials
+ignored it.
+
 **Not verified:**
-- The Dokploy build and container.
+- A sheet written from the container.
 - Which Shared Drive folder production writes to (`BUDGET_FOLDER_ID` is undecided).
 - The seed figures the user still has to confirm. Agarbathi is set to 54/pkt
   where their sheet implies about 63, and betel nuts to 204/kg where it implies
