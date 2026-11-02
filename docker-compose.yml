@@ -75,7 +75,18 @@ services:
     ports:
       - "127.0.0.1:8090:8090"
 
+  festival-budget:
+    build:
+      context: services/festival-budget
+    restart: unless-stopped
+    env_file: services/festival-budget/.env
+    ports:
+      - "8484:8000"
+    volumes:
+      - festival-budget-data:/data
+
 volumes:
   notifier-data:
   reels-data:
   scriptures-data:
+  festival-budget-data:

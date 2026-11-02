@@ -101,6 +101,15 @@ const SERVICES = {
     defaultPort: 3300,
     publishedPort: 8482,
   },
+  // Keeps files under /data.
+  'festival-budget': {
+    dir: 'services/festival-budget',
+    appName: env.DOKPLOY_FESTIVAL_BUDGET_APP_NAME || 'Temple-festival-budget',
+    dockerfile: 'services/festival-budget/Dockerfile',
+    volumeName: 'temple-festival-budget-data',
+    defaultPort: 8000,
+    publishedPort: 8484,
+  },
 };
 
 const argv = process.argv.slice(2);

@@ -133,4 +133,21 @@ export const SERVICES = [
       };
     },
   },
+  {
+    id: 'festival-budget',
+    name: 'Festival Budget',
+    description: 'Ritual and fruit budgets for a festival: quantities from a ritual library, stock deducted, vendor rates, written to a Google Sheet',
+    port: 8484,
+    healthPath: '/healthz',
+    async read(health) {
+      return {
+        facts: [
+          { label: 'Budgets', value: Number(health.budgets) || 0 },
+          { label: 'Written to a sheet', value: Number(health.written) || 0 },
+          { label: 'Up for', value: duration(Number(health.uptime) || 0) },
+        ],
+        problems: problemsOf(health.problems),
+      };
+    },
+  },
 ];

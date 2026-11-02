@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Festival Budget</title>
+<style>
+:root {
+  --bg: #faf7f2; --panel: #fff; --ink: #2a2118; --muted: #7a6e60; --line: #e6ddd0;
+  --accent: #b5651d; --accent-ink: #fff; --bad: #b3261e; --bad-bg: #fdecea; --ok: #2e7d32; --head: #f3eadc;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17130f; --panel: #211b15; --ink: #f1e8dc; --muted: #a89a88; --line: #3a3128;
+    --accent: #e09a52; --accent-ink: #1a1208; --bad: #ff8a80; --bad-bg: #3a1d1a; --ok: #81c784; --head: #2c241b; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 17px; margin: 0 12px 0 0; }
+main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+h2 { font-size: 15px; margin: 0 0 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+h2 .total { margin-left: auto; font-variant-numeric: tabular-nums; }
+h2 .muted { font-weight: 400; font-size: 13px; }
+input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; }
+input.num { width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
+input.missing { border-color: var(--bad); background: var(--bad-bg); }
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.link { border: 0; background: none; color: var(--accent); padding: 2px 4px; }
+.muted { color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.rituals { display: grid; gap: 8px; }
+details { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+details[open] { padding-bottom: 10px; }
+summary { cursor: pointer; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+summary .tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--head); color: var(--muted); }
+summary .warn { color: var(--bad); font-size: 12px; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { background: var(--head); font-weight: 600; position: sticky; top: 0; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
+th:first-child { background: var(--head); }
+td.note input { width: 200px; }
+tr.vendor td { background: var(--head); font-weight: 600; text-align: left; }
+tr.sub td { font-weight: 600; }
+.problems { border-color: var(--bad); }
+.problems ul { margin: 6px 0 0; padding-left: 18px; color: var(--bad); max-height: 220px; overflow: auto; }
+.ok { color: var(--ok); font-weight: 600; }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; display: none; max-width: 90vw; z-index: 5; white-space: pre-wrap; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+@media (max-width: 600px) { header h1 { width: 100%; } input.num { width: 64px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Festival Budget</h1>
+  <select id="pick" aria-label="Budget"></select>
+  <input id="newName" placeholder="New festival name">
+  <button id="create">New budget</button>
+  <span class="muted" id="whoami"></span>
+</header>
+<main>
+  <div id="empty" class="muted">Pick a budget or create one. A new budget starts with every constant ritual once.</div>
+  <div id="editor" hidden>
+    <section>
+      <h2><span id="title"></span><span class="total" id="grand"></span></h2>
+      <div class="row">
+        <select id="addRitual" aria-label="Ritual to add"></select>
+        <label>× <input id="addTimes" class="num" value="1" inputmode="numeric"></label>
+        <button id="addBtn">Add ritual</button>
+        <span class="muted">A variable ritual starts with empty quantities; fill them for this festival.</span>
+      </div>
+      <div class="rituals" id="rituals"></div>
+    </section>
+    <section class="problems" id="problemsBox" hidden>
+      <h2>Still to fill before it can be written <span class="muted" id="problemCount"></span></h2>
+      <ul id="problems"></ul>
+    </section>
+    <div id="sections"></div>
+    <section>
+      <h2>Google Sheet</h2>
+      <div class="row">
+        <input id="sheetLink" placeholder="Existing spreadsheet link (optional)" style="flex:1;min-width:240px">
+        <button class="primary" id="writeBtn">Write to sheet</button>
+        <button id="deleteBtn">Delete budget</button>
+      </div>
+      <div id="sheetInfo" class="muted"></div>
+    </section>
+  </div>
+  <details>
+    <summary><strong>Library</strong> <span class="muted">— add an item or a ritual for future budgets</span></summary>
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <h2>Item</h2>
+        <div class="row"><input id="iName" placeholder="Name"><input id="iUnit" placeholder="Unit (kg, nos…)" style="width:120px"></div>
+        <div class="row"><select id="iSection"><option value="ritual">Ritual</option><option value="fruit">Fruit</option></select>
+          <input id="iVendor" placeholder="Vendor"></div>
+        <div class="row"><input id="iPackUnit" placeholder="Bought as (e.g. Pkt)" style="width:150px"><input id="iPackSize" class="num" placeholder="of how many"></div>
+        <button id="iSave">Save item</button>
+      </div>
+      <div>
+        <h2>Ritual</h2>
+        <div class="row"><input id="rName" placeholder="Name"><select id="rKind"><option value="variable">Variable</option><option value="constant">Constant</option></select>
+          <input id="rGroup" placeholder="Group (optional)" style="width:140px"></div>
+        <div class="muted">Items are added to it from the budget editor; for a constant, set quantities there and save it back as the standard later.</div>
+        <button id="rSave">Save ritual</button>
+      </div>
+    </div>
+  </details>
+</main>
+<div id="toast"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+let LIB = null, ITEMS = {}, RITUALS = {}, B = null, CALC = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail || data));
+  return data;
+}
+function toast(msg, ms = 3500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms); }
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const inr = (v) => v === "" || v == null ? "—" : "₹" + Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+async function loadLibrary() {
+  LIB = await api("/api/library");
+  ITEMS = Object.fromEntries(LIB.items.map((i) => [i.id, i]));
+  RITUALS = Object.fromEntries(LIB.rituals.map((r) => [r.id, r]));
+}
+async function loadList(select) {
+  const list = await api("/api/budgets");
+  $("pick").innerHTML = '<option value="">— budgets —</option>' + list.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  if (select) $("pick").value = select;
+}
+function show(view) {
+  B = view.budget; CALC = view.calc;
+  $("empty").hidden = true; $("editor").hidden = false;
+  $("title").textContent = B.name;
+  $("grand").textContent = "Total " + inr(CALC.total);
+  renderAddRitual(); renderRituals(); renderProblems(); renderSections();
+  $("sheetInfo").innerHTML = B.spreadsheet ? `Writes to <a href="${esc(B.spreadsheet.url)}" target="_blank" rel="noopener">${esc(B.spreadsheet.url)}</a>${B.written ? " — last written " + esc(B.written.replace("T", " ").slice(0, 16)) + " UTC" : ""}` : "Not written yet. Leave the link empty to create a new spreadsheet in the budget folder.";
+  localStorageSafe("set", B.id);
+  history.replaceState(null, "", "?b=" + encodeURIComponent(B.id));
+}
+function localStorageSafe(op, v) { try { return op === "set" ? localStorage.setItem("fb-last", v) : localStorage.getItem("fb-last"); } catch { return null; } }
+
+async function open(id) { if (!id) return; show(await api(`/api/budgets/${encodeURIComponent(id)}`)); }
+async function op(body, quiet) {
+  try { show(await api(`/api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) })); if (!quiet) toast("Saved"); }
+  catch (e) { toast(e.message, 6000); show({ budget: B, calc: CALC }); }
+}
+
+function renderAddRitual() {
+  const have = new Set(B.rituals.map((r) => r.ritual_id));
+  const groups = [...new Set(LIB.rituals.map((r) => r.group).filter(Boolean))];
+  const opt = (r) => `<option value="r:${esc(r.id)}">${esc(r.name)}</option>`;
+  const avail = LIB.rituals.filter((r) => !have.has(r.id));
+  $("addRitual").innerHTML =
+    `<optgroup label="Variable">${avail.filter((r) => r.kind === "variable").map(opt).join("")}</optgroup>` +
+    `<optgroup label="Constant">${avail.filter((r) => r.kind === "constant").map(opt).join("")}</optgroup>` +
+    `<optgroup label="Whole group">${groups.map((g) => `<option value="g:${esc(g)}">All of ${esc(g)}</option>`).join("")}</optgroup>`;
+}
+
+function renderRituals() {
+  const box = $("rituals");
+  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.id));
+  box.innerHTML = B.rituals.map((r) => {
+    const empty = Object.values(r.qty).filter((q) => q == null).length;
+    const ref = (RITUALS[r.ritual_id] || {}).items || {};
+    const rows = Object.entries(r.qty).map(([id, q]) => {
+      const it = ITEMS[id] || { name: id + " (missing)", unit: "" };
+      const hint = ref[id] != null && r.kind === "variable" ? `<span class="muted">ref ${ref[id]}</span>` : "";
+      return `<tr><td>${esc(it.name)}</td><td>${esc(it.unit)}</td>
+        <td><input class="num ${q == null ? "missing" : ""}" data-qty="${esc(id)}" value="${esc(q ?? "")}" inputmode="decimal"></td>
+        <td>${hint}</td><td><button class="link" data-drop="${esc(id)}" title="Remove from this ritual">✕</button></td></tr>`;
+    }).join("");
+    const addable = LIB.items.filter((i) => !(i.id in r.qty)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("");
+    return `<details data-id="${esc(r.ritual_id)}" ${open.has(r.ritual_id) ? "open" : ""}>
+      <summary><strong>${esc(r.name)}</strong><span class="tag">${r.kind}${r.group ? " · " + esc(r.group) : ""}</span>
+        <label onclick="event.stopPropagation()">× <input class="num" data-times value="${r.times}" inputmode="numeric" style="width:56px"></label>
+        <span class="muted">${Object.keys(r.qty).length} items</span>
+        ${empty ? `<span class="warn">${empty} quantit${empty === 1 ? "y" : "ies"} to fill</span>` : ""}
+        ${!Object.keys(r.qty).length ? `<span class="warn">no items</span>` : ""}
+        <button class="link" data-remove onclick="event.stopPropagation()">remove</button></summary>
+      <div class="row">
+        ${empty && Object.keys(ref).length ? `<button data-ref>Use reference quantities for the empty ones</button>` : ""}
+        <select data-additem><option value="">+ add item…</option>${addable}</select>
+      </div>
+      <div class="muted">Quantity per performance; the budget multiplies by ×${r.times}.</div>
+      <div class="scroll"><table><thead><tr><th>Item</th><th>Unit</th><th>Qty</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    </details>`;
+  }).join("");
+  box.querySelectorAll("details").forEach((d) => {
+    const rid = d.dataset.id;
+    d.querySelector("[data-times]").addEventListener("change", (e) => op({ op: "times", ritual: rid, times: e.target.value }));
+    d.querySelector("[data-remove]").addEventListener("click", (e) => { e.preventDefault(); if (confirm("Remove this ritual from the budget?")) op({ op: "remove", ritual: rid }); });
+    d.querySelector("[data-ref]")?.addEventListener("click", () => op({ op: "reference", ritual: rid }));
+    d.querySelector("[data-additem]").addEventListener("change", (e) => e.target.value && op({ op: "qty", ritual: rid, item: e.target.value, qty: null }));
+    d.querySelectorAll("[data-qty]").forEach((inp) => inp.addEventListener("change", () => op({ op: "qty", ritual: rid, item: inp.dataset.qty, qty: inp.value }, true)));
+    d.querySelectorAll("[data-drop]").forEach((b) => b.addEventListener("click", () => op({ op: "drop_item", ritual: rid, item: b.dataset.drop })));
+  });
+}
+
+function renderProblems() {
+  const p = CALC.problems;
+  $("problemsBox").hidden = !p.length;
+  $("problemCount").textContent = p.length ? `(${p.length})` : "";
+  $("problems").innerHTML = p.map((x) => `<li>${esc(x)}</li>`).join("");
+  $("writeBtn").disabled = !!p.length;
+  $("writeBtn").title = p.length ? "Fill everything listed above first" : "";
+}
+
+function renderSections() {
+  const others = Object.fromEntries(B.others.map((o) => [o.item_id, o]));
+  $("sections").innerHTML = Object.entries(CALC.sections).map(([key, s]) => {
+    const head = `<tr><th>Item</th><th>Required</th><th>Unit</th><th>${esc(s.other_label)}</th><th>In stock</th><th>Net</th><th>Buy</th><th>Buy unit</th><th>Override</th><th>Rate ₹</th><th>Amount</th><th>${esc(s.note_label)}</th></tr>`;
+    let vendor = null, body = "";
+    const grouped = s.rows.some((r) => r.vendor);
+    for (const r of s.rows) {
+      if (grouped && r.vendor !== vendor) { vendor = r.vendor; body += `<tr class="vendor"><td colspan="12">${esc(vendor || "No vendor")} — ${inr(s.vendors[vendor])}</td></tr>`; }
+      const line = B.lines[r.item_id] || {};
+      const missing = r.rate == null && Number(r.purchase) > 0;
+      body += `<tr data-item="${esc(r.item_id)}">
+        <td>${esc(r.name)}</td><td>${esc(r.required)}</td><td>${esc(r.unit)}</td>
+        <td><input class="num" data-other value="${esc(others[r.item_id]?.qty ?? "")}" inputmode="decimal"></td>
+        <td><input class="num" data-f="stock" value="${esc(line.stock ?? "")}" placeholder="0" inputmode="decimal"></td>
+        <td>${esc(r.net)}</td><td><strong>${esc(r.purchase)}</strong></td><td>${esc(r.purchase_unit)}</td>
+        <td><input class="num" data-f="override" value="${esc(line.override ?? "")}" inputmode="decimal" title="Purchase quantity by hand; needs a reason">
+          ${line.override != null ? `<input data-f="override_reason" class="${line.override_reason ? "" : "missing"}" value="${esc(line.override_reason ?? "")}" placeholder="reason" style="width:120px">` : ""}</td>
+        <td><input class="num ${missing ? "missing" : ""}" data-f="rate" value="${esc(line.rate ?? "")}" placeholder="required" inputmode="decimal"></td>
+        <td>${inr(r.amount)}</td>
+        <td class="note"><input data-f="note" value="${esc(line.note ?? "")}"></td></tr>`;
+    }
+    const addable = LIB.items.filter((i) => i.section === key && !s.rows.some((r) => r.item_id === i.id)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("");
+    return `<section data-section="${key}"><h2>${esc(s.title)}<span class="muted">${s.columns.map((c) => esc(c.name) + (c.times > 1 ? " ×" + c.times : "")).join(", ")}</span><span class="total">${inr(s.total)}</span></h2>
+      <div class="row"><select data-addother><option value="">+ ${esc(s.other_label)}: add an item outside any ritual…</option>${addable}</select></div>
+      <div class="scroll"><table><thead>${head}</thead><tbody>${body || `<tr><td colspan="12" class="muted">No items yet.</td></tr>`}</tbody></table></div></section>`;
+  }).join("");
+  document.querySelectorAll("#sections tr[data-item]").forEach((tr) => {
+    const id = tr.dataset.item;
+    tr.querySelectorAll("[data-f]").forEach((inp) => inp.addEventListener("change", () => op({ op: "line", item: id, [inp.dataset.f]: inp.value }, true)));
+    tr.querySelector("[data-other]").addEventListener("change", (e) => op({ op: "other", item: id, qty: e.target.value, note: (B.others.find((o) => o.item_id === id) || {}).note || "" }, true));
+  });
+  document.querySelectorAll("[data-addother]").forEach((sel) => sel.addEventListener("change", () => {
+    if (!sel.value) return;
+    const q = prompt(`Quantity of ${ITEMS[sel.value].name} (${ITEMS[sel.value].unit})`);
+    if (!q) { sel.value = ""; return; }
+    const note = prompt("What is it for? (optional)") || "";
+    op({ op: "other", item: sel.value, qty: q, note });
+  }));
+}
+
+$("pick").addEventListener("change", (e) => open(e.target.value).catch((err) => toast(err.message)));
+$("create").addEventListener("click", async () => {
+  const name = $("newName").value.trim();
+  if (!name) return toast("Type the festival name first");
+  try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); $("newName").value = ""; await loadList(v.budget.id); show(v); }
+  catch (e) { toast(e.message); }
+});
+$("addBtn").addEventListener("click", () => {
+  const v = $("addRitual").value; if (!v) return;
+  const times = $("addTimes").value;
+  op(v.startsWith("g:") ? { op: "add_group", group: v.slice(2), times } : { op: "add", ritual: v.slice(2), times });
+});
+$("writeBtn").addEventListener("click", async () => {
+  $("writeBtn").disabled = true; $("writeBtn").textContent = "Writing…";
+  try {
+    const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
+    show(v); $("sheetLink").value = ""; toast("Written to the sheet");
+  } catch (e) { toast(e.message, 8000); }
+  finally { $("writeBtn").textContent = "Write to sheet"; renderProblems(); }
+});
+$("deleteBtn").addEventListener("click", async () => {
+  if (!confirm(`Delete "${B.name}"? The Google Sheet is not touched.`)) return;
+  await api(`/api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
+  B = null; $("editor").hidden = true; $("empty").hidden = false; await loadList();
+});
+$("iSave").addEventListener("click", async () => {
+  try {
+    await api("/api/library/item", { method: "POST", body: JSON.stringify({ name: $("iName").value, unit: $("iUnit").value, section: $("iSection").value, vendor: $("iVendor").value, pack_unit: $("iPackUnit").value, pack_size: $("iPackSize").value || null }) });
+    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Item saved");
+    ["iName", "iUnit", "iVendor", "iPackUnit", "iPackSize"].forEach((k) => $(k).value = "");
+  } catch (e) { toast(e.message); }
+});
+$("rSave").addEventListener("click", async () => {
+  try {
+    await api("/api/library/ritual", { method: "POST", body: JSON.stringify({ name: $("rName").value, kind: $("rKind").value, group: $("rGroup").value }) });
+    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Ritual saved — add it to a budget, then add its items");
+    ["rName", "rGroup"].forEach((k) => $(k).value = "");
+  } catch (e) { toast(e.message); }
+});
+
+(async () => {
+  try {
+    await loadLibrary();
+    const info = await api("/api/info");
+    if (info.problems.length) $("whoami").textContent = "⚠ " + info.problems.join("; ");
+    else if (info.service_account) $("whoami").textContent = "Writes as " + info.service_account;
+    const last = new URLSearchParams(location.search).get("b") || localStorageSafe("get");
+    await loadList(last || "");
+    if (last && $("pick").value === last) await open(last);
+  } catch (e) { toast(e.message, 8000); }
+})();
+</script>
+</body>
+</html>

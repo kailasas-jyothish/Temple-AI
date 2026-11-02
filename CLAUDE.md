@@ -1619,3 +1619,58 @@ Deployed: the container rolled and is healthy, `/healthz` is open, the UI
 answers 401 without auth and 200 with it, `/api/config` reports the key set
 without leaking it, and the dashboard card is live. **Not verified:** any live
 OpenRouter translation (no model chosen yet) and the web UI in a browser.
+
+---
+
+## 20. Festival Budget (`services/festival-budget`, 2026-11-02)
+
+The request: a temple **Festival Budget**. It has a Ritual Budget and a Fruit
+Budget, and a Summary that adds them up. Flowers and Madappalli come later, and
+the Summary lists them as "not included yet". Python 3.12 + uv, port 8484 → 8000,
+Dokploy `Temple-festival-budget`, volume `temple-festival-budget-data`. The
+service README has usage.
+
+- **The reference is the *Chandi Homa Requirement* sheet**
+  (`1YRI9dSl5tbfVdnD6CkYHGckIVNM5Ai-xNl6Ar5kB4UA`). It is **not GB Navaratri
+  Budget**: the user rejected that one outright as a sample. `app/seed/library.json`
+  was built from the Chandi sheet. It holds items with unit, vendor and pack, and
+  rituals with per-performance quantities.
+- **Constants vs variables.** Constant rituals (abhishekam, deeparathana,
+  mandagappadi, dhwajarohanam, the Homa group, vishesha/mangala dravya homa,
+  laghu puja) start every budget with library quantities. Variable rituals start
+  **empty** and are filled by hand, with the library figure shown as a reference.
+  Every ritual has a "times performed". "Others"/"Miscellaneous" covers
+  quantities outside any ritual.
+- **Rates are mandatory, and none is ever prefilled** (the user's rule).
+  `write()` refuses while any problem remains: a missing rate, an empty quantity,
+  or an override without a reason. The review columns from the reference sheet
+  are skipped on purpose.
+- **Purchase rounding:** a countable pack (PKT, Bundle, Box) rounds up to whole
+  packs; a weight pack (ton) rounds to 0.001; a `whole` item rounds to an integer.
+  An override wins but needs a reason, which goes into Notes. Money is Decimal,
+  rounded to the paisa once per line, so the subtotals add up exactly.
+- **The service account cannot create a spreadsheet with the Sheets API** (403):
+  it has no Drive storage. It *can* create one through Drive `files.create` with
+  `supportsAllDrives=true` inside a **Shared Drive** folder where it is Content
+  manager (`BUDGET_FOLDER_ID`). It can also write into an existing sheet shared
+  with it as Editor. The key is
+  `temple@teak-mix-489419-v1.iam.gserviceaccount.com`, kept outside the repo.
+  It is delivered to the host as `GOOGLE_SERVICE_ACCOUNT_JSON_B64`.
+- A rewrite clears only the tool's own three tabs, and they keep their sheetIds.
+  Any other tab is left alone.
+- `core.py` is the only implementation. The CLI (`festival-budget.cmd`), the
+  FastAPI ops endpoint (a batch of ops, all or none) and the UI all go through it.
+
+Verified: 15 pytest tests, including a fake Sheets session. A real write to a
+test sheet in a Shared Drive folder was read back (totals and formatting) and
+then deleted. The UI was driven against a local server and screenshotted at
+desktop and 520px widths. Dashboard `npm test` passed.
+
+**Not verified:**
+- The Dokploy build and container.
+- Which Shared Drive folder production writes to (`BUDGET_FOLDER_ID` is undecided).
+- The seed figures the user still has to confirm. Agarbathi is set to 54/pkt
+  where their sheet implies about 63, and betel nuts to 204/kg where it implies
+  about 333.
+- Mandagappadi has no reference data. It blocks writing until it is filled or
+  removed.

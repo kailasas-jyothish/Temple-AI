@@ -13,6 +13,7 @@ source (`github.com/kailasas-jyothish/Temple-AI`).
 | [`services/scriptures`](services/scriptures) | Upanishads from sanskritdocuments.org as verse-by-verse Devanagari + IAST (sanscript.js, checked against the site's own page), translated per SPH's teachings by an OpenRouter model of your choice. One CSV per text. | Node 22 | `Temple-scriptures` |
 | [`services/dashboard`](services/dashboard) | One page for all of the above: an Open link, live health and the key numbers for each service. **Start here: http://157.180.15.165:8482** | Node 22 | `Temple-dashboard` |
 | [`services/youtube`](services/youtube) | The one service that talks to youtube.com itself. Other services call its HTTP API for live-stream frames. WireGuard with a kill switch, PO tokens, Deno, yt-dlp and ffmpeg in one container, because YouTube bot-blocks the server's own IP. | Python 3.12 | not deployed yet |
+| [`services/festival-budget`](services/festival-budget) | Festival budgets: ritual and fruit requirements from a reusable ritual library, stock deducted, vendor rates, written to a Google Sheet **http://157.180.15.165:8484** | Python 3.12 (uv) | `Temple-festival-budget` |
 
 `CLAUDE.md` carries the full working history: the decisions, the dead ends, and
 the traps that have already cost a day each. Read it before changing deployment

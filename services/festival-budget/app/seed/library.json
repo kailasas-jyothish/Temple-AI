@@ -1,0 +1,1333 @@
+{
+ "version": 1,
+ "currency": "₹",
+ "items": [
+  {
+   "id": "apple",
+   "name": "Apple",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "big_coconut",
+   "name": "Big Coconut",
+   "unit": "nos",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "black_grapes",
+   "name": "Black Grapes",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "coconut",
+   "name": "Coconut",
+   "unit": "nos",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "elakki_banana_loose",
+   "name": "Elakki Banana Loose",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "elakki_banana_tar",
+   "name": "Elakki Banana Tar",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "green_grapes",
+   "name": "Green Grapes",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "lemon",
+   "name": "Lemon",
+   "unit": "nos",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "mosambi",
+   "name": "Mosambi",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "muskmelon",
+   "name": "Muskmelon",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "narthampazham",
+   "name": "Narthampazham",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "orange",
+   "name": "Orange",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "papaya",
+   "name": "Papaya",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "pineapple",
+   "name": "Pineapple",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "pomegranate",
+   "name": "Pomegranate",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "sapota",
+   "name": "Sapota",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "sugarcane",
+   "name": "Sugarcane",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "vilampazham",
+   "name": "Vilampazham",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "watermelon",
+   "name": "Watermelon",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "white_pumpkin",
+   "name": "White Pumpkin",
+   "unit": "kg",
+   "section": "fruit",
+   "vendor": "",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "agarbathi",
+   "name": "Agarbathi",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "PKT",
+    "size": 54
+   },
+   "whole": true
+  },
+  {
+   "id": "amla",
+   "name": "Amla",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "aval",
+   "name": "Aval",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "badam",
+   "name": "Badam",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "bamboo_muram",
+   "name": "Bamboo Muram",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "betel_nuts",
+   "name": "Betel Nuts",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "kg",
+    "size": 204
+   },
+   "whole": true
+  },
+  {
+   "id": "bhasma",
+   "name": "Bhasma",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "black_urad_dal",
+   "name": "Black Urad Dal",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "butter",
+   "name": "Butter",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "camphor",
+   "name": "Camphor",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "cashew",
+   "name": "Cashew",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "chandanam",
+   "name": "Chandanam",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "clove",
+   "name": "Clove",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "colour_cotton_saree_8_7_m",
+   "name": "Colour Cotton Saree 8.7 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "colour_saree_any_colour_5_25_m",
+   "name": "Colour Saree (any colour) 5.25 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "coparai",
+   "name": "Coparai",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "kg",
+    "size": 5
+   },
+   "whole": true
+  },
+  {
+   "id": "darbha_rope",
+   "name": "Darbha Rope",
+   "unit": "m",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "dates_syrup",
+   "name": "Dates Syrup",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "dhonnai",
+   "name": "Dhonnai",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Bundle of 60",
+    "size": 60
+   },
+   "whole": true
+  },
+  {
+   "id": "dry_dates",
+   "name": "Dry Dates",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "elachi",
+   "name": "Elachi",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "feviquick",
+   "name": "Feviquick",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "firewood_banyan",
+   "name": "Firewood (Banyan)",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Auto Krishna",
+   "pack": {
+    "unit": "ton",
+    "size": 1000
+   },
+   "whole": false
+  },
+  {
+   "id": "gada_cloth",
+   "name": "Gada Cloth",
+   "unit": "m",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "gandha_tailam",
+   "name": "Gandha Tailam",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "ghee",
+   "name": "Ghee",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "ghee_wicks",
+   "name": "Ghee Wicks",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Box of 30",
+    "size": 30
+   },
+   "whole": true
+  },
+  {
+   "id": "glass_bangles",
+   "name": "Glass Bangles",
+   "unit": "set of 12",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "golden_mangalyam_set",
+   "name": "Golden Mangalyam Set",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "gorochana",
+   "name": "Gorochana",
+   "unit": "pkt",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "gulkand",
+   "name": "Gulkand",
+   "unit": "portion",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "kg",
+    "size": 200
+   },
+   "whole": true
+  },
+  {
+   "id": "honey",
+   "name": "Honey",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "jaggery",
+   "name": "Jaggery",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "kalkandu",
+   "name": "Kalkandu",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "kesar_kumkum",
+   "name": "Kesar Kumkum",
+   "unit": "1 g pkt",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "kumkum",
+   "name": "Kumkum",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "lime_paste_chunnambu",
+   "name": "Lime Paste (Chunnambu)",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "lion_dates",
+   "name": "Lion Dates",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "long_wick",
+   "name": "Long Wick",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Pkt of 50",
+    "size": 50
+   },
+   "whole": true
+  },
+  {
+   "id": "lotus_leaf",
+   "name": "Lotus Leaf",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "mahaushadi",
+   "name": "Mahaushadi",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "mangalyam_set",
+   "name": "Mangalyam Set",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "match_box",
+   "name": "Match Box",
+   "unit": "box",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "nattu_chakkarai",
+   "name": "Nattu Chakkarai",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "navadhanya_set",
+   "name": "Navadhanya Set",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "pachai_karpooram_450_g_pkt",
+   "name": "Pachai Karpooram (450 g pkt)",
+   "unit": "pkt",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "paddy",
+   "name": "Paddy",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "pavadai_set_polyester",
+   "name": "Pavadai Set (polyester)",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "pillayar_thundu_1_6_m",
+   "name": "Pillayar Thundu 1.6 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "pista",
+   "name": "Pista",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "puffed_paddy",
+   "name": "Puffed Paddy",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Sack of 4.5 kg",
+    "size": 4.5
+   },
+   "whole": false
+  },
+  {
+   "id": "raisins",
+   "name": "Raisins",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "raw_rice",
+   "name": "Raw Rice",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "red_cotton_blouse_cloth_1_m",
+   "name": "Red Cotton Blouse Cloth 1 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "red_cotton_saree_5_25_m",
+   "name": "Red Cotton Saree 5.25 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "red_dry_chillies",
+   "name": "Red Dry Chillies",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "retractable_knife",
+   "name": "Retractable Knife",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "rice_flour",
+   "name": "Rice Flour",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "rose_water",
+   "name": "Rose Water",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "round_wick",
+   "name": "Round Wick",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Pkt of 50",
+    "size": 50
+   },
+   "whole": true
+  },
+  {
+   "id": "sambrani",
+   "name": "Sambrani",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "samith",
+   "name": "Samith",
+   "unit": "bundle",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": {
+    "unit": "Bag of 100 bundles",
+    "size": 100
+   },
+   "whole": true
+  },
+  {
+   "id": "sarvaushadhi",
+   "name": "Sarvaushadhi",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "sesame_oil",
+   "name": "Sesame Oil",
+   "unit": "litre",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "sharp_sickle_heavy_iron_knife",
+   "name": "Sharp Sickle (heavy iron knife)",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "shveta_chandan",
+   "name": "Shveta Chandan",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "turmeric",
+   "name": "Turmeric",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "turmeric_sticks",
+   "name": "Turmeric Sticks",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "vetti_ver",
+   "name": "Vetti Ver",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "vilamichai_ver",
+   "name": "Vilamichai Ver",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "white_dhoti_2_m",
+   "name": "White Dhoti 2 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "white_dhoti_4_m",
+   "name": "White Dhoti 4 m",
+   "unit": "nos",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": true
+  },
+  {
+   "id": "white_mustard",
+   "name": "White Mustard",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "white_rope",
+   "name": "White Rope",
+   "unit": "m",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  },
+  {
+   "id": "white_sesame",
+   "name": "White Sesame",
+   "unit": "kg",
+   "section": "ritual",
+   "vendor": "Mahindra Puja Items",
+   "pack": null,
+   "whole": false
+  }
+ ],
+ "rituals": [
+  {
+   "id": "abhishekam",
+   "name": "Abhishekam",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "agarbathi": 4.0,
+    "amla": 0.25,
+    "bhasma": 1.0,
+    "camphor": 0.01,
+    "chandanam": 1.0,
+    "dhonnai": 1.0,
+    "gulkand": 1.0,
+    "honey": 2.0,
+    "kumkum": 0.01,
+    "lion_dates": 1.0,
+    "long_wick": 1.0,
+    "nattu_chakkarai": 1.0,
+    "rice_flour": 1.0,
+    "rose_water": 0.5,
+    "round_wick": 1.0,
+    "sesame_oil": 0.05,
+    "turmeric": 1.0,
+    "lemon": 5.0,
+    "green_grapes": 0.5,
+    "apple": 0.5,
+    "elakki_banana_loose": 1.0
+   }
+  },
+  {
+   "id": "deeparathana",
+   "name": "Deeparathana",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "camphor": 0.1,
+    "long_wick": 20.0,
+    "round_wick": 100.0
+   }
+  },
+  {
+   "id": "mandagappadi",
+   "name": "Mandagappadi",
+   "kind": "constant",
+   "group": "",
+   "items": {}
+  },
+  {
+   "id": "dhwajarohanam",
+   "name": "Dhwajarohanam",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "agarbathi": 11.0,
+    "amla": 0.05,
+    "camphor": 0.02,
+    "chandanam": 0.05,
+    "darbha_rope": 3.0,
+    "kumkum": 0.01,
+    "long_wick": 1.0,
+    "navadhanya_set": 1.0,
+    "raw_rice": 0.1,
+    "rice_flour": 0.05,
+    "rose_water": 1.0,
+    "sambrani": 0.01,
+    "sesame_oil": 0.05,
+    "turmeric": 0.1,
+    "white_dhoti_4_m": 1.0,
+    "white_rope": 30.0
+   }
+  },
+  {
+   "id": "vighneshwara_puja",
+   "name": "Vighneshwara Puja",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "agarbathi": 4.0,
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "chandanam": 0.05,
+    "dhonnai": 1.0,
+    "gulkand": 1.0,
+    "kumkum": 0.05,
+    "long_wick": 1.0,
+    "match_box": 0.1,
+    "raw_rice": 0.1,
+    "sesame_oil": 0.01,
+    "turmeric": 0.05
+   }
+  },
+  {
+   "id": "guru_puja",
+   "name": "Guru Puja",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "chandanam": 0.01,
+    "dhonnai": 1.0,
+    "gulkand": 1.0,
+    "kumkum": 0.05,
+    "long_wick": 1.0
+   }
+  },
+  {
+   "id": "varuna_puja",
+   "name": "Varuna Puja",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "agarbathi": 4.0,
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "dhonnai": 0.1,
+    "gulkand": 1.0,
+    "kumkum": 0.05,
+    "long_wick": 1.0,
+    "raw_rice": 0.1,
+    "vetti_ver": 0.01,
+    "vilamichai_ver": 0.01
+   }
+  },
+  {
+   "id": "pradhana_kalasha_puja",
+   "name": "Pradhana Kalasha Puja",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "agarbathi": 2.0,
+    "betel_nuts": 42.0,
+    "camphor": 0.01,
+    "clove": 0.2,
+    "dhonnai": 108.0,
+    "ghee": 1.0,
+    "gulkand": 21.0,
+    "kesar_kumkum": 1.0,
+    "lime_paste_chunnambu": 0.025,
+    "long_wick": 1.0,
+    "lotus_leaf": 10.0,
+    "navadhanya_set": 1.0,
+    "pachai_karpooram_450_g_pkt": 0.1,
+    "paddy": 0.25,
+    "pillayar_thundu_1_6_m": 10.0,
+    "raw_rice": 1.5,
+    "rose_water": 1.0,
+    "sesame_oil": 1.0,
+    "vetti_ver": 0.25,
+    "vilamichai_ver": 0.25,
+    "white_mustard": 0.1
+   }
+  },
+  {
+   "id": "agnikaryam",
+   "name": "Agnikaryam",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "agarbathi": 2.0,
+    "bamboo_muram": 20.0,
+    "betel_nuts": 44.0,
+    "camphor": 0.01,
+    "clove": 0.1,
+    "red_cotton_saree_5_25_m": 13.0,
+    "coparai": 6.0,
+    "ghee": 3.0,
+    "gulkand": 23.0,
+    "honey": 1.0,
+    "lime_paste_chunnambu": 0.025,
+    "long_wick": 1.0,
+    "match_box": 0.1,
+    "puffed_paddy": 0.5,
+    "samith": 30.0,
+    "white_sesame": 1.0,
+    "firewood_banyan": 100.0
+   }
+  },
+  {
+   "id": "poornahuti",
+   "name": "Poornahuti",
+   "kind": "constant",
+   "group": "Homa",
+   "items": {
+    "agarbathi": 11.0,
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "red_cotton_blouse_cloth_1_m": 1.0,
+    "coparai": 1.0,
+    "dhonnai": 1.0,
+    "ghee": 3.0,
+    "golden_mangalyam_set": 1.0,
+    "gulkand": 1.0,
+    "long_wick": 0.1,
+    "puffed_paddy": 0.5,
+    "samith": 5.0,
+    "sesame_oil": 1.0
+   }
+  },
+  {
+   "id": "vishesha_dravya_homa",
+   "name": "Vishesha Dravya Homa",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "agarbathi": 11.0,
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "colour_cotton_saree_8_7_m": 1.0,
+    "gulkand": 1.0,
+    "honey": 1.0,
+    "long_wick": 1.0,
+    "rose_water": 1.0,
+    "samith": 15.0,
+    "sesame_oil": 0.1,
+    "turmeric": 0.5,
+    "big_coconut": 1,
+    "pomegranate": 5,
+    "orange": 2,
+    "white_pumpkin": 6,
+    "pineapple": 3,
+    "black_grapes": 1,
+    "green_grapes": 1,
+    "sapota": 2,
+    "watermelon": 4,
+    "muskmelon": 4,
+    "papaya": 4,
+    "mosambi": 3,
+    "elakki_banana_loose": 40,
+    "elakki_banana_tar": 40,
+    "apple": 3
+   }
+  },
+  {
+   "id": "mangala_dravya_homa",
+   "name": "Mangala Dravya Homa",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "aval": 1.0,
+    "badam": 1.0,
+    "cashew": 1.0,
+    "red_cotton_saree_5_25_m": 1.0,
+    "coparai": 1.0,
+    "dry_dates": 1.0,
+    "ghee": 1.0,
+    "jaggery": 1.0,
+    "kalkandu": 1.0,
+    "kumkum": 1.0,
+    "lion_dates": 1.0,
+    "long_wick": 1.0,
+    "pista": 1.0,
+    "raisins": 1.0,
+    "red_dry_chillies": 1.0,
+    "turmeric": 0.5,
+    "turmeric_sticks": 1.0,
+    "white_sesame": 1.0
+   }
+  },
+  {
+   "id": "laghu_puja",
+   "name": "Laghu Puja",
+   "kind": "constant",
+   "group": "",
+   "items": {
+    "agarbathi": 11,
+    "camphor": 0.01,
+    "betel_nuts": 2
+   }
+  },
+  {
+   "id": "kanya_puja",
+   "name": "Kanya Puja",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "agarbathi": 11.0,
+    "betel_nuts": 2.0,
+    "camphor": 0.01,
+    "chandanam": 0.001,
+    "dhonnai": 1.0,
+    "kumkum": 0.01
+   }
+  },
+  {
+   "id": "durga_ganapathy_puja",
+   "name": "Durga Ganapathy Puja",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "betel_nuts": 2.0,
+    "dhonnai": 1.0
+   }
+  },
+  {
+   "id": "vatuka_bhairava_puja",
+   "name": "Vatuka Bhairava Puja",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "betel_nuts": 2.0,
+    "dhonnai": 1.0
+   }
+  },
+  {
+   "id": "suvasini_puja",
+   "name": "Suvasini Puja",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "betel_nuts": 2.0,
+    "dhonnai": 1.0,
+    "glass_bangles": 1.0,
+    "gulkand": 1.0,
+    "kumkum": 0.01,
+    "mangalyam_set": 1.0
+   }
+  },
+  {
+   "id": "durga_puja",
+   "name": "Durga Puja",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "agarbathi": 22.0,
+    "betel_nuts": 32.0,
+    "black_urad_dal": 0.1,
+    "butter": 0.2,
+    "camphor": 0.3,
+    "chandanam": 0.05,
+    "colour_cotton_saree_8_7_m": 0.2,
+    "red_cotton_blouse_cloth_1_m": 1.0,
+    "red_cotton_saree_5_25_m": 0.6,
+    "dates_syrup": 0.2,
+    "dhonnai": 10.0,
+    "feviquick": 1.0,
+    "gandha_tailam": 0.1,
+    "ghee": 0.1,
+    "ghee_wicks": 3.0,
+    "golden_mangalyam_set": 0.4,
+    "gorochana": 1.0,
+    "gulkand": 16.0,
+    "honey": 0.05,
+    "kalkandu": 0.2,
+    "kesar_kumkum": 0.4,
+    "kumkum": 0.05,
+    "long_wick": 2.0,
+    "mahaushadi": 0.1,
+    "mangalyam_set": 1.0,
+    "match_box": 0.2,
+    "nattu_chakkarai": 0.05,
+    "navadhanya_set": 1.0,
+    "pachai_karpooram_450_g_pkt": 0.01,
+    "puffed_paddy": 0.01,
+    "raw_rice": 0.3,
+    "retractable_knife": 0.4,
+    "rice_flour": 0.5,
+    "rose_water": 0.5,
+    "round_wick": 10.0,
+    "sambrani": 0.1,
+    "sarvaushadhi": 0.1,
+    "sesame_oil": 1.0,
+    "sharp_sickle_heavy_iron_knife": 0.4,
+    "shveta_chandan": 0.25,
+    "turmeric": 0.05,
+    "white_mustard": 0.1,
+    "white_sesame": 0.05
+   }
+  },
+  {
+   "id": "pancha_arathi",
+   "name": "Pancha Arathi",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "camphor": 0.5,
+    "long_wick": 500.0,
+    "match_box": 1.0,
+    "round_wick": 500.0,
+    "sesame_oil": 2.0
+   }
+  },
+  {
+   "id": "navami_puja_bali",
+   "name": "Navami Puja Bali",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "dhonnai": 130.0,
+    "gada_cloth": 5.0
+   }
+  },
+  {
+   "id": "venkateshwara_nava_kalasha_abhishekam",
+   "name": "Venkateshwara Nava Kalasha Abhishekam",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "agarbathi": 2.0,
+    "amla": 0.05,
+    "camphor": 0.01,
+    "chandanam": 0.05,
+    "dhonnai": 9.0,
+    "honey": 0.05,
+    "long_wick": 0.1111,
+    "rice_flour": 0.05,
+    "turmeric": 0.05
+   }
+  },
+  {
+   "id": "moolavar_naamam",
+   "name": "Moolavar Venkateshwara Naamam",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "pachai_karpooram_450_g_pkt": 3.0
+   }
+  },
+  {
+   "id": "chandi_homa_fruits",
+   "name": "Chandi Homa (fruit offerings)",
+   "kind": "variable",
+   "group": "",
+   "items": {
+    "big_coconut": 4,
+    "coconut": 9,
+    "lemon": 9,
+    "vilampazham": 1,
+    "narthampazham": 2,
+    "sugarcane": 4,
+    "pomegranate": 2,
+    "black_grapes": 1,
+    "green_grapes": 1,
+    "elakki_banana_loose": 22,
+    "apple": 2
+   }
+  }
+ ]
+}
