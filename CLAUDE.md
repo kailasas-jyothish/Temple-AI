@@ -1585,7 +1585,8 @@ text**, with no book assembly. The user chooses the translation model after
 testing models, so `TRANSLATION_MODEL` is empty on purpose. Translation refuses
 to start without a model, and `compare` exists so models can be tested side by
 side. Port 8483 → 3400, Dokploy `Temple-scriptures`, volume
-`temple-scriptures-data`. Not deployed yet.
+`temple-scriptures-data`. Deployed 2026-11-02 at http://157.180.15.165:8483
+(swarm `temple-scriptures-cj3smo`, dashboard `PROBE_URL_SCRIPTURES` set).
 
 - **Node, not the skill's Python default**, because the user chose
   [sanscript.js](https://github.com/sanskrit/sanscript) and explicitly
@@ -1614,5 +1615,7 @@ side. Port 8483 → 3400, Dokploy `Temple-scriptures`, volume
 
 Verified: 18 tests and strict `tsc`; a real CLI extract of `iisha` (23 rows,
 23/23 site check ok); the CSV read back by eye; and the full corpus run.
-**Not verified:** any live OpenRouter translation (no model chosen yet),
-the Docker build, the web UI in a browser, and the deploy.
+Deployed: the container rolled and is healthy, `/healthz` is open, the UI
+answers 401 without auth and 200 with it, `/api/config` reports the key set
+without leaking it, and the dashboard card is live. **Not verified:** any live
+OpenRouter translation (no model chosen yet) and the web UI in a browser.
