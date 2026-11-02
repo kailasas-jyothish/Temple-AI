@@ -8,205 +8,132 @@
 :root {
   --bg: #faf7f2; --panel: #fff; --ink: #2a2118; --muted: #7a6e60; --line: #e6ddd0;
   --accent: #b5651d; --accent-ink: #fff; --accent-soft: #fbeee0; --bad: #b3261e; --bad-bg: #fdecea;
-  --ok: #2e7d32; --ok-bg: #e8f5e9; --head: #f3eadc; --gold: #d99a1e;
+  --ok: #2e7d32; --ok-bg: #e8f5e9; --head: #f3eadc; --gold: #d99a1e; --flash: #fff1c2;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #17130f; --panel: #211b15; --ink: #f1e8dc; --muted: #a89a88; --line: #3a3128;
     --accent: #e09a52; --accent-ink: #1a1208; --accent-soft: #3a2a18; --bad: #ff8a80; --bad-bg: #3a1d1a;
-    --ok: #81c784; --ok-bg: #1c2e1d; --head: #2c241b; --gold: #f0b84a; }
+    --ok: #81c784; --ok-bg: #1c2e1d; --head: #2c241b; --gold: #f0b84a; --flash: #4a3a16; }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
-header h1 { font-size: 17px; margin: 0 12px 0 0; }
-main { max-width: 1400px; margin: 0 auto; padding: 16px; }
-section, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
-h2 { font-size: 16px; margin: 0 0 4px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-h2 .total { margin-left: auto; font-variant-numeric: tabular-nums; }
-h3 { font-size: 14px; margin: 14px 0 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.lede { color: var(--muted); margin: 0 0 12px; }
-input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
-input.num { width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
-input.missing { border-color: var(--bad); background: var(--bad-bg); }
+header h1 { font-size: 17px; margin: 0 auto 0 0; }
+.layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; max-width: 1400px; margin: 0 auto; padding: 16px; align-items: start; }
+input, select, button, textarea { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; max-width: 100%; }
 button { cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .55; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-button.link { border: 0; background: none; color: var(--accent); padding: 2px 4px; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 9px 18px; }
+button.link { border: 0; background: none; color: var(--accent); padding: 2px 0; text-align: left; }
 .muted { color: var(--muted); }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.small { font-size: 13px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
 
-/* score bar */
-.score { position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 16px; }
-.score-inner { max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
-.score .name { font-weight: 700; font-size: 15px; }
-.bar { flex: 1 1 180px; height: 10px; background: var(--head); border-radius: 6px; overflow: hidden; min-width: 140px; }
+/* question card */
+.qcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; position: sticky; top: 12px; }
+.qtop { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.bar { height: 8px; background: var(--head); border-radius: 6px; overflow: hidden; margin-bottom: 20px; }
 .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); transition: width .4s ease; }
-.bar.done > div { background: var(--ok); }
-.pct { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.5em; }
-.counter { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.counter b { font-weight: 700; }
-.grand { margin-left: auto; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.bump { animation: bump .35s ease; }
-@keyframes bump { 50% { transform: scale(1.08); color: var(--accent); } }
-
-/* steps */
-.steps { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 14px; padding-bottom: 2px; }
-.step { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
-.step .n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--head); font-size: 12px; font-weight: 700; }
-.step.active { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-.step.done .n { background: var(--ok); color: #fff; }
-.step .left { font-size: 12px; color: var(--bad); }
+.stage { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.q { font-size: 22px; font-weight: 700; line-height: 1.3; margin: 0 0 6px; }
+.hint { color: var(--muted); margin: 0 0 16px; }
+.big { display: flex; align-items: center; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+.big input { font-size: 24px; width: 160px; text-align: right; font-variant-numeric: tabular-nums; padding: 8px 12px; }
+.big .unit { font-size: 18px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.chip { padding: 5px 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+.chip.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.nav { display: flex; gap: 10px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.nav .grow { flex: 1; }
+.fade { animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateX(10px); } }
+.qcard .alt { margin-top: 10px; display: grid; gap: 4px; justify-items: start; }
+.qcard details { margin-top: 12px; }
+.qcard details summary { cursor: pointer; color: var(--accent); }
+.list { display: grid; gap: 2px; max-height: 46vh; overflow: auto; margin: 8px 0; padding-right: 4px; }
+.li { display: flex; gap: 8px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.li input { width: 90px; text-align: right; }
+.li input.missing { border-color: var(--bad); background: var(--bad-bg); }
 
 /* tiles */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
-.tile { position: relative; border: 2px solid var(--line); border-radius: 12px; padding: 12px 10px 10px; background: var(--panel); cursor: pointer; user-select: none; text-align: center; transition: border-color .15s, background .15s, transform .1s; min-height: 112px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.tile { position: relative; border: 2px solid var(--line); border-radius: 12px; padding: 10px 8px; background: var(--panel); cursor: pointer; user-select: none; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; transition: border-color .15s, background .15s; }
 .tile:hover { border-color: var(--accent); }
-.tile:active { transform: scale(.98); }
+.tile .icon { font-size: 24px; line-height: 1.1; }
+.tile b { font-weight: 600; line-height: 1.25; }
+.tile.on { border-color: var(--accent); background: var(--accent-soft); }
+.tile.on::after { content: "✓"; position: absolute; top: 5px; right: 7px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; display: grid; place-items: center; }
 .tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.tile .icon { font-size: 28px; line-height: 1; }
-.tile .tname { font-weight: 600; line-height: 1.25; }
-.tile .sub { font-size: 12px; color: var(--muted); }
-.tile.on { border-color: var(--accent); background: var(--accent-soft); animation: pop .25s ease; }
-.tile.on::after { content: "✓"; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
-@keyframes pop { 50% { transform: scale(1.04); } }
-.stepper { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-.stepper button { width: 30px; height: 30px; padding: 0; border-radius: 50%; font-weight: 700; background: var(--panel); }
-.stepper input { width: 52px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-.chip { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
-.chip.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.pill { font-size: 11px; padding: 1px 8px; border-radius: 10px; }
-.pill.warn { background: var(--bad-bg); color: var(--bad); }
-.pill.good { background: var(--ok-bg); color: var(--ok); }
-.tile.add { border-style: dashed; color: var(--muted); justify-content: center; }
+h4 { margin: 12px 0 6px; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
 
-/* quantities */
-.rituals { display: grid; gap: 10px; }
-details.rit { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); }
-details.rit[open] { padding-bottom: 12px; }
-details.rit summary { cursor: pointer; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; list-style: none; }
-details.rit summary::-webkit-details-marker { display: none; }
-details.rit summary .icon { font-size: 20px; }
+/* the live budget */
+.sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sheet-head h2 { margin: 0; font-size: 18px; }
+.grand { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; display: inline-block; }
+.bump { animation: bump .4s ease; }
+@keyframes bump { 50% { transform: scale(1.08); color: var(--accent); } }
+.rits { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.rit { font-size: 12px; padding: 3px 9px; border-radius: 12px; background: var(--head); cursor: pointer; border: 1px solid transparent; }
+.rit.hl { border-color: var(--accent); background: var(--accent-soft); }
+.sheet h3 { font-size: 15px; margin: 18px 0 6px; display: flex; justify-content: space-between; gap: 10px; }
 .scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; }
 th, td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-th { background: var(--head); font-weight: 600; position: sticky; top: 0; }
-th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
-th:first-child { background: var(--head); }
-td.note input { width: 200px; }
-tr.vendor td { background: var(--head); font-weight: 600; text-align: left; }
+th { background: var(--head); font-weight: 600; font-size: 12px; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+tr.vendor td { background: var(--head); font-weight: 600; text-align: left; font-size: 12px; }
+tr.vendor td span { float: right; }
+tr.item { cursor: pointer; }
+tr.item:hover td { background: var(--accent-soft); }
+tr.hl td { background: var(--accent-soft); }
+tr.hl td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+tr.flash td { animation: flash 1.2s ease; }
+@keyframes flash { 0%, 40% { background: var(--flash); } }
+td.wait { color: var(--muted); }
+td.need { color: var(--bad); font-weight: 700; }
 tr.tot td { font-weight: 700; border-top: 2px solid var(--line); }
-.problems ul { margin: 6px 0 0; padding-left: 18px; color: var(--bad); max-height: 260px; overflow: auto; }
-.ready { border-color: var(--ok); background: var(--ok-bg); }
-.ready h2 { color: var(--ok); }
-.nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.empty-sheet { color: var(--muted); text-align: center; padding: 40px 10px; }
+.empty-sheet .icon { font-size: 40px; }
+.todo { display: grid; gap: 4px; margin: 10px 0; max-height: 240px; overflow: auto; }
+.todo button { text-align: left; border: 0; background: var(--bad-bg); color: var(--bad); border-radius: 6px; padding: 5px 10px; }
+.done-box { background: var(--ok-bg); color: var(--ok); border-radius: 10px; padding: 12px; font-weight: 600; margin: 10px 0; }
 #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; display: none; max-width: 90vw; z-index: 5; white-space: pre-wrap; }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-@media (max-width: 600px) {
-  header h1 { width: 100%; } input.num { width: 64px; }
-  .tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .grand { margin-left: 0; width: 100%; }
+.lib { max-width: 1400px; margin: 0 auto 30px; padding: 0 16px; }
+.lib details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .qcard { position: static; }
+  .q { font-size: 19px; }
 }
 </style>
 </head>
 <body>
 <header>
   <h1>🪔 Festival Budget</h1>
-  <select id="pick" aria-label="Budget"></select>
-  <input id="newName" placeholder="New festival name">
-  <button id="create" class="primary">Start a budget</button>
-  <span class="muted" id="whoami"></span>
+  <select id="pick" aria-label="Open a budget"></select>
+  <button id="newBtn">New budget</button>
 </header>
-<div class="score" id="score" hidden>
-  <div class="score-inner">
-    <span class="name" id="title"></span>
-    <div class="bar" id="bar" title="How much of the budget is filled in"><div></div></div>
-    <span class="pct" id="pct"></span>
-    <span class="counter">🛕 <b id="cRit">0</b> rituals</span>
-    <span class="counter">⚖️ <b id="cQty"></b> quantities</span>
-    <span class="counter">₹ <b id="cRate"></b> rates</span>
-    <span class="grand" id="grand"></span>
-  </div>
+<div class="layout">
+  <div class="qcard" id="qcard"></div>
+  <div class="sheet" id="sheet"></div>
 </div>
-<main>
-  <div id="empty" class="card">
-    <h2>Make a festival budget in four steps</h2>
-    <p class="lede">① Tap the rituals the festival has and set how many times each is performed. ② Fill the quantities. ③ Enter what is in stock and each vendor's rate. ④ Write it to the Google Sheet.<br>
-    Type the festival name at the top and press <b>Start a budget</b>, or open one from the list.</p>
-  </div>
-
-  <div id="editor" hidden>
-    <nav class="steps" id="steps"></nav>
-
-    <div data-panel="1">
-      <section>
-        <h2>Standard rituals</h2>
-        <p class="lede">Performed at most festivals. Tap one to add it; it brings its usual quantities. Then set how many times it is performed.</p>
-        <div id="constTiles"></div>
-      </section>
-      <section>
-        <h2>Festival rituals</h2>
-        <p class="lede">Specific to a festival. Tap to add; you fill in their quantities in step ②, with past figures shown as a guide.</p>
-        <div class="tiles" id="varTiles"></div>
-      </section>
-    </div>
-
-    <div data-panel="2" hidden>
-      <p class="lede">Quantity <b>for one performance</b>. The total multiplies it by the number of times. Red boxes still need a number.</p>
-      <div class="rituals" id="rituals"></div>
-    </div>
-
-    <div data-panel="3" hidden>
-      <p class="lede">Everything to buy, by vendor. Enter what is <b>already in stock</b> and the vendor's <b>rate</b> for every item you still need to buy. No rate is ever filled in for you.</p>
-      <div id="sections"></div>
-    </div>
-
-    <div data-panel="4" hidden>
-      <section id="readyBox">
-        <h2 id="readyTitle"></h2>
-        <div id="summary"></div>
-        <div class="problems" id="problemsWrap"><ul id="problems"></ul></div>
-      </section>
-      <section>
-        <h2>Google Sheet</h2>
-        <div class="row">
-          <input id="sheetLink" placeholder="Existing spreadsheet link (optional)" style="flex:1;min-width:240px">
-          <button class="primary" id="writeBtn">Write to sheet</button>
-        </div>
-        <div id="sheetInfo" class="muted"></div>
-        <div class="row" style="margin-top:14px"><button id="deleteBtn">Delete this budget</button></div>
-      </section>
-    </div>
-
-    <div class="nav"><button id="prev">← Back</button><button id="next" class="primary">Next →</button></div>
-  </div>
-
-  <details class="card" id="library" style="margin-top:20px">
+<div class="lib">
+  <details id="library">
     <summary><strong>Library</strong> <span class="muted">— add an item or a ritual for future budgets</span></summary>
-    <div class="grid2" style="margin-top:10px">
-      <div>
-        <h3>Item</h3>
-        <div class="row"><input id="iName" placeholder="Name"><input id="iUnit" placeholder="Unit (kg, nos…)" style="width:120px"></div>
-        <div class="row"><select id="iSection"><option value="ritual">Ritual</option><option value="fruit">Fruit</option></select>
-          <input id="iVendor" placeholder="Vendor"></div>
-        <div class="row"><input id="iPackUnit" placeholder="Bought as (e.g. Pkt)" style="width:150px"><input id="iPackSize" class="num" placeholder="of how many"></div>
-        <button id="iSave">Save item</button>
-      </div>
-      <div>
-        <h3>Ritual</h3>
-        <div class="row"><input id="rName" placeholder="Name"><select id="rKind"><option value="variable">Festival</option><option value="constant">Standard</option></select>
-          <input id="rGroup" placeholder="Group (optional)" style="width:140px"></div>
-        <div class="muted">It appears as a tile. Add its items in step ② of a budget.</div>
-        <button id="rSave">Save ritual</button>
-      </div>
-    </div>
+    <div class="row"><input id="iName" placeholder="Item name"><input id="iUnit" placeholder="Unit (kg, nos…)" style="width:130px">
+      <select id="iSection"><option value="ritual">Ritual</option><option value="fruit">Fruit</option></select>
+      <input id="iVendor" placeholder="Vendor"><input id="iPackUnit" placeholder="Bought as (Pkt)" style="width:140px">
+      <input id="iPackSize" placeholder="of how many" style="width:110px"><button id="iSave">Save item</button></div>
+    <div class="row"><input id="rName" placeholder="Ritual name"><select id="rKind"><option value="variable">Festival ritual</option><option value="constant">Standard ritual</option></select>
+      <input id="rGroup" placeholder="Group (optional)" style="width:150px"><button id="rSave">Save ritual</button></div>
+    <div class="muted small" id="whoami"></div>
   </details>
-</main>
+</div>
 <div id="toast"></div>
 <script>
 const $ = (id) => document.getElementById(id);
-let LIB = null, ITEMS = {}, RITUALS = {}, B = null, CALC = null, STEP = 1;
-const STEPS = ["Rituals", "Quantities", "Stock & rates", "Write"];
+let LIB = null, ITEMS = {}, RITUALS = {}, B = null, CALC = null, CUR = null, PREV = {}, lastTotal = null, LIST = [];
 const QUICK = [1, 3, 5, 9, 10];
 
 async function api(path, opts = {}) {
@@ -218,20 +145,12 @@ async function api(path, opts = {}) {
 function toast(msg, ms = 3500) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms); }
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const inr = (v) => v === "" || v == null ? "—" : "₹" + Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = (v) => v == null ? "" : String(v);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 function store(op, k, v) { try { return op === "set" ? localStorage.setItem(k, v) : localStorage.getItem(k); } catch { return null; } }
-
-// Exact decimal × whole number, so the "total" column never shows float noise.
-function mulInt(q, n) {
-  const s = String(q); const neg = s.startsWith("-"); const [i, f = ""] = s.replace("-", "").split(".");
-  let v = (BigInt(i + f || "0") * BigInt(n)).toString().padStart(f.length + 1, "0");
-  let out = f.length ? v.slice(0, -f.length) + "." + v.slice(-f.length) : v;
-  if (out.includes(".")) out = out.replace(/0+$/, "").replace(/\.$/, "");
-  return (neg ? "-" : "") + out;
-}
-
-const ICONS = [[/vishesha|dravya/i, "🍯"], [/mangala/i, "🌼"], [/abhish/i, "💧"], [/deep|arat|aarat/i, "🪔"], [/poornahuti|agni|homa|havan/i, "🔥"], [/kalash/i, "🏺"],
-  [/varuna/i, "🌊"], [/vighn|ganesh|ganapat/i, "🐘"], [/guru/i, "🙏"], [/dhwaj|dhvaj|flag/i, "🚩"], [/mandagap/i, "🛕"],
-  [/kanya/i, "👧"], [/durga|chandi|devi|amman/i, "🔱"], [/bali|navami/i, "⚔️"], [/laghu/i, "🌸"], [/lalitha|sahasra|archana/i, "📿"], [/saraswat|vidya/i, "📚"], [/lakshmi/i, "🪷"]];
+const ICONS = [[/vishesha|dravya/i, "🍯"], [/mangala/i, "🌼"], [/abhish/i, "💧"], [/deep|arat|aarat/i, "🪔"], [/poornahuti|agni|homa|havan/i, "🔥"],
+  [/kalash/i, "🏺"], [/varuna/i, "🌊"], [/vighn|ganesh|ganapat/i, "🐘"], [/guru/i, "🙏"], [/dhwaj|dhvaj|flag/i, "🚩"], [/mandagap/i, "🛕"],
+  [/kanya/i, "👧"], [/durga|chandi|devi|amman/i, "🔱"], [/bali|navami/i, "⚔️"], [/laghu/i, "🌸"], [/lalitha|sahasra|archana/i, "📿"]];
 const icon = (name) => (ICONS.find(([re]) => re.test(name)) || [, "🕉️"])[1];
 
 async function loadLibrary() {
@@ -240,269 +159,409 @@ async function loadLibrary() {
   RITUALS = Object.fromEntries(LIB.rituals.map((r) => [r.id, r]));
 }
 async function loadList(select) {
-  const list = await api("/api/budgets");
-  $("pick").innerHTML = '<option value="">— open a budget —</option>' + list.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
-  if (select) $("pick").value = select;
+  LIST = await api("/api/budgets");
+  $("pick").innerHTML = '<option value="">— open a budget —</option>' + LIST.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  $("pick").value = select || "";
 }
 
-// What is left in each step, counted from the budget itself rather than parsed out of problem text.
-function progress() {
-  const qty = B.rituals.flatMap((r) => Object.values(r.qty));
-  const qtyLeft = qty.filter((q) => q == null).length + B.rituals.filter((r) => !Object.keys(r.qty).length).length;
-  const rows = Object.values(CALC.sections).flatMap((s) => s.rows);
-  const buying = rows.filter((r) => Number(r.purchase) > 0);
-  const rateLeft = buying.filter((r) => r.rate == null).length;
-  const reasonLeft = Object.values(B.lines).filter((l) => l.override != null && !l.override_reason).length;
-  const left = { 1: B.rituals.length ? 0 : 1, 2: qtyLeft, 3: rateLeft + reasonLeft, 4: CALC.problems.length };
-  const need = 1 + qty.length + buying.length + reasonLeft;
-  const have = (B.rituals.length ? 1 : 0) + (qty.length - qty.filter((q) => q == null).length) + (buying.length - rateLeft);
-  const pct = CALC.problems.length ? Math.min(99, Math.floor(100 * have / Math.max(need, 1))) : 100;
-  return { left, pct, qty: [qty.length - qty.filter((q) => q == null).length, qty.length], rate: [buying.length - rateLeft, buying.length] };
+const rows = () => Object.values(CALC.sections).flatMap((s) => s.rows);
+const rowOf = (id) => rows().find((r) => r.item_id === id);
+const ritual = (rid) => B.rituals.find((r) => r.ritual_id === rid);
+
+// The questionnaire is rebuilt from the budget every time, so it can never
+// disagree with what the budget holds: picking a ritual adds its questions,
+// and stock that covers an item removes that item's rate question.
+function questions() {
+  const qs = [{ key: "rituals", stage: "Rituals" }];
+  for (const r of B.rituals) qs.push({ key: "times:" + r.ritual_id, rid: r.ritual_id, stage: "Rituals" });
+  for (const r of B.rituals) {
+    const ids = Object.keys(r.qty);
+    if (!ids.length) qs.push({ key: "items:" + r.ritual_id, rid: r.ritual_id, stage: "Quantities" });
+    else if (r.kind === "constant") qs.push({ key: "review:" + r.ritual_id, rid: r.ritual_id, stage: "Quantities" });
+    else for (const id of ids) qs.push({ key: `qty:${r.ritual_id}:${id}`, rid: r.ritual_id, item: id, stage: "Quantities" });
+  }
+  qs.push({ key: "others", stage: "Extras" }, { key: "stock", stage: "Stock" });
+  for (const s of Object.values(CALC.sections))
+    for (const row of s.rows)
+      if (Number(row.purchase) > 0 || B.lines[row.item_id]?.rate != null) qs.push({ key: "rate:" + row.item_id, item: row.item_id, stage: "Rates" });
+  qs.push({ key: "write", stage: "Finish" });
+  return qs;
+}
+function answered(q) {
+  const [kind] = q.key.split(":");
+  if (kind === "rituals") return B.rituals.length > 0;
+  if (kind === "items" || kind === "write") return false;
+  if (kind === "review") return Object.values(ritual(q.rid).qty).every((v) => v != null);
+  if (kind === "qty") return ritual(q.rid).qty[q.item] != null;
+  if (kind === "rate") {
+    const row = rowOf(q.item), line = B.lines[q.item] || {};
+    return (!row || Number(row.purchase) === 0 || row.rate != null) && (line.override == null || !!line.override_reason);
+  }
+  return true;
+}
+function label(q) {
+  const [kind] = q.key.split(":");
+  const r = q.rid && ritual(q.rid), it = q.item && ITEMS[q.item];
+  return { rituals: "Pick the rituals", items: `${r?.name}: add its items`, review: `${r?.name}: quantities`,
+    qty: `${r?.name}: how much ${it?.name}`, rate: `Rate for ${it?.name}`, times: `${r?.name}: times` }[kind] || kind;
 }
 
-let lastTotal = null;
-function show(view) {
-  B = view.budget; CALC = view.calc;
-  $("empty").hidden = true; $("editor").hidden = false; $("score").hidden = false;
-  $("title").textContent = B.name;
-  const p = progress();
-  $("bar").firstElementChild.style.width = p.pct + "%";
-  $("bar").classList.toggle("done", p.pct === 100);
-  $("pct").textContent = p.pct + "%";
-  $("cRit").textContent = B.rituals.length;
-  $("cQty").textContent = `${p.qty[0]}/${p.qty[1]}`;
-  $("cRate").textContent = `${p.rate[0]}/${p.rate[1]}`;
-  $("grand").textContent = inr(CALC.total);
-  if (lastTotal !== null && lastTotal !== CALC.total) { $("grand").classList.remove("bump"); void $("grand").offsetWidth; $("grand").classList.add("bump"); }
-  lastTotal = CALC.total;
-  renderSteps(p); renderTiles(); renderRituals(); renderSections(); renderWrite(p);
-  store("set", "fb-last", B.id);
-  history.replaceState(null, "", "?b=" + encodeURIComponent(B.id) + "#step=" + STEP);
+async function op(body) {
+  try { const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) }); B = v.budget; CALC = v.calc; return true; }
+  catch (e) { toast(e.message, 6000); return false; }
+}
+// Answer the current question, then move to whatever follows it in the
+// rebuilt list. If the answer removed the question itself (an item marked
+// not needed), the next one has slid into its place.
+async function answer(body, jumpPast) {
+  const key = CUR, idx = questions().findIndex((q) => q.key === key);
+  if (body && !(await op(body))) return;
+  const qs = questions();
+  let i = qs.findIndex((q) => q.key === key);
+  if (i < 0) i = idx - 1;
+  if (jumpPast) while (i + 1 < qs.length && jumpPast(qs[i + 1])) i++;
+  CUR = qs[Math.min(i + 1, qs.length - 1)].key;
+  render();
+}
+function goto(key) { CUR = key; render(); }
+function back() { const qs = questions(); const i = qs.findIndex((q) => q.key === CUR); if (i > 0) goto(qs[i - 1].key); }
+
+async function open(id) {
+  const v = await api(`/api/budgets/${encodeURIComponent(id)}`);
+  B = v.budget; CALC = v.calc; PREV = {}; lastTotal = null;
+  const qs = questions();
+  const want = new URLSearchParams(location.hash.slice(1)).get("q");
+  CUR = qs.some((q) => q.key === want) ? want : (qs.find((q) => !answered(q)) || qs[0]).key;
+  $("pick").value = id; store("set", "fb-last", id);
+  render();
 }
 
-function renderSteps(p) {
-  $("steps").innerHTML = STEPS.map((name, i) => {
-    const n = i + 1, left = p.left[n];
-    const done = n < 4 ? !left : !CALC.problems.length;
-    return `<button class="step ${n === STEP ? "active" : ""} ${done ? "done" : ""}" data-step="${n}">
-      <span class="n">${done ? "✓" : n}</span>${name}${!done && left && n !== 1 ? `<span class="left">${left} left</span>` : ""}</button>`;
-  }).join("");
-  $("steps").querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => go(+b.dataset.step)));
-  document.querySelectorAll("[data-panel]").forEach((d) => d.hidden = +d.dataset.panel !== STEP);
-  $("prev").style.visibility = STEP > 1 ? "visible" : "hidden";
-  $("next").style.visibility = STEP < 4 ? "visible" : "hidden";
-  $("next").textContent = STEP < 4 ? `Next: ${STEPS[STEP]} →` : "";
+function render() {
+  if (!B) return renderStart();
+  const qs = questions();
+  if (!qs.some((q) => q.key === CUR)) CUR = qs[0].key;
+  const q = qs.find((x) => x.key === CUR), idx = qs.indexOf(q);
+  // "write" is the finish line, not a question, so a complete budget reads 100%.
+  const asked = qs.filter((x) => x.key !== "write"), done = asked.filter(answered).length;
+  history.replaceState(null, "", `?b=${encodeURIComponent(B.id)}#q=${encodeURIComponent(CUR)}`);
+  const body = QUESTION[CUR.split(":")[0]](q);
+  $("qcard").innerHTML = `<div class="qtop"><span>Question ${idx + 1} of ${qs.length}</span><span>${Math.round(100 * done / asked.length)}% answered</span></div>
+    <div class="bar"><div style="width:${100 * done / asked.length}%"></div></div>
+    <div class="fade"><div class="stage">${esc(q.stage)}</div>${body.html}</div>
+    <div class="nav">${idx > 0 ? `<button id="back">← Back</button>` : ""}<span class="grow"></span>${body.skip === false ? "" : `<button class="link" id="skip">Skip for now →</button>`}</div>`;
+  $("back")?.addEventListener("click", back);
+  $("skip")?.addEventListener("click", () => answer(null));
+  body.bind?.(q);
+  const first = $("qcard").querySelector("[autofocus]");
+  if (first && !matchMedia("(max-width: 900px)").matches) { first.focus(); first.select?.(); }
+  renderSheet(q);
 }
-function go(n) { STEP = Math.max(1, Math.min(4, n)); store("set", "fb-step", STEP); history.replaceState(null, "", "?b=" + encodeURIComponent(B.id) + "#step=" + STEP); renderSteps(progress()); window.scrollTo({ top: 0, behavior: "smooth" }); }
+// Enter in a single-answer box presses that question's main button.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches?.("#qcard input[data-enter]")) { e.preventDefault(); $("go")?.click(); }
+});
 
-async function open(id) { if (!id) return; lastTotal = null; const v = await api(`/api/budgets/${encodeURIComponent(id)}`); const h = +(location.hash.match(/step=(\d)/) || [])[1];
-  STEP = h || (v.budget.rituals.length ? (+store("get", "fb-step") || 1) : 1); show(v); }
-async function op(body, quiet) {
-  try { show(await api(`/api/budgets/${encodeURIComponent(B.id)}/ops`, { method: "POST", body: JSON.stringify(body) })); if (!quiet) toast("Saved"); }
-  catch (e) { toast(e.message, 6000); show({ budget: B, calc: CALC }); }
+function renderStart() {
+  $("qcard").innerHTML = `<div class="stage">Start</div><p class="q">Which festival are we budgeting for?</p>
+    <p class="hint">Answer one question at a time. The budget fills in on the right as you go.</p>
+    <div class="row"><input id="fname" data-enter placeholder="e.g. Navaratri 2026" style="flex:1;font-size:18px">
+    <button class="primary" id="go">Start →</button></div>
+    ${LIST.length ? `<h4>Or carry on with one</h4><div class="alt">${LIST.map((b) => `<button class="link" data-open="${esc(b.id)}">${esc(b.name)}</button>`).join("")}</div>` : ""}`;
+  $("go").addEventListener("click", async () => {
+    const name = $("fname").value.trim();
+    if (!name) return $("fname").focus();
+    try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); await loadList(v.budget.id); B = v.budget; CALC = v.calc; CUR = "rituals"; PREV = {}; lastTotal = null; store("set", "fb-last", B.id); render(); }
+    catch (e) { toast(e.message); }
+  });
+  $("qcard").querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => open(b.dataset.open)));
+  $("fname").focus();
+  $("sheet").innerHTML = `<div class="empty-sheet"><div class="icon">📋</div>Your budget appears here as you answer.</div>`;
+  history.replaceState(null, "", location.pathname);
 }
 
-// ---- step 1: tiles
-function tile(r) {
-  const got = B.rituals.find((x) => x.ritual_id === r.id);
-  const items = Object.keys(r.items || {}).length;
-  if (!got) return `<div class="tile" tabindex="0" role="button" aria-pressed="false" data-tile="${esc(r.id)}">
-    <span class="icon">${icon(r.name)}</span><span class="tname">${esc(r.name)}</span>
-    <span class="sub">${items ? items + (items === 1 ? " item" : " items") : "no items yet"} · tap to add</span></div>`;
-  const empty = Object.values(got.qty).filter((q) => q == null).length;
-  const status = !Object.keys(got.qty).length ? `<span class="pill warn">add items</span>`
-    : empty ? `<span class="pill warn">${empty} to fill</span>` : `<span class="pill good">ready</span>`;
-  return `<div class="tile on" tabindex="0" role="button" aria-pressed="true" data-tile="${esc(r.id)}">
-    <span class="icon">${icon(r.name)}</span><span class="tname">${esc(r.name)}</span>${status}
-    <div class="stepper" data-stop>
-      <button data-dec aria-label="Fewer times">−</button>
-      <input data-times value="${got.times}" inputmode="numeric" aria-label="Number of times performed">
-      <button data-inc aria-label="More times">+</button></div>
-    <div class="chips" data-stop>${QUICK.map((q) => `<button class="chip ${q === got.times ? "sel" : ""}" data-quick="${q}">×${q}</button>`).join("")}</div>
-  </div>`;
-}
-
-function renderTiles() {
-  const consts = LIB.rituals.filter((r) => r.kind === "constant");
-  const loose = consts.filter((r) => !r.group);
-  const groups = [...new Set(consts.map((r) => r.group).filter(Boolean))];
-  const have = new Set(B.rituals.map((r) => r.ritual_id));
-  $("constTiles").innerHTML = `<div class="tiles">${loose.map(tile).join("")}</div>` + groups.map((g) => {
-    const members = consts.filter((r) => r.group === g);
-    const all = members.every((r) => have.has(r.id));
-    return `<h3>${icon(g)} ${esc(g)} <span class="muted">${members.length} rituals performed together</span>
-      <button class="link" data-group="${esc(g)}" data-all="${all ? 1 : 0}">${all ? "remove all" : "add all"}</button></h3>
-      <div class="tiles">${members.map(tile).join("")}</div>`;
-  }).join("");
-  $("varTiles").innerHTML = LIB.rituals.filter((r) => r.kind !== "constant").map(tile).join("") +
-    `<div class="tile add" tabindex="0" role="button" id="newRitualTile"><span class="icon">＋</span><span class="tname">New ritual</span><span class="sub">add it to the library</span></div>`;
-
-  document.querySelectorAll("[data-tile]").forEach((el) => {
-    const rid = el.dataset.tile;
-    const toggle = () => {
-      const got = B.rituals.find((x) => x.ritual_id === rid);
-      if (!got) return op({ op: "add", ritual: rid, times: 1 }, true);
-      const typed = got.kind === "variable" && Object.values(got.qty).some((q) => q != null);
-      if (typed && !confirm(`Remove ${got.name}? The quantities you filled for it are lost.`)) return;
-      op({ op: "remove", ritual: rid }, true);
+const QUESTION = {
+  rituals() {
+    const have = new Set(B.rituals.map((r) => r.ritual_id));
+    const tile = (r) => `<div class="tile ${have.has(r.id) ? "on" : ""}" tabindex="0" role="button" aria-pressed="${have.has(r.id)}" data-tile="${esc(r.id)}">
+      <span class="icon">${icon(r.name)}</span><b>${esc(r.name)}</b></div>`;
+    const consts = LIB.rituals.filter((r) => r.kind === "constant");
+    const groups = [...new Set(consts.map((r) => r.group).filter(Boolean))];
+    const n = B.rituals.length;
+    return {
+      html: `<p class="q">Which rituals will be performed?</p>
+        <p class="hint">Tap every ritual this festival has. Next you'll say how many times each one is performed.</p>
+        <h4>Standard rituals</h4><div class="tiles">${consts.filter((r) => !r.group).map(tile).join("")}</div>
+        ${groups.map((g) => { const m = consts.filter((r) => r.group === g); const all = m.every((r) => have.has(r.id));
+          return `<h4>${icon(g)} ${esc(g)} <button class="link" data-group="${esc(g)}" data-all="${all ? 1 : 0}">${all ? "remove all" : "pick all"}</button></h4><div class="tiles">${m.map(tile).join("")}</div>`; }).join("")}
+        <h4>Festival rituals</h4><div class="tiles">${LIB.rituals.filter((r) => r.kind !== "constant").map(tile).join("")}</div>
+        <div class="row"><button class="primary" id="go" ${n ? "" : "disabled"}>${n ? `Continue with ${plural(n, "ritual")} →` : "Pick at least one"}</button></div>`,
+      skip: false,
+      bind() {
+        $("qcard").querySelectorAll("[data-tile]").forEach((el) => {
+          const toggle = async () => {
+            const got = ritual(el.dataset.tile);
+            if (got && got.kind === "variable" && Object.values(got.qty).some((v) => v != null) && !confirm(`Remove ${got.name}? Its quantities are lost.`)) return;
+            if (await op(got ? { op: "remove", ritual: got.ritual_id } : { op: "add", ritual: el.dataset.tile, times: 1 })) render();
+          };
+          el.addEventListener("click", toggle);
+          el.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+        });
+        $("qcard").querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", async () => {
+          const g = b.dataset.group;
+          const body = b.dataset.all === "1" ? LIB.rituals.filter((r) => r.group === g).map((r) => ({ op: "remove", ritual: r.id })) : { op: "add_group", group: g, times: 1 };
+          if (await op(body)) render();
+        }));
+        $("go").addEventListener("click", () => answer(null));
+      },
     };
-    el.addEventListener("click", (e) => { if (!e.target.closest("[data-stop]")) toggle(); });
-    el.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); toggle(); } });
-    const inp = el.querySelector("[data-times]");
-    if (!inp) return;
-    // Rapid +/- clicks update the number at once and send one change when they stop.
-    let timer;
-    const bump = (d) => { inp.value = Math.max(1, (parseInt(inp.value, 10) || 1) + d); clearTimeout(timer); timer = setTimeout(send, 450); };
-    const send = () => op({ op: "times", ritual: rid, times: inp.value }, true);
-    el.querySelector("[data-dec]").addEventListener("click", () => bump(-1));
-    el.querySelector("[data-inc]").addEventListener("click", () => bump(1));
-    inp.addEventListener("change", () => { clearTimeout(timer); send(); });
-    el.querySelectorAll("[data-quick]").forEach((c) => c.addEventListener("click", () => op({ op: "times", ritual: rid, times: c.dataset.quick }, true)));
-  });
-  document.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
-    const g = b.dataset.group;
-    if (b.dataset.all === "1") op(LIB.rituals.filter((r) => r.group === g).map((r) => ({ op: "remove", ritual: r.id })), true);
-    else op({ op: "add_group", group: g, times: 1 }, true);
-  }));
-  $("newRitualTile").addEventListener("click", () => { $("library").open = true; $("rName").focus(); $("library").scrollIntoView({ behavior: "smooth" }); });
-}
+  },
+  times(q) {
+    const r = ritual(q.rid);
+    return {
+      html: `<p class="q">${icon(r.name)} How many times will <u>${esc(r.name)}</u> be performed?</p>
+        <p class="hint">Across the whole festival. Every quantity for it is multiplied by this.</p>
+        <div class="big"><input id="ans" data-enter inputmode="numeric" value="${r.times}" autofocus><span class="unit">times</span></div>
+        <div class="chips">${QUICK.map((n) => `<button class="chip ${n === r.times ? "sel" : ""}" data-n="${n}">×${n}</button>`).join("")}</div>
+        <button class="primary" id="go">Next →</button>`,
+      skip: false,
+      bind() {
+        $("go").addEventListener("click", () => answer({ op: "times", ritual: q.rid, times: $("ans").value }));
+        $("qcard").querySelectorAll("[data-n]").forEach((c) => c.addEventListener("click", () => answer({ op: "times", ritual: q.rid, times: c.dataset.n })));
+      },
+    };
+  },
+  qty(q) {
+    const r = ritual(q.rid), it = ITEMS[q.item] || { name: q.item, unit: "" };
+    const ref = RITUALS[q.rid]?.items || {}, past = ref[q.item];
+    const rest = Object.entries(r.qty).filter(([id, v]) => v == null && ref[id] != null).length;
+    return {
+      html: `<p class="q">How much <u>${esc(it.name)}</u> for one ${esc(r.name)}?</p>
+        <p class="hint">For a single performance. ${esc(r.name)} is performed ${plural(r.times, "time")}, so the budget takes ${r.times}× this.</p>
+        <div class="big"><input id="ans" data-enter inputmode="decimal" value="${esc(num(r.qty[q.item]))}" autofocus><span class="unit">${esc(it.unit)}</span></div>
+        <div class="row"><button class="primary" id="go">Next →</button>
+          ${past != null ? `<button id="past">Same as last time: ${esc(past)} ${esc(it.unit)}</button>` : ""}</div>
+        <div class="alt">
+          ${rest > 1 ? `<button class="link" id="allpast">Use last time's figures for all ${rest} unfilled items of ${esc(r.name)}</button>` : ""}
+          <button class="link" id="drop">${esc(it.name)} is not needed for ${esc(r.name)}</button></div>`,
+      bind() {
+        $("go").addEventListener("click", () => { const v = $("ans").value.trim(); if (!v) return toast("Type a quantity, or skip for now"); answer({ op: "qty", ritual: q.rid, item: q.item, qty: v }); });
+        $("past")?.addEventListener("click", () => answer({ op: "qty", ritual: q.rid, item: q.item, qty: String(past) }));
+        $("allpast")?.addEventListener("click", () => answer({ op: "reference", ritual: q.rid }, (n) => n.key.startsWith(`qty:${q.rid}:`) && answered(n)));
+        $("drop").addEventListener("click", () => answer({ op: "drop_item", ritual: q.rid, item: q.item }));
+      },
+    };
+  },
+  review(q) {
+    const r = ritual(q.rid);
+    return {
+      html: `<p class="q">${icon(r.name)} ${esc(r.name)} usually needs these. Do they look right?</p>
+        <p class="hint">Quantities for one performance, from the library. Change any that differ this time; ✕ removes an item.</p>
+        <div class="list">${Object.entries(r.qty).map(([id, v]) => `<div class="li"><span>${esc(ITEMS[id]?.name || id)}</span>
+          <span><input data-q="${esc(id)}" class="${v == null ? "missing" : ""}" value="${esc(num(v))}" inputmode="decimal"> <span class="muted small">${esc(ITEMS[id]?.unit || "")}</span>
+          <button class="link" data-drop="${esc(id)}" title="Not needed">✕</button></span></div>`).join("")}</div>
+        ${addItemRow(r)}
+        <button class="primary" id="go">Looks right →</button>`,
+      bind() {
+        $("qcard").querySelectorAll("[data-q]").forEach((inp) => inp.addEventListener("change", async () => {
+          if (await op({ op: "qty", ritual: q.rid, item: inp.dataset.q, qty: inp.value })) { inp.classList.toggle("missing", !inp.value.trim()); renderSheet(q); }
+        }));
+        $("qcard").querySelectorAll("[data-drop]").forEach((b) => b.addEventListener("click", async () => { if (await op({ op: "drop_item", ritual: q.rid, item: b.dataset.drop })) render(); }));
+        bindAddItem(q);
+        $("go").addEventListener("click", () => answer(null));
+      },
+    };
+  },
+  items(q) {
+    const r = ritual(q.rid);
+    return {
+      html: `<p class="q">${icon(r.name)} What does ${esc(r.name)} need?</p>
+        <p class="hint">It has no items in the library yet. Add each one with its quantity for one performance, or leave it out of this budget.</p>
+        ${addItemRow(r, true)}
+        <div class="alt"><button class="link" id="drop">Leave ${esc(r.name)} out of this budget</button></div>`,
+      bind() {
+        bindAddItem(q);
+        $("drop").addEventListener("click", () => answer({ op: "remove", ritual: q.rid }));
+      },
+    };
+  },
+  others() {
+    const opts = (sec) => LIB.items.filter((i) => i.section === sec).map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("");
+    return {
+      html: `<p class="q">Anything else to buy that isn't part of a ritual?</p>
+        <p class="hint">Fruit for naivedyam, extra camphor for the hall… It goes under "Others", or "Miscellaneous" on the fruit budget.</p>
+        ${B.others.length ? `<div class="list">${B.others.map((o) => `<div class="li"><span>${esc(ITEMS[o.item_id]?.name)} <span class="muted small">${esc(o.note)}</span></span>
+          <span>${esc(o.qty)} ${esc(ITEMS[o.item_id]?.unit)} <button class="link" data-rm="${esc(o.item_id)}" title="Remove">✕</button></span></div>`).join("")}</div>` : ""}
+        <div class="row"><select id="oItem"><option value="">Choose an item…</option><optgroup label="Fruit">${opts("fruit")}</optgroup><optgroup label="Ritual items">${opts("ritual")}</optgroup></select>
+          <input id="oQty" placeholder="How much" inputmode="decimal" style="width:100px"><input id="oNote" placeholder="What for?" style="width:150px"><button id="oAdd">Add</button></div>
+        <button class="primary" id="go">${B.others.length ? "Done →" : "No, nothing else →"}</button>`,
+      skip: false,
+      bind() {
+        $("oAdd").addEventListener("click", async () => {
+          if (!$("oItem").value || !$("oQty").value) return toast("Choose an item and a quantity");
+          if (await op({ op: "other", item: $("oItem").value, qty: $("oQty").value, note: $("oNote").value })) render();
+        });
+        $("qcard").querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", async () => { if (await op({ op: "other", item: b.dataset.rm, qty: "" })) render(); }));
+        $("go").addEventListener("click", () => answer(null));
+      },
+    };
+  },
+  stock() {
+    const need = rows().filter((r) => Number(r.required) > 0);
+    return {
+      html: `<p class="q">Is any of this already in the store room?</p>
+        <p class="hint">Enter what you already have, in the item's own unit; only the rest is bought. Leave a box empty if there is none.</p>
+        <div class="list">${need.map((r) => `<div class="li"><span>${esc(r.name)} <span class="muted small">need ${esc(r.required)} ${esc(r.unit)}</span></span>
+          <span><input data-stock="${esc(r.item_id)}" value="${esc(num(B.lines[r.item_id]?.stock))}" placeholder="0" inputmode="decimal"> <span class="muted small">${esc(r.unit)}</span></span></div>`).join("") || `<p class="muted">Nothing needed yet.</p>`}</div>
+        <button class="primary" id="go">Next: rates →</button>`,
+      skip: false,
+      bind() {
+        $("qcard").querySelectorAll("[data-stock]").forEach((inp) => inp.addEventListener("change", async () => { if (await op({ op: "line", item: inp.dataset.stock, stock: inp.value })) renderSheet({ item: inp.dataset.stock }); }));
+        $("go").addEventListener("click", () => answer(null));
+      },
+    };
+  },
+  rate(q) {
+    const r = rowOf(q.item), line = B.lines[q.item] || {};
+    if (!r) return { html: `<p class="q">${esc(ITEMS[q.item]?.name)} is no longer needed.</p><button class="primary" id="go">Next →</button>`, bind() { $("go").addEventListener("click", () => answer(null)); } };
+    const stock = Number(r.stock) > 0 ? ` and have ${esc(r.stock)} in stock` : "";
+    return {
+      html: `<p class="q">What does <u>${esc(r.vendor || "the vendor")}</u> charge for <u>${esc(r.name)}</u>?</p>
+        <p class="hint">You need ${esc(r.required)} ${esc(r.unit)}${stock}, so you'll buy <b>${esc(r.purchase)} ${esc(r.purchase_unit)}</b>.</p>
+        <div class="big"><span class="unit">₹</span><input id="ans" data-enter inputmode="decimal" value="${esc(num(line.rate))}" autofocus><span class="unit">per ${esc(r.purchase_unit)}</span></div>
+        <button class="primary" id="go">Next →</button>
+        <details ${line.override != null ? "open" : ""}><summary>Buying a different amount?</summary>
+          <div class="row"><input id="ov" placeholder="Buy" inputmode="decimal" value="${esc(num(line.override))}" style="width:100px"> ${esc(r.purchase_unit)}
+          <input id="ovr" placeholder="Why? e.g. sold in 5 L tins" value="${esc(line.override_reason || "")}" style="flex:1;min-width:180px"></div></details>
+        <details ${line.note ? "open" : ""}><summary>Add a note</summary><div class="row"><input id="note" value="${esc(line.note || "")}" style="flex:1"></div></details>`,
+      bind() {
+        $("go").addEventListener("click", () => {
+          const rate = $("ans").value.trim(), ov = $("ov").value.trim(), why = $("ovr").value.trim();
+          if (!rate) return toast("Type the rate, or skip for now");
+          if (ov && !why) return toast("Say why you're buying a different amount");
+          const body = { op: "line", item: q.item, rate };
+          if (ov !== num(line.override)) body.override = ov;
+          if (why !== (line.override_reason || "")) body.override_reason = why;
+          if ($("note").value !== (line.note || "")) body.note = $("note").value;
+          answer(body);
+        });
+      },
+    };
+  },
+  write() {
+    const left = questions().filter((x) => !answered(x) && x.key !== "write");
+    const ok = !CALC.problems.length;
+    const missing = left.length || CALC.problems.length;
+    return {
+      html: `<p class="q">${ok ? "🎉 The budget is complete." : "Almost there."}</p>
+        ${ok ? `<div class="done-box">Total ${inr(CALC.total)}. Write it to the Google Sheet?</div>`
+          : `<p class="hint">${plural(missing, "answer")} still missing. Tap one to answer it.</p>
+             <div class="todo">${left.length ? left.map((x) => `<button data-go="${esc(x.key)}">${esc(label(x))}</button>`).join("") : CALC.problems.map((p) => `<button disabled>${esc(p)}</button>`).join("")}</div>`}
+        <div class="row"><input id="sheetLink" placeholder="Existing spreadsheet link (optional)" style="flex:1;min-width:200px">
+          <button class="primary" id="go" ${ok ? "" : "disabled"}>Write to sheet</button></div>
+        <p class="muted small">${B.spreadsheet ? `Writes to <a href="${esc(B.spreadsheet.url)}" target="_blank" rel="noopener">the budget sheet</a>${B.written ? ", last written " + esc(B.written.replace("T", " ").slice(0, 16)) + " UTC" : ""}.` : "Leave the link empty to create a new spreadsheet in the budget folder."}</p>
+        <div class="alt"><button class="link" id="del">Delete this budget</button></div>`,
+      skip: false,
+      bind() {
+        $("qcard").querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => goto(b.dataset.go)));
+        $("go").addEventListener("click", async () => {
+          $("go").disabled = true; $("go").textContent = "Writing…";
+          try { const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
+            B = v.budget; CALC = v.calc; toast("🎉 Written to the sheet"); }
+          catch (e) { toast(e.message, 8000); }
+          render();
+        });
+        $("del").addEventListener("click", async () => {
+          if (!confirm(`Delete "${B.name}"? The Google Sheet is not touched.`)) return;
+          await api(`/api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
+          B = null; await loadList(); render();
+        });
+      },
+    };
+  },
+};
 
-// ---- step 2: quantities
-function renderRituals() {
-  const box = $("rituals");
-  if (!B.rituals.length) { box.innerHTML = `<div class="card muted">No rituals picked yet. Go back to step ① and tap some tiles.</div>`; return; }
-  const opened = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.id));
-  const first = !box.dataset.ready; box.dataset.ready = "1";
-  box.innerHTML = B.rituals.map((r) => {
-    const empty = Object.values(r.qty).filter((q) => q == null).length;
-    const ref = (RITUALS[r.ritual_id] || {}).items || {};
-    const rows = Object.entries(r.qty).map(([id, q]) => {
-      const it = ITEMS[id] || { name: id + " (missing)", unit: "" };
-      const hint = ref[id] != null && r.kind === "variable" ? `<span class="muted">past: ${ref[id]}</span>` : "";
-      return `<tr><td>${esc(it.name)}</td>
-        <td><input class="num ${q == null ? "missing" : ""}" data-qty="${esc(id)}" value="${esc(q ?? "")}" inputmode="decimal"></td>
-        <td style="text-align:left">${esc(it.unit)}</td><td class="muted">× ${r.times}</td>
-        <td><b>${q == null ? "—" : esc(mulInt(q, r.times))}</b></td><td>${hint}</td>
-        <td><button class="link" data-drop="${esc(id)}" title="Remove from this ritual">✕</button></td></tr>`;
-    }).join("");
-    const addable = LIB.items.filter((i) => !(i.id in r.qty)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("");
-    const isOpen = opened.has(r.ritual_id) || (first && empty > 0);
-    const status = !Object.keys(r.qty).length ? `<span class="pill warn">no items</span>` : empty ? `<span class="pill warn">${empty} to fill</span>` : `<span class="pill good">✓ complete</span>`;
-    return `<details class="rit" data-id="${esc(r.ritual_id)}" ${isOpen ? "open" : ""}>
-      <summary><span class="icon">${icon(r.name)}</span><strong>${esc(r.name)}</strong><span class="muted">× ${r.times}</span>
-        <span class="muted">${r.kind === "constant" ? "standard" : "festival"} · ${Object.keys(r.qty).length} items</span>${status}</summary>
-      <div class="row">
-        ${empty && Object.keys(ref).length ? `<button data-ref>Fill the empty ones with past figures</button>` : ""}
-        <select data-additem><option value="">+ add an item…</option>${addable}</select>
-      </div>
-      <div class="scroll"><table><thead><tr><th>Item</th><th>Per performance</th><th style="text-align:left">Unit</th><th>Times</th><th>Total</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    </details>`;
-  }).join("");
-  box.querySelectorAll("details").forEach((d) => {
-    const rid = d.dataset.id;
-    d.querySelector("[data-ref]")?.addEventListener("click", () => op({ op: "reference", ritual: rid }));
-    d.querySelector("[data-additem]").addEventListener("change", (e) => e.target.value && op({ op: "qty", ritual: rid, item: e.target.value, qty: null }));
-    d.querySelectorAll("[data-qty]").forEach((inp) => inp.addEventListener("change", () => op({ op: "qty", ritual: rid, item: inp.dataset.qty, qty: inp.value }, true)));
-    d.querySelectorAll("[data-drop]").forEach((b) => b.addEventListener("click", () => op({ op: "drop_item", ritual: rid, item: b.dataset.drop })));
-  });
+function addItemRow(r, primary) {
+  const opts = LIB.items.filter((i) => !(i.id in r.qty)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join("");
+  return `<div class="row"><select id="aItem" style="flex:1;min-width:160px"><option value="">${primary ? "Choose an item…" : "+ another item…"}</option>${opts}</select>
+    <input id="aQty" placeholder="Per performance" inputmode="decimal" style="width:130px"><button id="aAdd" ${primary ? 'class="primary"' : ""}>Add</button></div>`;
 }
-
-// ---- step 3: stock and rates
-function renderSections() {
-  const others = Object.fromEntries(B.others.map((o) => [o.item_id, o]));
-  $("sections").innerHTML = Object.entries(CALC.sections).map(([key, s]) => {
-    const buying = s.rows.filter((r) => Number(r.purchase) > 0);
-    const rated = buying.filter((r) => r.rate != null).length;
-    const head = `<tr><th>Item</th><th>Required</th><th>Unit</th><th>${esc(s.other_label)}</th><th>In stock</th><th>Net</th><th>Buy</th><th>Buy unit</th><th>Override</th><th>Rate ₹</th><th>Amount</th><th>${esc(s.note_label)}</th></tr>`;
-    let vendor = null, body = "";
-    const grouped = s.rows.some((r) => r.vendor);
-    for (const r of s.rows) {
-      if (grouped && r.vendor !== vendor) { vendor = r.vendor; body += `<tr class="vendor"><td colspan="12">${esc(vendor || "No vendor")} — ${inr(s.vendors[vendor])}</td></tr>`; }
-      const line = B.lines[r.item_id] || {};
-      const missing = r.rate == null && Number(r.purchase) > 0;
-      body += `<tr data-item="${esc(r.item_id)}">
-        <td>${esc(r.name)}</td><td>${esc(r.required)}</td><td>${esc(r.unit)}</td>
-        <td><input class="num" data-other value="${esc(others[r.item_id]?.qty ?? "")}" inputmode="decimal"></td>
-        <td><input class="num" data-f="stock" value="${esc(line.stock ?? "")}" placeholder="0" inputmode="decimal"></td>
-        <td>${esc(r.net)}</td><td><strong>${esc(r.purchase)}</strong></td><td>${esc(r.purchase_unit)}</td>
-        <td><input class="num" data-f="override" value="${esc(line.override ?? "")}" inputmode="decimal" title="Purchase quantity by hand; needs a reason">
-          ${line.override != null ? `<input data-f="override_reason" class="${line.override_reason ? "" : "missing"}" value="${esc(line.override_reason ?? "")}" placeholder="reason" style="width:120px">` : ""}</td>
-        <td><input class="num ${missing ? "missing" : ""}" data-f="rate" value="${esc(line.rate ?? "")}" placeholder="${missing ? "required" : ""}" inputmode="decimal"></td>
-        <td>${inr(r.amount)}</td>
-        <td class="note"><input data-f="note" value="${esc(line.note ?? "")}"></td></tr>`;
+function bindAddItem(q) {
+  $("aAdd").addEventListener("click", async () => {
+    if (!$("aItem").value || !$("aQty").value) return toast("Choose an item and its quantity");
+    if (await op({ op: "qty", ritual: q.rid, item: $("aItem").value, qty: $("aQty").value })) {
+      // The first item turns this ritual's "items" question into a review or
+      // per-item question; stay on the ritual rather than jumping ahead.
+      const qs = questions();
+      CUR = (qs.find((x) => x.key === CUR) || qs.find((x) => x.rid === q.rid && x.key !== "times:" + q.rid) || qs[0]).key;
+      render();
     }
-    const addable = LIB.items.filter((i) => i.section === key && !s.rows.some((r) => r.item_id === i.id)).map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("");
-    return `<section data-section="${key}"><h2>${esc(s.title)}
-        <span class="pill ${rated === buying.length ? "good" : "warn"}">rates ${rated}/${buying.length}</span><span class="total">${inr(s.total)}</span></h2>
-      <div class="row"><select data-addother><option value="">+ ${esc(s.other_label)}: an item outside any ritual…</option>${addable}</select></div>
-      <div class="scroll"><table><thead>${head}</thead><tbody>${body || `<tr><td colspan="12" class="muted">Nothing to buy yet.</td></tr>`}</tbody></table></div></section>`;
-  }).join("");
-  document.querySelectorAll("#sections tr[data-item]").forEach((tr) => {
-    const id = tr.dataset.item;
-    tr.querySelectorAll("[data-f]").forEach((inp) => inp.addEventListener("change", () => op({ op: "line", item: id, [inp.dataset.f]: inp.value }, true)));
-    tr.querySelector("[data-other]").addEventListener("change", (e) => op({ op: "other", item: id, qty: e.target.value, note: (B.others.find((o) => o.item_id === id) || {}).note || "" }, true));
   });
-  document.querySelectorAll("[data-addother]").forEach((sel) => sel.addEventListener("change", () => {
-    if (!sel.value) return;
-    const q = prompt(`Quantity of ${ITEMS[sel.value].name} (${ITEMS[sel.value].unit})`);
-    if (!q) { sel.value = ""; return; }
-    const note = prompt("What is it for? (optional)") || "";
-    op({ op: "other", item: sel.value, qty: q, note });
+}
+
+// ---- the live budget on the side
+function renderSheet(q) {
+  const focus = new Set(q?.item ? [q.item] : q?.rid ? Object.keys(ritual(q.rid)?.qty || {}) : []);
+  const changed = new Set();
+  for (const r of rows()) {
+    const sig = `${r.purchase}|${r.rate}|${r.amount}`;
+    if (PREV[r.item_id] !== undefined && PREV[r.item_id] !== sig) changed.add(r.item_id);
+    if (PREV[r.item_id] === undefined && lastTotal !== null) changed.add(r.item_id);
+    PREV[r.item_id] = sig;
+  }
+  const sections = Object.values(CALC.sections).map((s) => {
+    if (!s.rows.length) return `<h3><span>${esc(s.title)}</span><span class="muted small">nothing yet</span></h3>`;
+    let vendor = null, body = "";
+    for (const r of s.rows) {
+      if (r.vendor !== vendor) { vendor = r.vendor; body += `<tr class="vendor"><td colspan="5">${esc(vendor || "No vendor")}<span>${inr(s.vendors[vendor])}</span></td></tr>`; }
+      const buying = Number(r.purchase) > 0;
+      body += `<tr class="item ${focus.has(r.item_id) ? "hl" : ""} ${changed.has(r.item_id) ? "flash" : ""}" data-item="${esc(r.item_id)}">
+        <td>${esc(r.name)}</td><td>${esc(r.required)} <span class="muted">${esc(r.unit)}</span></td>
+        <td>${buying ? `${esc(r.purchase)} <span class="muted">${esc(r.purchase_unit)}</span>` : `<span class="muted">${Number(r.required) > 0 ? "in stock" : "—"}</span>`}</td>
+        <td class="${r.rate == null && buying ? "need" : ""}">${r.rate == null ? (buying ? "?" : "") : inr(r.rate)}</td>
+        <td class="${r.amount == null ? "wait" : ""}">${r.amount == null ? (buying ? "…" : "") : inr(r.amount)}</td></tr>`;
+    }
+    return `<h3><span>${esc(s.title)}</span><span>${inr(s.total)}</span></h3><div class="scroll"><table>
+      <thead><tr><th>Item</th><th>Need</th><th>Buy</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }).join("");
+  const unpriced = rows().filter((r) => Number(r.purchase) > 0 && r.rate == null).length;
+  $("sheet").innerHTML = `<div class="sheet-head"><h2>${esc(B.name)}</h2><span class="grand" id="grand">${inr(CALC.total)}</span></div>
+    ${unpriced ? `<div class="muted small" style="text-align:right">${plural(unpriced, "item")} still without a rate</div>` : ""}
+    <div class="rits">${B.rituals.map((r) => `<span class="rit ${q?.rid === r.ritual_id ? "hl" : ""}" data-rid="${esc(r.ritual_id)}">${icon(r.name)} ${esc(r.name)} ×${r.times}</span>`).join("") || `<span class="muted small">No rituals picked yet</span>`}</div>
+    ${sections}
+    <h3><span>Summary</span></h3>
+    <div class="scroll"><table><tbody>${Object.values(CALC.sections).map((s) => `<tr><td>${esc(s.title)}</td><td>${inr(s.total)}</td></tr>`).join("")}
+      <tr><td class="muted">Flowers · Madappalli</td><td class="muted">not included yet</td></tr>
+      <tr class="tot"><td>Total</td><td>${inr(CALC.total)}</td></tr></tbody></table></div>`;
+  if (lastTotal !== null && lastTotal !== CALC.total) $("grand").classList.add("bump");
+  lastTotal = CALC.total;
+  $("sheet").querySelectorAll("tr.item").forEach((tr) => tr.addEventListener("click", () => {
+    const qs = questions(), id = tr.dataset.item;
+    const hit = qs.find((x) => x.key === "rate:" + id) || qs.find((x) => x.item === id) || qs.find((x) => x.key.startsWith("review:") && id in (ritual(x.rid)?.qty || {})) || { key: "stock" };
+    goto(hit.key);
   }));
+  $("sheet").querySelectorAll("[data-rid]").forEach((el) => el.addEventListener("click", () => goto("times:" + el.dataset.rid)));
+  const hl = $("sheet").querySelector("tr.hl");
+  if (hl && q?.item) hl.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-// ---- step 4: write
-function renderWrite(p) {
-  const n = CALC.problems.length;
-  $("readyBox").classList.toggle("ready", !n);
-  $("readyTitle").textContent = n ? `${n} thing${n === 1 ? "" : "s"} still to fill` : "🎉 All filled in. Ready to write.";
-  const lines = Object.values(CALC.sections).map((s) => `<tr><td>${esc(s.title)}</td><td>${inr(s.total)}</td></tr>`).join("");
-  $("summary").innerHTML = `<div class="scroll" style="max-width:480px;margin:8px 0"><table><tbody>${lines}
-    <tr><td class="muted">Flowers budget</td><td class="muted">not included yet</td></tr>
-    <tr><td class="muted">Madappalli budget</td><td class="muted">not included yet</td></tr>
-    <tr class="tot"><td>Total</td><td>${inr(CALC.total)}</td></tr></tbody></table></div>`;
-  $("problemsWrap").hidden = !n;
-  $("problems").innerHTML = CALC.problems.map((x) => `<li>${esc(x)}</li>`).join("");
-  $("writeBtn").disabled = !!n;
-  $("writeBtn").title = n ? "Fill everything listed first" : "";
-  $("sheetInfo").innerHTML = B.spreadsheet ? `Writes to <a href="${esc(B.spreadsheet.url)}" target="_blank" rel="noopener">${esc(B.spreadsheet.url)}</a>${B.written ? " — last written " + esc(B.written.replace("T", " ").slice(0, 16)) + " UTC" : ""}` : "Not written yet. Leave the link empty to create a new spreadsheet in the budget folder.";
-}
-
-$("prev").addEventListener("click", () => go(STEP - 1));
-$("next").addEventListener("click", () => go(STEP + 1));
-$("pick").addEventListener("change", (e) => open(e.target.value).catch((err) => toast(err.message)));
-$("create").addEventListener("click", async () => {
-  const name = $("newName").value.trim();
-  if (!name) { $("newName").focus(); return toast("Type the festival name first"); }
-  try { const v = await api("/api/budgets", { method: "POST", body: JSON.stringify({ name }) }); $("newName").value = ""; await loadList(v.budget.id); STEP = 1; lastTotal = null; show(v); }
-  catch (e) { toast(e.message); }
+// A pasted or bookmarked #q= link on the page already open changes only the hash.
+addEventListener("hashchange", () => {
+  const want = new URLSearchParams(location.hash.slice(1)).get("q");
+  if (B && want && want !== CUR && questions().some((q) => q.key === want)) goto(want);
 });
-$("newName").addEventListener("keydown", (e) => { if (e.key === "Enter") $("create").click(); });
-$("writeBtn").addEventListener("click", async () => {
-  $("writeBtn").disabled = true; $("writeBtn").textContent = "Writing…";
-  try {
-    const v = await api(`/api/budgets/${encodeURIComponent(B.id)}/write`, { method: "POST", body: JSON.stringify({ spreadsheet: $("sheetLink").value.trim() || null }) });
-    show(v); $("sheetLink").value = ""; toast("🎉 Written to the sheet");
-  } catch (e) { toast(e.message, 8000); }
-  finally { $("writeBtn").textContent = "Write to sheet"; renderWrite(progress()); }
-});
-$("deleteBtn").addEventListener("click", async () => {
-  if (!confirm(`Delete "${B.name}"? The Google Sheet is not touched.`)) return;
-  await api(`/api/budgets/${encodeURIComponent(B.id)}`, { method: "DELETE" });
-  B = null; $("editor").hidden = true; $("score").hidden = true; $("empty").hidden = false;
-  history.replaceState(null, "", location.pathname); await loadList();
-});
+$("pick").addEventListener("change", (e) => e.target.value ? open(e.target.value).catch((err) => toast(err.message)) : null);
+$("newBtn").addEventListener("click", () => { B = null; $("pick").value = ""; render(); });
 $("iSave").addEventListener("click", async () => {
   try {
     await api("/api/library/item", { method: "POST", body: JSON.stringify({ name: $("iName").value, unit: $("iUnit").value, section: $("iSection").value, vendor: $("iVendor").value, pack_unit: $("iPackUnit").value, pack_size: $("iPackSize").value || null }) });
-    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Item saved");
+    await loadLibrary(); render(); toast("Item saved");
     ["iName", "iUnit", "iVendor", "iPackUnit", "iPackSize"].forEach((k) => $(k).value = "");
   } catch (e) { toast(e.message); }
 });
 $("rSave").addEventListener("click", async () => {
   try {
     await api("/api/library/ritual", { method: "POST", body: JSON.stringify({ name: $("rName").value, kind: $("rKind").value, group: $("rGroup").value }) });
-    await loadLibrary(); if (B) show({ budget: B, calc: CALC }); toast("Ritual saved: it is now a tile");
+    await loadLibrary(); render(); toast("Ritual saved");
     ["rName", "rGroup"].forEach((k) => $(k).value = "");
   } catch (e) { toast(e.message); }
 });
@@ -511,11 +570,10 @@ $("rSave").addEventListener("click", async () => {
   try {
     await loadLibrary();
     const info = await api("/api/info");
-    if (info.problems.length) $("whoami").textContent = "⚠ " + info.problems.join("; ");
-    else if (info.service_account) $("whoami").textContent = "Writes as " + info.service_account;
+    $("whoami").textContent = info.problems?.length ? "⚠ " + info.problems.join("; ") : info.service_account ? "Writes as " + info.service_account : "";
     const last = new URLSearchParams(location.search).get("b") || store("get", "fb-last");
-    await loadList(last || "");
-    if (last && $("pick").value === last) await open(last);
+    await loadList();
+    if (last && LIST.some((b) => b.id === last)) await open(last); else render();
   } catch (e) { toast(e.message, 8000); }
 })();
 </script>

@@ -41,10 +41,17 @@ Python 3.12, managed entirely with [uv](https://docs.astral.sh/uv/). Dokploy app
 Amounts are Decimal and are rounded to the paisa once per line, so vendor subtotals and
 totals add up exactly to the lines shown.
 
-The web UI walks through four steps: ① tap the ritual tiles and set ×times, ② fill
-the quantities, ③ enter stock and rates, ④ write. A bar at the top shows how much is
-filled in, and how many quantities and rates are left, plus the running total. Each
-step shows what is still missing. The guided CLI does the same with a numbered board:
+The web UI is a **questionnaire**: one question at a time on the left, and the budget
+filling in live on the right. The questions run: which rituals (tiles); how many times
+each; the quantities (a standard ritual shows its usual list to confirm, a festival
+ritual asks item by item, with "same as last time" and "not needed" buttons); anything
+else to buy; what is already in stock; then "what does <vendor> charge for <item>?" for
+every item to buy; and finally write. The list of questions is rebuilt from the budget
+after every answer, so picking a ritual adds its questions and stock that covers an item
+removes its rate question. "Skip for now" leaves a question open; the last screen lists
+every open one, and tapping a row in the budget jumps to its question. The URL carries
+the budget and the question (`?b=<id>#q=<question>`), so a link opens exactly there. The
+guided CLI uses a numbered board:
 `5` toggles ritual 5, `5 x10` sets it to ten times, `homa x3` adds the Homa group.
 
 ## Run it

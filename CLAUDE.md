@@ -1643,10 +1643,23 @@ service README has usage.
   quantities outside any ritual.
 - **A budget starts empty, and rituals are tiles** (the user's correction: the
   first version pre-added every constant once, and the user found that confusing).
-  The UI is four steps (tiles with a ×times stepper → quantities → stock & rates →
-  write), with a progress bar and a running total at the top. The CLI has a
-  matching numbered board (`5 x10`). `new --constants` / `{"constants": true}`
-  keeps the old pre-filled start.
+  The CLI has a matching numbered board (`5 x10`). `new --constants` /
+  `{"constants": true}` keeps the old pre-filled start.
+- **The web UI is a questionnaire with the budget filling in beside it** (the
+  user's second correction: steps were still too much like a form). One question
+  at a time on the left, and the live budget on the right. Changed rows flash, the
+  rows in focus are highlighted, and the total bumps when it changes. The question
+  list is *derived* from the budget after every answer (`questions()` in
+  `index.html`), never stored, so it cannot disagree with the budget. Picking a
+  ritual adds its questions, and stock that covers an item drops its rate question.
+  The "write" screen is the finish line and is not counted in the %, otherwise a
+  complete budget reads 95%. `#q=<key>` in the URL opens a specific question.
+  This is UI only: every answer is an existing `/ops` op, so `core.py` did not change.
+  It was verified by driving a whole budget in Edge through Playwright
+  (`uv run --no-project --with playwright`, `channel="msedge"`, no browser
+  download): start → tiles → times → review → qty → "last time's figures" →
+  extras → stock → 17 rates → complete, with no page errors and no horizontal
+  scroll at 400px.
 - **Rates are mandatory, and none is ever prefilled** (the user's rule).
   `write()` refuses while any problem remains: a missing rate, an empty quantity,
   or an override without a reason. The review columns from the reference sheet
