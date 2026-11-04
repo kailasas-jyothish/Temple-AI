@@ -114,15 +114,17 @@ def _quote(tab: str) -> str:
     return "'" + tab.replace("'", "''") + "'"
 
 
-def _purchase_formula(row: dict, net: str) -> Any:
-    """core._purchase as a formula. ROUND(…,9) first because the sheet works in
-    binary floats: 1.1/0.1 is 11.000000000000002, which CEILING takes to 12."""
+def _purchase_formula(row: dict, net: str, pack_size: str) -> Any:
+    """core._purchase as a formula, dividing by the visible Pack Size cell so a
+    pack size corrected in the sheet re-rounds the line. ROUND(…,9) first
+    because the sheet works in binary floats: 1.1/0.1 is 11.000000000000002,
+    which ROUNDUP takes to 12."""
     if row["overridden"]:
         return _n(row["purchase"])
     pack = row.get("pack")
-    q = f"{net}/{_n(Decimal(str(pack['size'])))}" if pack else net
+    q = f"{net}/{pack_size}" if pack else net
     if (pack and countable(pack["unit"])) or (not pack and row["whole"]):
-        return F(f"=CEILING(ROUND({q},9),1)")
+        return F(f"=ROUNDUP(ROUND({q},9),0)")
     return F(f"=ROUNDUP(ROUND({q},9),3)")
 
 
@@ -134,11 +136,14 @@ def section_grid(name: str, sec: dict, stamp: str) -> tuple[list[list[Any]], dic
             head += [f"{c['name']} (1×)", f"{c['name']} (×{c['times']})"]
         else:
             head.append(c["name"])
+    # Quantities above are what is asked for (480 dhupas); Pack Size and
+    # "Qty with rounded unit" turn that into what is bought (10 Pkt of 50).
     head += [sec["other_label"], "Total Required", "In Stock", "Net Required",
-             "Purchase Qty", "Purchase Unit", "Rate", "Amount", sec["note_label"]]
+             "Pack Size", "Qty with rounded unit", "Purchase Unit", "Rate", "Amount", sec["note_label"]]
     width = len(head)
-    other_c = width - 9
-    req_c, stock_c, net_c, buy_c, rate_c, amount_c = other_c + 1, other_c + 2, other_c + 3, other_c + 4, width - 3, width - 2
+    other_c = width - 10
+    req_c, stock_c, net_c, size_c, buy_c = other_c + 1, other_c + 2, other_c + 3, other_c + 4, other_c + 5
+    rate_c, amount_c = width - 3, width - 2
     rows: list[list[Any]] = [
         [f"{name} — {sec['title']}"] + [""] * (width - 1),
         [f"Written by Temple AI festival-budget on {stamp}. Edit the budget in the tool: "
@@ -185,7 +190,8 @@ def section_grid(name: str, sec: dict, stamp: str) -> tuple[list[list[Any]], dic
             F(f"=SUM({','.join(totals)})"),
             _n(row["stock"]),
             F(f"=MAX(0,{_ref(req_c, r)}-{_ref(stock_c, r)})"),
-            _purchase_formula(row, _ref(net_c, r)),
+            _n(Decimal(str(row["pack"]["size"]))) if row.get("pack") else "",
+            _purchase_formula(row, _ref(net_c, r), _ref(size_c, r)),
             row["purchase_unit"],
             rate,
             F(f"=ROUND({_ref(buy_c, r)}*{_ref(rate_c, r)},2)") if rate != "" else "",

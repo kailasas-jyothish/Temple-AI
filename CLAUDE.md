@@ -1713,6 +1713,12 @@ service README has usage.
   wraps in `ROUND(…,9)` because Sheets floats (1.1/0.1 → 11.000000000000002).
   `core._purchase` and `sheets._purchase_formula` must stay in step; a test
   evaluates every written formula and compares it to `core.calculate`.
+- **Asked qty vs bought qty (the user's "Qty with rounded unit").** Quantities
+  are what is asked for: number of dhupas, wicks, bundles. The sheet then has a
+  visible **Pack Size** value column, and **Qty with rounded unit** =
+  `ROUNDUP(Net/PackSize,0)` (or `,3` for weight packs). That column is the
+  final quantity bought, and Amount multiplies it. The user's example is
+  480 dhupas at 50/pkt, which gives 10. Agarbathi was corrected from 54 to 50 per pkt.
 - A rewrite clears only the tool's own three tabs, and they keep their sheetIds.
   Any other tab is left alone.
 - `core.py` is the only implementation. The CLI (`festival-budget.cmd`), the

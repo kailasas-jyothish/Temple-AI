@@ -280,11 +280,21 @@ def test_sheet_is_formulas_and_they_reproduce_the_calculation():
     ritual = grids["Ritual Budget"]
     head = ritual[2]
     ghee = next(r for r in ritual if r[0] == "Ghee")
-    for col in ("Total Required", "Net Required", "Purchase Qty", "Amount"):
+    for col in ("Total Required", "Net Required", "Qty with rounded unit", "Amount"):
         assert str(ghee[head.index(col)]).startswith("="), col
     assert ghee[head.index("Durga Puja (×2)")].startswith("=")
     lamp = next(r for r in ritual if r[0] == "Lamp")
-    assert lamp[head.index("Purchase Qty")] == 10  # a hand override stays a value
+    assert lamp[head.index("Qty with rounded unit")] == 10  # a hand override stays a value
+    # Pack size is a visible input, and the rounded qty divides by that cell
+    # (=ROUNDUP(net/size,0)), so correcting the size in the sheet re-rounds.
+    sticks = next(r for r in ritual if r[head.index("Purchase Unit")] == "PKT")
+    size_cell = sheets._ref(head.index("Pack Size"), ritual.index(sticks))
+    assert sticks[head.index("Pack Size")] == 54
+    assert f"/{size_cell}" in sticks[head.index("Qty with rounded unit")]
+    assert ghee[head.index("Pack Size")] == ""
+    # The user's own example: 480 dhupas, 50 to a packet -> 10 packets.
+    assert evaluate({"t": [[480, 50, sheets._purchase_formula(
+        {"overridden": False, "pack": {"unit": "PKT", "size": 50}, "whole": True}, "A1", "B1")]]})["t"][0][2] == 10
     assert any(str(r[head.index("Amount")]).startswith("=SUM(") for r in ritual if str(r[0]).startswith("Subtotal"))
     assert grids["Summary"][3][1].startswith("='Ritual Budget'!") and grids["Summary"][-1][1].startswith("=SUM(")
 
@@ -295,7 +305,7 @@ def test_sheet_is_formulas_and_they_reproduce_the_calculation():
         for row in sec["rows"]:
             got = next(r for r in tab if r[0] == row["name"])
             for col, key in (("Total Required", "required"), ("Net Required", "net"),
-                             ("Purchase Qty", "purchase"), ("Amount", "amount")):
+                             ("Qty with rounded unit", "purchase"), ("Amount", "amount")):
                 assert got[h.index(col)] == pytest.approx(float(row[key]), abs=1e-9), (row["name"], col)
         assert tab[-1][h.index("Amount")] == pytest.approx(float(sec["total"]), abs=1e-9)
     assert vals["Summary"][-1][1] == pytest.approx(float(result["total"]), abs=1e-9)
