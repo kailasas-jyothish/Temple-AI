@@ -1659,12 +1659,18 @@ and a parse failure quotes the page it got.
 
 **The sampradaya follows the Muktikopanishad order of the 108.** The first 21,
 as site ids (all extracted locally and on the server, 100% site check):
-`iisha kena katha prashna mundaka maandu tait aitareya chhaandogya bribasic
-brahma_upan kaivalya jabala shveta hansa aruni garbha nArAyaNopaniShat
-paramahamsa_upan amrtabindu_upan amritanada`. Notes:
-- Brihadaranyaka is `bribasic` (unaccented). `bri` is the svara version and
-  `brinew-proofed` has an anvaya. `bribasic` is flagged `accented` only because
-  "nissvaraH" matches the regex.
+`iisha kena katha prashna mundaka maandu taitaccent aitareyopaniShatsasvarA
+chhaandogya bri brahma_upan kaivalya jabala shveta hansa aruni garbha
+nArAyaNopaniShat paramahamsa_upan amrtabindu_upan amritanada`. Notes:
+- **The user's rule: always use the svara (sasvara) version when one exists.**
+  Of these 21, only Taittiriya, Aitareya and Brihadaranyaka have one. The
+  other 18 have no svara source anywhere on the site. Unlisted names in
+  `doc_upanishhat/` and the `doc_veda/` list were checked. The unaccented
+  `tait`, `aitareya` and `bribasic` were extracted too, but they are not the
+  ones to use. `bribasic` is flagged `accented` only because "nissvaraH"
+  matches the regex.
+- The Devanagari keeps the svara marks (॑ ॒ ᳚). IAST drops them by design. See
+  the IAST conventions above.
 - Hamsa, `hansa.itx`, is **not in the site's list** but exists in the folder.
   `extract` takes any id and does not need a catalog entry.
 - No. 20 is `amrtabindu_upan`. Some editions instead treat `brahmabindu` as the
