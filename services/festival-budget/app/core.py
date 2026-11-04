@@ -455,6 +455,8 @@ def calculate(b: dict, lib: dict | None = None) -> dict:
                 "required": required, "stock": stock, "net": net, "purchase": purchase,
                 "purchase_unit": purchase_unit(item), "rate": rate, "amount": amount, "note": note,
                 "has_stock": line.get("stock") is not None,
+                # what the sheet needs to rebuild purchase as a formula
+                "pack": item.get("pack"), "whole": bool(item.get("whole")), "overridden": override is not None,
             })
         rows.sort(key=lambda x: (x["vendor"] == "", x["vendor"].lower(), x["name"].lower()))
         vendors: dict[str, Decimal] = {}

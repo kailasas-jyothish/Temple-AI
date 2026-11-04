@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Any
 
 from . import config
-from .core import NOT_BUILT, BudgetError
+from .core import NOT_BUILT, BudgetError, countable
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SHEETS = "https://sheets.googleapis.com/v4/spreadsheets"
@@ -85,10 +85,45 @@ def create_spreadsheet(s: Any, title: str, folder_id: str) -> str:
 # ---------------------------------------------------------------- layout
 
 
+class F(str):
+    """A cell formula. Everything derived is written as one, so a person who
+    corrects a quantity, stock or rate in the sheet gets a sheet that still
+    adds up; only inputs are plain values."""
+
+
 def _n(d: Decimal | None) -> Any:
     if d is None:
         return ""
     return int(d) if d == d.to_integral_value() else float(d)
+
+
+def col(i: int) -> str:
+    s = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def _ref(c: int, r: int) -> str:
+    return f"{col(c)}{r + 1}"
+
+
+def _quote(tab: str) -> str:
+    return "'" + tab.replace("'", "''") + "'"
+
+
+def _purchase_formula(row: dict, net: str) -> Any:
+    """core._purchase as a formula. ROUND(…,9) first because the sheet works in
+    binary floats: 1.1/0.1 is 11.000000000000002, which CEILING takes to 12."""
+    if row["overridden"]:
+        return _n(row["purchase"])
+    pack = row.get("pack")
+    q = f"{net}/{_n(Decimal(str(pack['size'])))}" if pack else net
+    if (pack and countable(pack["unit"])) or (not pack and row["whole"]):
+        return F(f"=CEILING(ROUND({q},9),1)")
+    return F(f"=ROUNDUP(ROUND({q},9),3)")
 
 
 def section_grid(name: str, sec: dict, stamp: str) -> tuple[list[list[Any]], dict]:
@@ -102,55 +137,103 @@ def section_grid(name: str, sec: dict, stamp: str) -> tuple[list[list[Any]], dic
     head += [sec["other_label"], "Total Required", "In Stock", "Net Required",
              "Purchase Qty", "Purchase Unit", "Rate", "Amount", sec["note_label"]]
     width = len(head)
-    rate_col, amount_col = width - 3, width - 2
+    other_c = width - 9
+    req_c, stock_c, net_c, buy_c, rate_c, amount_c = other_c + 1, other_c + 2, other_c + 3, other_c + 4, width - 3, width - 2
     rows: list[list[Any]] = [
         [f"{name} — {sec['title']}"] + [""] * (width - 1),
         [f"Written by Temple AI festival-budget on {stamp}. Edit the budget in the tool: "
          "writing again replaces this tab."] + [""] * (width - 1),
         head,
     ]
-    marks = {"bold": [0, 2], "vendor": [], "total": [], "header": 2, "money_cols": (rate_col, amount_col + 1), "width": width}
+    marks = {"bold": [0, 2], "vendor": [], "total": [], "header": 2, "money_cols": (rate_c, amount_c + 1), "width": width}
     # Fruit has no vendor column in the library; a lone "Vendor: not set"
     # heading and a subtotal equal to the total would only be noise.
     grouped = any(row["vendor"] for row in sec["rows"])
     current = None
+    block: list[int] = []      # item rows of the current vendor
+    items: list[int] = []      # every item row
+    subtotals: list[int] = []
     for row in sec["rows"] + [None]:
         vendor = (row["vendor"] if row else None) if grouped else ("" if row else None)
         if grouped and current is not None and vendor != current:
             label = f"Subtotal — {current or 'No vendor'}"
-            rows.append([label] + [""] * (amount_col - 1) + [_n(sec["vendors"][current]), ""])
+            amt = F(f"=SUM({_ref(amount_c, block[0])}:{_ref(amount_c, block[-1])})")
+            rows.append([label] + [""] * (amount_c - 1) + [amt, ""])
             marks["total"].append(len(rows) - 1)
+            subtotals.append(len(rows) - 1)
+            block = []
         if row is None:
             break
         if grouped and vendor != current:
             rows.append([f"Vendor: {vendor or 'not set'}"] + [""] * (width - 1))
             marks["vendor"].append(len(rows) - 1)
             current = vendor
-        line = [row["name"], row["unit"]]
+        r = len(rows)
+        line: list[Any] = [row["name"], row["unit"]]
+        totals: list[str] = []
         for c, p in zip(sec["columns"], row["per"]):
-            line += [_n(p["one"]), _n(p["total"])] if c["times"] > 1 else [_n(p["total"])]
-        line += [_n(row["other"]), _n(row["required"]), _n(row["stock"]),
-                 _n(row["net"]), _n(row["purchase"]), row["purchase_unit"], _n(row["rate"]),
-                 _n(row["amount"]), row["note"]]
+            if c["times"] > 1:
+                one = _ref(len(line), r)
+                line += [_n(p["one"]), F(f"={one}*{c['times']}") if p["one"] is not None else ""]
+            else:
+                line.append(_n(p["total"]))
+            totals.append(_ref(len(line) - 1, r))
+        line.append(_n(row["other"]))
+        totals.append(_ref(other_c, r))
+        rate = _n(row["rate"])
+        line += [
+            F(f"=SUM({','.join(totals)})"),
+            _n(row["stock"]),
+            F(f"=MAX(0,{_ref(req_c, r)}-{_ref(stock_c, r)})"),
+            _purchase_formula(row, _ref(net_c, r)),
+            row["purchase_unit"],
+            rate,
+            F(f"=ROUND({_ref(buy_c, r)}*{_ref(rate_c, r)},2)") if rate != "" else "",
+            row["note"],
+        ]
         rows.append(line)
+        block.append(r)
+        items.append(r)
     rows.append([""] * width)
-    rows.append([f"TOTAL — {sec['title']}"] + [""] * (amount_col - 1) + [_n(sec["total"]), ""])
+    if subtotals:
+        total: Any = F("=" + "+".join(_ref(amount_c, s) for s in subtotals))
+    elif items:
+        total = F(f"=SUM({_ref(amount_c, items[0])}:{_ref(amount_c, items[-1])})")
+    else:
+        total = 0
+    rows.append([f"TOTAL — {sec['title']}"] + [""] * (amount_c - 1) + [total, ""])
     marks["total"].append(len(rows) - 1)
+    marks["total_cell"] = _ref(amount_c, len(rows) - 1)
     return rows, marks
 
 
-def summary_grid(name: str, result: dict, stamp: str) -> tuple[list[list[Any]], dict]:
+def summary_grid(name: str, sections: list[tuple[str, str]], stamp: str) -> tuple[list[list[Any]], dict]:
+    """sections: (tab title, A1 of that tab's TOTAL cell)."""
     rows: list[list[Any]] = [[f"{name} — Summary", ""], [f"Written on {stamp}", ""], ["Budget", "Amount"]]
-    for sec in result["sections"].values():
-        rows.append([sec["title"], _n(sec["total"])])
+    for title, cell in sections:
+        rows.append([title, F(f"={_quote(title)}!{cell}")])
     for title in NOT_BUILT:
         rows.append([f"{title} (not included yet)", ""])
-    rows.append(["TOTAL", _n(result["total"])])
+    # Spans the not-yet-built rows too, so a figure typed there is counted.
+    rows.append(["TOTAL", F(f"=SUM(B4:B{len(rows)})")])
     return rows, {"bold": [0, 2], "vendor": [], "total": [len(rows) - 1], "header": 2, "money_cols": (1, 2), "width": 2}
 
 
-def _a1(tab: str) -> str:
-    return "'" + tab.replace("'", "''") + "'!A1"
+def _cell(v: Any) -> dict:
+    if isinstance(v, F):
+        return {"userEnteredValue": {"formulaValue": str(v)}}
+    if isinstance(v, bool) or v is None or v == "":
+        return {}
+    if isinstance(v, (int, float)):
+        return {"userEnteredValue": {"numberValue": v}}
+    # Typed as a string, never parsed: an item called "1/2 coconut" stays text.
+    return {"userEnteredValue": {"stringValue": str(v)}}
+
+
+def _values_request(sheet_id: int, rows: list[list[Any]]) -> dict:
+    return {"updateCells": {"start": {"sheetId": sheet_id, "rowIndex": 0, "columnIndex": 0},
+                            "rows": [{"values": [_cell(v) for v in row]} for row in rows],
+                            "fields": "userEnteredValue"}}
 
 
 def _format_requests(sheet_id: int, rows: list[list[Any]], marks: dict) -> list[dict]:
@@ -205,9 +288,9 @@ def write_budget(b: dict, result: dict, *, spreadsheet: str | None = None, sessi
         created = True
 
     stamp = datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M UTC")
-    grids: dict[str, tuple[list[list[Any]], dict]] = {SUMMARY: summary_grid(b["name"], result, stamp)}
-    for sec in result["sections"].values():
-        grids[sec["title"]] = section_grid(b["name"], sec, stamp)
+    tabs = {sec["title"]: section_grid(b["name"], sec, stamp) for sec in result["sections"].values()}
+    refs = [(title, marks["total_cell"]) for title, (_, marks) in tabs.items()]
+    grids: dict[str, tuple[list[list[Any]], dict]] = {SUMMARY: summary_grid(b["name"], refs, stamp), **tabs}
 
     meta = _check(s.get(f"{SHEETS}/{sid}", params={"fields": "sheets.properties(sheetId,title,index)"}),
                   "reading the spreadsheet")
@@ -228,9 +311,10 @@ def write_budget(b: dict, result: dict, *, spreadsheet: str | None = None, sessi
         if props:
             existing[props["title"]] = props["sheetId"]
 
-    data = [{"range": _a1(t), "values": rows} for t, (rows, _) in grids.items()]
-    _check(s.post(f"{SHEETS}/{sid}/values:batchUpdate", json={"valueInputOption": "RAW", "data": data}),
-           "writing the values")
+    # Typed cells rather than values:batchUpdate: RAW would store formulas as
+    # text, and USER_ENTERED would also parse item names and notes.
+    data = [_values_request(existing[t], rows) for t, (rows, _) in grids.items()]
+    _check(s.post(f"{SHEETS}/{sid}:batchUpdate", json={"requests": data}), "writing the values")
 
     fmt_reqs: list[dict] = []
     for title, (rows, marks) in grids.items():

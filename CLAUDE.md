@@ -1704,6 +1704,15 @@ service README has usage.
   with it as Editor. The key is
   `temple@teak-mix-489419-v1.iam.gserviceaccount.com`, kept outside the repo.
   It is delivered to the host as `GOOGLE_SERVICE_ACCOUNT_JSON_B64`.
+- **The sheet is written with formulas (2026-11-04, the user's ask).** Inputs
+  (per-performance qty, others, stock, rate, an override) are values; ritual ×
+  times, Total Required, Net, Purchase Qty (pack/whole rounding), Amount,
+  vendor subtotals, tab totals and the Summary are formulas. Cells go in as typed
+  `updateCells` (`formulaValue`/`stringValue`), not `values:batchUpdate`: RAW
+  stores formulas as text, USER_ENTERED would parse item names. Purchase rounding
+  wraps in `ROUND(…,9)` because Sheets floats (1.1/0.1 → 11.000000000000002).
+  `core._purchase` and `sheets._purchase_formula` must stay in step; a test
+  evaluates every written formula and compares it to `core.calculate`.
 - A rewrite clears only the tool's own three tabs, and they keep their sheetIds.
   Any other tab is left alone.
 - `core.py` is the only implementation. The CLI (`festival-budget.cmd`), the

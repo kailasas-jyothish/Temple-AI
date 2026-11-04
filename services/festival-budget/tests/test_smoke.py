@@ -193,6 +193,114 @@ def filled_budget():
     return b
 
 
+def written_grids(s):
+    """{tab title: rows} from the typed updateCells requests; a formula comes
+    back as '=…', a blank cell as ''."""
+    names = {i: t for t, i in s.tabs.items()}
+    out = {}
+    for _, url, body in s.calls:
+        for req in (body or {}).get("requests", []):
+            uc = req.get("updateCells", {})
+            if "start" in uc:
+                out[names[uc["start"]["sheetId"]]] = [
+                    [next(iter(c["userEnteredValue"].values())) if c else "" for c in r["values"]] for r in uc["rows"]]
+    return out
+
+
+def evaluate(grids):
+    """A small spreadsheet engine, float arithmetic like Sheets, enough for
+    the formulas sheets.py writes. Returns {tab: rows of computed values}."""
+    import math
+    import re
+    from decimal import ROUND_HALF_UP, ROUND_UP
+
+    def addr(a):
+        m = re.fullmatch(r"([A-Z]+)(\d+)", a)
+        c = 0
+        for ch in m.group(1):
+            c = c * 26 + ord(ch) - 64
+        return int(m.group(2)) - 1, c - 1
+
+    memo = {}
+
+    def cell(tab, a):
+        r, c = addr(a)
+        if (tab, r, c) in memo:
+            return memo[(tab, r, c)]
+        rows = grids[tab]
+        v = rows[r][c] if r < len(rows) and c < len(rows[r]) else ""
+        if isinstance(v, str) and v.startswith("="):
+            v = calc(tab, v[1:])
+        memo[(tab, r, c)] = v
+        return v
+
+    def rng(tab, a, b):
+        (r0, c0), (r1, c1) = addr(a), addr(b)
+        return [cell(tab, f"{chr(65 + c)}{r + 1}") for r in range(r0, r1 + 1) for c in range(c0, c1 + 1)]
+
+    def num(v):
+        return v if isinstance(v, (int, float)) else 0
+
+    def flat(args):
+        for a in args:
+            yield from (flat(a) if isinstance(a, list) else [a])
+
+    def rnd(x, n, mode):
+        return float(Decimal(repr(float(x))).quantize(Decimal(1).scaleb(-int(n)), mode))
+
+    fns = {
+        "SUM": lambda *a: sum(x for x in flat(a) if isinstance(x, (int, float))),
+        "MAX": lambda *a: max(num(x) for x in flat(a)),
+        "ROUND": lambda x, n: rnd(num(x), n, ROUND_HALF_UP),
+        "ROUNDUP": lambda x, n: rnd(num(x), n, ROUND_UP),
+        "CEILING": lambda x, s: math.ceil(num(x) / s) * s,
+    }
+
+    def calc(tab, f):
+        def sub(m):
+            t = m.group(1).replace("''", "'") if m.group(1) else tab
+            if m.group(3):
+                return f"_rng({t!r},{m.group(2)!r},{m.group(3)!r})"
+            return f"_num(_cell({t!r},{m.group(2)!r}))"
+        py = re.sub(r"(?:'((?:[^']|'')+)'!)?\b([A-Z]+\d+)\b(?::([A-Z]+\d+))?", sub, f)
+        return eval(py, {"_cell": cell, "_rng": rng, "_num": num, **fns})
+
+    return {t: [[cell(t, f"{chr(65 + c)}{r + 1}") for c in range(len(row))] for r, row in enumerate(rows)]
+            for t, rows in grids.items()}
+
+
+def test_sheet_is_formulas_and_they_reproduce_the_calculation():
+    b = filled_budget()
+    core.set_line(b, "ghee", stock="0.35", rate="333.333")
+    core.set_line(b, "lamp", override="10", override_reason="sold in tens")
+    core.set_other(b, "banana", "1.1")
+    s = FakeSession()
+    core.write(b, spreadsheet="y" * 30, session=s)
+    grids = written_grids(s)
+    ritual = grids["Ritual Budget"]
+    head = ritual[2]
+    ghee = next(r for r in ritual if r[0] == "Ghee")
+    for col in ("Total Required", "Net Required", "Purchase Qty", "Amount"):
+        assert str(ghee[head.index(col)]).startswith("="), col
+    assert ghee[head.index("Durga Puja (×2)")].startswith("=")
+    lamp = next(r for r in ritual if r[0] == "Lamp")
+    assert lamp[head.index("Purchase Qty")] == 10  # a hand override stays a value
+    assert any(str(r[head.index("Amount")]).startswith("=SUM(") for r in ritual if str(r[0]).startswith("Subtotal"))
+    assert grids["Summary"][3][1].startswith("='Ritual Budget'!") and grids["Summary"][-1][1].startswith("=SUM(")
+
+    result = core.calculate(b)
+    vals = evaluate(grids)
+    for sec in result["sections"].values():
+        tab, h = vals[sec["title"]], grids[sec["title"]][2]
+        for row in sec["rows"]:
+            got = next(r for r in tab if r[0] == row["name"])
+            for col, key in (("Total Required", "required"), ("Net Required", "net"),
+                             ("Purchase Qty", "purchase"), ("Amount", "amount")):
+                assert got[h.index(col)] == pytest.approx(float(row[key]), abs=1e-9), (row["name"], col)
+        assert tab[-1][h.index("Amount")] == pytest.approx(float(sec["total"]), abs=1e-9)
+    assert vals["Summary"][-1][1] == pytest.approx(float(result["total"]), abs=1e-9)
+
+
 def test_write_creates_in_folder_lays_out_tabs_and_drops_sheet1(monkeypatch):
     monkeypatch.setattr(config, "BUDGET_FOLDER_ID", "folder123")
     b = filled_budget()
@@ -201,19 +309,17 @@ def test_write_creates_in_folder_lays_out_tabs_and_drops_sheet1(monkeypatch):
     assert info["id"] == "x" * 30 and core.load_budget(b["id"])["spreadsheet"]["id"] == info["id"]
     drive = [c for c in s.calls if c[1] == sheets.DRIVE][0][2]
     assert drive["parents"] == ["folder123"]
-    values = [c[2] for c in s.calls if c[1].endswith("values:batchUpdate")][0]
-    assert values["valueInputOption"] == "RAW"
-    grid = {d["range"]: d["values"] for d in values["data"]}
-    ritual = grid["'Ritual Budget'!A1"]
+    grid = written_grids(s)
+    ritual = grid["Ritual Budget"]
     head = ritual[2]
     assert head[:2] == ["Item", "Unit"] and "Durga Puja (1×)" in head and "Durga Puja (×2)" in head
     assert head[-3:] == ["Rate", "Amount", "Notes"]
     assert ritual[-1][0] == "TOTAL — Ritual Budget"
     assert any(r[0] == "Vendor: Dairy" for r in ritual)
-    fruit = grid["'Fruit Budget'!A1"]
+    fruit = grid["Fruit Budget"]
     assert "Miscellaneous" in fruit[2] and fruit[2][-1] == "Purpose"
     assert not any(str(r[0]).startswith("Vendor:") for r in fruit)
-    summary = grid["'Summary'!A1"]
+    summary = grid["Summary"]
     assert summary[-1][0] == "TOTAL" and any("Flowers Budget" in r[0] for r in summary)
     fmt = [c[2] for c in s.calls if c[1].endswith(":batchUpdate") and "values" not in c[1]][-1]["requests"]
     assert {"deleteSheet": {"sheetId": 0}} in fmt
