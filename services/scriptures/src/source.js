@@ -57,13 +57,22 @@ const sourcesDir = () => path.join(config.dataDir, 'sources');
  */
 export async function getSource(name, opts = {}) {
   if (!/^[\w.\-~]+$/.test(name)) throw new Error(`bad source name: ${name}`);
+  return cached(name, `${config.sourceBase}${config.catalogPath}${encodeURIComponent(name)}`, opts);
+}
+
+/**
+ * @param {string} name cache file under sources/
+ * @param {string} url
+ * @param {{ refresh?: boolean }} opts
+ */
+async function cached(name, url, opts) {
   const file = path.join(sourcesDir(), name);
   if (!opts.refresh) {
     try {
       return await fs.readFile(file, 'utf8');
     } catch {}
   }
-  const text = await politeFetch(`${config.sourceBase}${config.catalogPath}${encodeURIComponent(name)}`);
+  const text = await politeFetch(url);
   await fs.mkdir(sourcesDir(), { recursive: true });
   await fs.writeFile(file + '.tmp', text);
   await fs.rename(file + '.tmp', file);
@@ -78,9 +87,16 @@ export async function getCatalog(opts = {}) {
       return /** @type {import('./catalog.js').CatalogEntry[]} */ (JSON.parse(await fs.readFile(file, 'utf8')));
     } catch {}
   }
-  const html = await getSource('index.html', opts);
+  // The directory URL, not index.html: the site keeps a stale 2000s-era
+  // index.html in that folder whose unquoted relative links list none of the
+  // current files, while the directory itself serves the maintained list.
+  const html = await cached('catalog-page.html', `${config.sourceBase}${config.catalogPath}`, opts);
   const entries = parseCatalog(html, config.catalogPath);
-  if (!entries.length) throw new Error('the catalog page listed no texts; has the site layout changed?');
+  if (!entries.length) {
+    const title = /<title>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() || 'no <title>';
+    const preview = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    throw new Error(`the catalog page listed no texts (${html.length} bytes, "${title}": ${preview})`);
+  }
   await fs.mkdir(config.dataDir, { recursive: true });
   await fs.writeFile(file, JSON.stringify(entries, null, 1));
   return entries;
