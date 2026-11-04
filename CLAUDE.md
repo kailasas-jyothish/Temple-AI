@@ -1649,6 +1649,26 @@ Deployed: the container rolled and is healthy, `/healthz` is open, the UI
 answers 401 without auth and 200 with it, `/api/config` reports the key set
 without leaking it, and the dashboard card is live. **Not verified:** any live
 OpenRouter translation (no model chosen yet) and the web UI in a browser.
+
+**The catalog 500 (fixed 2026-11-04) was not an IP block.** The site keeps a
+stale legacy `doc_upanishhat/index.html` (27 KB, unquoted relative links to old
+file names). The maintained list (231 texts) is served at the directory URL
+`doc_upanishhat/`. The code fetched `index.html`, so it failed everywhere, on
+the laptop as well. It now caches the directory page as `catalog-page.html`,
+and a parse failure quotes the page it got.
+
+**The sampradaya follows the Muktikopanishad order of the 108.** The first 21,
+as site ids (all extracted locally and on the server, 100% site check):
+`iisha kena katha prashna mundaka maandu tait aitareya chhaandogya bribasic
+brahma_upan kaivalya jabala shveta hansa aruni garbha nArAyaNopaniShat
+paramahamsa_upan amrtabindu_upan amritanada`. Notes:
+- Brihadaranyaka is `bribasic` (unaccented). `bri` is the svara version and
+  `brinew-proofed` has an anvaya. `bribasic` is flagged `accented` only because
+  "nissvaraH" matches the regex.
+- Hamsa, `hansa.itx`, is **not in the site's list** but exists in the folder.
+  `extract` takes any id and does not need a catalog entry.
+- No. 20 is `amrtabindu_upan`. Some editions instead treat `brahmabindu` as the
+  Muktika's Amritabindu.
 ---
 
 ## 20. Festival Budget (`services/festival-budget`, 2026-11-02)
@@ -1809,6 +1829,5 @@ seven pages loaded with no page errors.
 **Not verified:** HTTPS through Cloudflare. It cannot work until the cert issue
 is resolved.
 
-**Found while checking (not the gateway):** scriptures' `/api/catalog` returns
-500 "the catalog page listed no texts" both through the gateway and directly on
-:8483. The sanskritdocuments.org catalog fetch is failing from the server.
+**Found while checking (not the gateway):** scriptures' `/api/catalog` returned
+500 "the catalog page listed no texts". Fixed 2026-11-04, see §19.
