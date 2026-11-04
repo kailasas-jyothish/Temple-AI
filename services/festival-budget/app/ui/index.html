@@ -294,6 +294,9 @@ const QUESTION = {
         ${groups.map((g) => { const m = consts.filter((r) => r.group === g); const all = m.every((r) => have.has(r.id));
           return `<h4>${icon(g)} ${esc(g)} <button class="link" data-group="${esc(g)}" data-all="${all ? 1 : 0}">${all ? "remove all" : "pick all"}</button></h4><div class="tiles">${m.map(tile).join("")}</div>`; }).join("")}
         <h4>Festival rituals</h4><div class="tiles">${LIB.rituals.filter((r) => r.kind !== "constant").map(tile).join("")}</div>
+        <h4>Not in the list?</h4>
+        <div class="row"><input id="newRit" placeholder="e.g. Bharani Deepam" style="flex:1;min-width:180px"><button id="newRitAdd">+ Add ritual</button></div>
+        <p class="hint">It is added to this budget, and its name is kept for future budgets. Next you'll be asked which items it needs.</p>
         <div class="row"><button class="primary" id="go" ${n ? "" : "disabled"}>${n ? `Continue with ${plural(n, "ritual")} →` : "Pick at least one"}</button></div>`,
       skip: false,
       bind() {
@@ -311,6 +314,17 @@ const QUESTION = {
           const body = b.dataset.all === "1" ? LIB.rituals.filter((r) => r.group === g).map((r) => ({ op: "remove", ritual: r.id })) : { op: "add_group", group: g, times: 1 };
           if (await op(body)) render();
         }));
+        const addNew = async () => {
+          const name = $("newRit").value.trim();
+          if (!name) return $("newRit").focus();
+          let r;
+          try { r = await api("api/library/ritual", { method: "POST", body: JSON.stringify({ name, kind: "variable", new: true }) }); await loadLibrary(); }
+          catch (e) { return toast(e.message); }
+          if (!ritual(r.id) && !(await op({ op: "add", ritual: r.id, times: 1 }))) return;
+          toast(`${r.name} added`); render();
+        };
+        $("newRitAdd").addEventListener("click", addNew);
+        $("newRit").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addNew(); } });
         $("go").addEventListener("click", () => answer(null));
       },
     };
@@ -377,6 +391,7 @@ const QUESTION = {
       html: `<p class="q">${icon(r.name)} What does ${esc(r.name)} need?</p>
         <p class="hint">It has no items in the library yet. Add each one with its quantity for one performance, or leave it out of this budget.</p>
         ${addItemRow(r, true)}
+        <p class="muted small">An item missing from the list? Add it under <b>Library</b> at the bottom of the page, then choose it here.</p>
         <div class="alt"><button class="link" id="drop">Leave ${esc(r.name)} out of this budget</button></div>`,
       bind() {
         bindAddItem(q);

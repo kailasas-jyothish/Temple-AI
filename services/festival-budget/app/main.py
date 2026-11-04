@@ -79,6 +79,13 @@ def library_item(body: dict = Body(...), _: bool = Depends(authed)) -> dict:
 def library_ritual(body: dict = Body(...), _: bool = Depends(authed)) -> dict:
     with _lock:
         lib = core.load_library()
+        # "new" comes from the questionnaire's "not in the list" box: a name that
+        # already exists picks that ritual, never replaces it and its quantities.
+        if body.get("new"):
+            name = str(body.get("name", "")).strip()
+            for r in lib["rituals"]:
+                if r["id"] == core.slug(name) or r["name"].strip().lower() == name.lower():
+                    return r
         try:
             r = core.save_ritual(lib, name=body.get("name", ""), kind=body.get("kind", "variable"),
                                  group=body.get("group", ""), items=body.get("items") or {},

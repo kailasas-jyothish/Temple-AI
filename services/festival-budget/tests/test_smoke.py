@@ -397,3 +397,17 @@ def test_api_ops_apply_all_or_none():
     assert "lamp" not in after["lines"]
     w = client.post(f"/api/budgets/{bid}/write", json={})
     assert w.status_code == 422 and "rate for" in w.json()["detail"]
+
+
+def test_a_ritual_added_from_the_questionnaire_joins_the_budget_and_asks_for_items():
+    bid = client.post("/api/budgets", json={"name": "Brahmotsavam"}).json()["budget"]["id"]
+    r = client.post("/api/library/ritual", json={"name": "Bharani Deepam", "kind": "variable", "new": True}).json()
+    assert r["id"] == "bharani_deepam" and r["items"] == {}
+    v = client.post(f"/api/budgets/{bid}/ops", json=[
+        {"op": "add", "ritual": r["id"], "times": 1},
+        {"op": "qty", "ritual": r["id"], "item": "ghee", "qty": "2"},
+    ]).json()
+    assert v["budget"]["rituals"][0]["qty"] == {"ghee": "2"}
+    # Typing an existing name picks that ritual; it must not wipe its quantities.
+    same = client.post("/api/library/ritual", json={"name": "durga puja", "kind": "variable", "new": True}).json()
+    assert same["id"] == "durga_puja" and same["items"]["firewood"] == 30

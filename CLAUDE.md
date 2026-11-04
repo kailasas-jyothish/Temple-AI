@@ -1719,6 +1719,14 @@ service README has usage.
   `ROUNDUP(Net/PackSize,0)` (or `,3` for weight packs). That column is the
   final quantity bought, and Amount multiplies it. The user's example is
   480 dhupas at 50/pkt, which gives 10. Agarbathi was corrected from 54 to 50 per pkt.
+  The user confirmed: wicks are Pkt of 50, betel nut is bought by the kg (by weight),
+  and samith comes in bags of 100 bundles.
+- **New rituals from the questionnaire.** The ritual-picking question has a "Not in
+  the list?" box (Bharani Deepam, Karthigai Deepam). It saves an empty variable
+  ritual (`new: true`) and adds it to the budget, and the existing "add its
+  items" question takes over from there. With `new: true`, a name that already
+  exists picks that ritual and never replaces it. A plain save would overwrite
+  its library quantities.
 - A rewrite clears only the tool's own three tabs, and they keep their sheetIds.
   Any other tab is left alone.
 - `core.py` is the only implementation. The CLI (`festival-budget.cmd`), the
