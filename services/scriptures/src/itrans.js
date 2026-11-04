@@ -67,16 +67,25 @@ export function stripAccents(deva) {
   return deva.replace(SVARA, '');
 }
 
+// Each svara is mirrored one to one onto the Latin vowel it marks: udātta/
+// svarita ॑ → a̍ (U+030D), anudātta ॒ → a̱ (U+0331), dīrgha svarita ᳚ → a̎
+// (U+030E). sanscript itself writes ॑ as U+032D and passes the other two
+// through as Devanagari signs, which no Latin font draws on a Latin letter.
+/** @type {Record<string, string>} */
+const IAST_SVARA = { '̭': '̍', '॒': '̱', '᳚': '̎' };
+// The Devanagari writes the accent after a following ं/ः (वायुः॑); in IAST it
+// belongs on the vowel (vāyu̍ḥ), so it is moved in front of the yogavaha first.
+const ACCENT_AFTER_YOGAVAHA = new RegExp(`([${YOGAVAHA}])([॒॑᳚]+)`, 'g');
+
 /**
  * Devanagari to IAST. Always derived from the Devanagari, so the two columns
- * cannot disagree. Accents are dropped first: sanscript's IAST accent output
- * is not a convention any reader would recognise (॑ comes out as U+032D).
+ * cannot disagree, svaras included.
  * @param {string} deva
  */
 export function toIast(deva) {
   // प्रउग and प्रौग would both come out "prauga". IAST writes the hiatus with a
   // diaeresis (praüga, aïkya), so the vowel after an inherent a is marked first.
-  const marked = stripAccents(deva).replace(/([अक-हक़-य़]़?)([इउ])/g, '$1$2').replace(/ꣳ/g, '');
+  const marked = deva.replace(ACCENT_AFTER_YOGAVAHA, '$2$1').replace(/([अक-हक़-य़]़?)([इउ])/g, '$1$2').replace(/ꣳ/g, '');
   const out = Sanscript.t(marked, 'devanagari', 'iast')
     .replace(/ai/g, 'aï')
     .replace(/au/g, 'aü')
@@ -85,7 +94,8 @@ export function toIast(deva) {
     // apart from both that and the ordinary anusvara ṃ.
     .replace(//g, 'ṁ')
     // Vedic ळ: ḻ is the usual spelling (ḷ is already vocalic ऌ).
-    .replace(/l̤/g, 'ḻ');
+    .replace(/l̤/g, 'ḻ')
+    .replace(/[̭॒᳚]/g, (m) => IAST_SVARA[m]);
   // sanscript writes candrabindu as "~"; m̐ is the IAST convention.
   return out.replace(/~/g, 'm̐').normalize('NFC');
 }

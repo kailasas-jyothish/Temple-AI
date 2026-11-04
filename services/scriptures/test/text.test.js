@@ -30,8 +30,11 @@ test('ITRANS dialect to Devanagari and IAST', () => {
   assert.equal(toDevanagari('IshA vAsyamida{\\m+} sarvaM'), 'ईशा वास्यमिदꣳ सर्वं');
   assert.equal(toDevanagari('yatki~ncha'), 'यत्किञ्च');
   assert.equal(toIast('ईशा वास्यमिदꣳ सर्वं'), 'īśā vāsyamidaṁ sarvaṃ');
-  // Accents stay in the Devanagari and are dropped from IAST.
-  assert.equal(toIast('अ॒ग्निमी॑ळे'), 'agnimīḻe');
+  // Svaras are mirrored one to one: ॒ → U+0331, ॑ → U+030D, ᳚ → U+030E, on the vowel.
+  assert.equal(toIast('अ॒ग्निमी॑ळे'), 'a̱gnimī̍ḻe');
+  assert.equal(toIast('वा॒यु॒ः॑'), 'vā̱yu̱̍ḥ');
+  assert.equal(toIast('क᳚'), 'ka̎');
+  assert.equal(toIast('ता॒ꣳ॑'), 'tā̱̍ṁ');
   assert.equal(toIast('तँ'), 'tam̐');
 });
 

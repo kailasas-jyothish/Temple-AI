@@ -1631,7 +1631,12 @@ side. Port 8483 → 3400, Dokploy `Temple-scriptures`, volume
   `{\m+}` is ꣳ; `\"` is ᳚; and **`{}` between letters is a separator**
   (`pra{}uga` = प्रउग), so dropping it gives प्रौग.
 - **IAST conventions:** ꣳ → ṁ (sanscript gives m̐), hiatus → diaeresis
-  (praüga), ळ → ḻ, and no accents (sanscript's IAST accents are U+032D).
+  (praüga), ळ → ḻ. **Svaras are mirrored one to one** (the user's choice,
+  2026-11-04): ॒ → U+0331 (a̱), ॑ → U+030D (a̍), ᳚ → U+030E (a̎), on the
+  vowel. An accent after ं/ः is moved onto the vowel first (vāyu̍ḥ). sanscript
+  alone would give U+032D for ॑ and pass ॒/᳚ through as Devanagari signs.
+  Where the site puts ᳚ after a final halant (वक्तारम्᳚) the mirror keeps it
+  there (vaktāram̎), 34 places across the three svara texts.
 - **Corpus check** (`scripts/corpus.js`): 226 of 231 texts are fully clean
   against the site's page. The remaining 5 are source typos (`|a`, `|na`), site
   garbage or omissions, and one commentary.
@@ -1669,7 +1674,7 @@ nArAyaNopaniShat paramahamsa_upan amrtabindu_upan amritanada`. Notes:
   `tait`, `aitareya` and `bribasic` were extracted too, but they are not the
   ones to use. `bribasic` is flagged `accented` only because "nissvaraH"
   matches the regex.
-- The Devanagari keeps the svara marks (॑ ॒ ᳚). IAST drops them by design. See
+- The Devanagari keeps the svara marks (॑ ॒ ᳚), and the IAST mirrors them. See
   the IAST conventions above.
 - Hamsa, `hansa.itx`, is **not in the site's list** but exists in the folder.
   `extract` takes any id and does not need a catalog entry.
